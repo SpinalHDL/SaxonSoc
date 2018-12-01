@@ -33,6 +33,7 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
   soc.io.flash <> io.flash
   soc.io.uartA <> io.uart
   soc.io.gpioA.read := io.switches ## B"0000"
+  soc.io.jtag <> io.jtag
 
   val ledDriver = SB_RGBA_DRV()
   ledDriver.CURREN   := True

@@ -2,13 +2,13 @@ package saxon
 
 import spinal.core._
 import spinal.lib._
-import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3Decoder}
+import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3Decoder, Apb3Gpio}
 import spinal.lib.bus.misc._
 import spinal.lib.bus.simple._
 import spinal.lib.com.jtag.Jtag
 import spinal.lib.com.spi.SpiMaster
 import spinal.lib.com.spi.ddr.{Apb3SpiXdrMasterCtrl, SpiXdrMaster, SpiXdrMasterCtrl, SpiXdrParameter}
-import spinal.lib.com.uart.Uart
+import spinal.lib.com.uart._
 import spinal.lib.io.TriStateArray
 import vexriscv.demo.Apb3Rom
 import vexriscv.{plugin, _}
@@ -24,6 +24,25 @@ case class SaxonSocParameters(ioClkFrequency : HertzNumber,
                               withMemoryStage : Boolean = false,
                               hardwareBreakpointsCount : Int = 2,
                               gpioAWidth : Int = 8,
+                              uartACtrlConfig : UartCtrlMemoryMappedConfig = UartCtrlMemoryMappedConfig(
+                                uartCtrlConfig = UartCtrlGenerics(
+                                  dataWidthMax      = 8,
+                                  clockDividerWidth = 20,
+                                  preSamplingSize   = 1,
+                                  samplingSize      = 3,
+                                  postSamplingSize  = 1
+                                ),
+                                initConfig = UartCtrlInitConfig(
+                                  baudrate = 115200,
+                                  dataLength = 7,  //7 => 8 bits
+                                  parity = UartParityType.NONE,
+                                  stop = UartStopType.ONE
+                                ),
+                                busCanWriteClockDividerConfig = false,
+                                busCanWriteFrameConfig = false,
+                                txFifoDepth = 16,
+                                rxFifoDepth = 16
+                              ),
                               flashCtrl: SpiXdrMasterCtrl.MemoryMappingParameters = SpiXdrMasterCtrl.MemoryMappingParameters(
                                 SpiXdrMasterCtrl.Parameters(
                                   dataWidth = 8,
@@ -177,18 +196,10 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
 
   //There is defined the whole SoC stuff
   val system = new ClockingArea(systemClockDomain) {
-
-    val mainBusConfig = PipelinedMemoryBusConfig(
-      addressWidth = 20,
-      dataWidth = 32
-    )
-
     //Define the different memory busses and interconnect that will be use in the SoC
     val interconnect = PipelinedMemoryBusInterconnect()
 
-    val dBus = PipelinedMemoryBus(mainBusConfig)
-    val iBus = PipelinedMemoryBus(mainBusConfig)
-    val mainBus = PipelinedMemoryBus(mainBusConfig)
+    val mainBus = PipelinedMemoryBus(addressWidth = 32, dataWidth = 32)
     interconnect.addSlave(mainBus, DefaultMapping)
 
     val apbMapping = ArrayBuffer[(Apb3, SizeMapping)]()
@@ -205,7 +216,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
 
     //Define slave/peripheral components
     val ram = Spram()
-    interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000,  64 kB))
+    interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000l,  64 kB))
 
     val xip = new Area {
       val ctrl = Apb3SpiXdrMasterCtrl(p.flashCtrl)
@@ -215,7 +226,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
       val accessBus = ctrl.io.xip.fromPipelinedMemoryBus()
       interconnect.addSlave(accessBus, SizeMapping(0x01000000l, 16 MB))
 
-      val bootloader = Apb3Rom("src/main/c/murax/xipBootloader/crt.bin")
+      val bootloader = Apb3Rom("software/bootloader/up5kEvn.bin")
       apbMapping += bootloader.io.apb -> (0x1E000, 4 kB)
     }
 
@@ -223,7 +234,19 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
     val machineTimer = MachineTimer()
     apbMapping += machineTimer.io.bus -> (0x08000, 4 kB)
 
+    val gpioACtrl = Apb3Gpio(8)
+    apbMapping += gpioACtrl.io.apb -> (0x20000, 4 kB)
+    gpioACtrl.io.gpio <> io.gpioA
+
+    val uartCtrl = Apb3UartCtrl(p.uartACtrlConfig)
+    uartCtrl.io.uart <> io.uartA
+    apbMapping += uartCtrl.io.apb  -> (0x10000, 4 kB)
+
+
     //Specify which master bus can access to which slave/peripheral
+    val dBus = PipelinedMemoryBus(mainBus.config)
+    val iBus = PipelinedMemoryBus(mainBus.config)
+
     interconnect.addMasters(
       dBus   -> List(mainBus),
       iBus   -> List(mainBus,    xip.accessBus),
