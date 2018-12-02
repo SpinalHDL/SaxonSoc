@@ -20,7 +20,7 @@ object SaxonSim {
   def main(args: Array[String]): Unit = {
     val simSlowDown = false
     def p = SaxonSocParameters.default
-    SimConfig.withWave(1).addRtl("test/common/up5k_cells_sim.v").compile(new SaxonSoc(p)).doSimUntilVoid{dut =>
+    SimConfig.withWave.addRtl("test/common/up5k_cells_sim.v").compile(new SaxonSoc(p)).doSimUntilVoid{dut =>
       val systemClkPeriod = (1e12/dut.p.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 115200

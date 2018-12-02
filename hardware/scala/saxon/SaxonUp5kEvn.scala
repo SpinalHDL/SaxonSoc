@@ -23,6 +23,9 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
     val IOT_13B = out Bool()
     val IOT_16A = in  Bool()
 
+    val IOB_22A = out Bool()
+    val IOB_23B = out Bool()
+
     val IOB_29B = in  Bool()
     val IOB_31B = in  Bool()
     val IOB_20A = out Bool()
@@ -60,6 +63,9 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
   ledDriver.RGB1 <> io.LED_GREEN
   ledDriver.RGB2 <> io.LED_RED
 
+  //debug
+  io.IOB_22A := soc.systemClockDomain.readClockWire
+  io.IOB_23B := soc.systemClockDomain.readResetWire
 
   val xip = new ClockingArea(soc.systemClockDomain) {
     RegNext(soc.io.flash.ss.asBool) <> io.ICE_SS

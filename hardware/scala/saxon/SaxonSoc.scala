@@ -26,7 +26,8 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
                               hardwareBreakpointsCount : Int,
                               gpioAWidth : Int,
                               uartACtrlConfig : UartCtrlMemoryMappedConfig,
-                              flashCtrl: SpiXdrMasterCtrl.MemoryMappingParameters){
+                              flashCtrl: SpiXdrMasterCtrl.MemoryMappingParameters,
+                              bootloaderBin : String){
 
   def withArgs(args : Seq[String]) = this.copy(
 
@@ -39,7 +40,7 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
       withWriteBackStage = false,
       List(
         new IBusCachedPlugin(
-          resetVector = 0xF001E000l,
+          resetVector = if(bootloaderBin != null) 0xF001E000l else 0x01100000l,
           config = InstructionCacheConfig(
             cacheSize = 4096,
             bytePerLine = 32,
@@ -123,6 +124,7 @@ object SaxonSocParameters{
     executeRf = false,
     hardwareBreakpointsCount  = 2,
     gpioAWidth = 8,
+    bootloaderBin = null,  //"software/bootloader/up5kEvn.bin"
     uartACtrlConfig = UartCtrlMemoryMappedConfig(
       uartCtrlConfig = UartCtrlGenerics(
         dataWidthMax      = 8,
@@ -145,11 +147,32 @@ object SaxonSocParameters{
     flashCtrl = SpiXdrMasterCtrl.MemoryMappingParameters(
       SpiXdrMasterCtrl.Parameters(
         dataWidth = 8,
-        timerWidth = 4,
+        timerWidth = 0,
         spi = SpiXdrParameter(2, 2, 1)
-      ).addFullDuplex(0,1,false),
-      cmdFifoDepth = 2,
+//      ).addFullDuplex(0,2,false),
+      ).addFullDuplex(0,2,false).addHalfDuplex(id=1, rate=2, ddr=false, spiWidth=2),
+    cmdFifoDepth = 2,
       rspFifoDepth = 2,
+      cpolInit = false,
+      cphaInit = false,
+      modInit = 0,
+      sclkToogleInit = 0,
+      ssSetupInit = 0,
+      ssHoldInit = 0,
+      ssDisableInit = 0,
+      xipConfigWritable = false,
+      xipEnableInit = true,
+      xipInstructionEnableInit = true,
+      xipInstructionModInit = 0,
+      xipAddressModInit = 0,
+      xipDummyModInit = 0,
+      xipPayloadModInit = 1,
+        //      xipInstructionDataInit = 0x0B,
+//      xipDummyCountInit = 0,
+//      xipDummyDataInit = 0xFF,
+      xipInstructionDataInit = 0x3B,
+      xipDummyCountInit = 0,
+      xipDummyDataInit = 0xFF,
       xip = SpiXdrMasterCtrl.XipBusParameters(addressWidth = 24, dataWidth = 32)
     )
   )
@@ -241,8 +264,10 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
 
       val accessBus = ctrl.io.xip.fromPipelinedMemoryBus()
       interconnect.addSlave(accessBus, SizeMapping(0x01000000l, 16 MB))
+    }
 
-      val bootloader = Apb3Rom("software/bootloader/up5kEvn.bin")
+    val bootloader = (p.bootloaderBin != null) generate new Area{
+      val bootloader = Apb3Rom(p.bootloaderBin)
       apbMapping += bootloader.io.apb -> (0x1E000, 4 kB)
     }
 
