@@ -1,5 +1,5 @@
 #define CTRL_BASE 0xF001F000
-#define XIP_BASE 0x01000000
+#define XIP_BASE 0x01100000
 #define CTRL_DATA 0x00
 #define CTRL_STATUS 0x04
 #define CTRL_MODE 0x08

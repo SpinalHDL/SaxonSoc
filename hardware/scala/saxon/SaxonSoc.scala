@@ -18,41 +18,14 @@ import vexriscv.plugin._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-//Class used to store the SoC configur
-case class SaxonSocParameters(ioClkFrequency : HertzNumber,
-                              ioSerialBaudRate : Int,
-                              withMemoryStage : Boolean = false,
-                              hardwareBreakpointsCount : Int = 2,
-                              gpioAWidth : Int = 8,
-                              uartACtrlConfig : UartCtrlMemoryMappedConfig = UartCtrlMemoryMappedConfig(
-                                uartCtrlConfig = UartCtrlGenerics(
-                                  dataWidthMax      = 8,
-                                  clockDividerWidth = 20,
-                                  preSamplingSize   = 1,
-                                  samplingSize      = 3,
-                                  postSamplingSize  = 1
-                                ),
-                                initConfig = UartCtrlInitConfig(
-                                  baudrate = 115200,
-                                  dataLength = 7,  //7 => 8 bits
-                                  parity = UartParityType.NONE,
-                                  stop = UartStopType.ONE
-                                ),
-                                busCanWriteClockDividerConfig = false,
-                                busCanWriteFrameConfig = false,
-                                txFifoDepth = 16,
-                                rxFifoDepth = 16
-                              ),
-                              flashCtrl: SpiXdrMasterCtrl.MemoryMappingParameters = SpiXdrMasterCtrl.MemoryMappingParameters(
-                                SpiXdrMasterCtrl.Parameters(
-                                  dataWidth = 8,
-                                  timerWidth = 4,
-                                  spi = SpiXdrParameter(2, 2, 1)
-                                ).addFullDuplex(0,1,false),
-                                cmdFifoDepth = 2,
-                                rspFifoDepth = 2,
-                                xip = SpiXdrMasterCtrl.XipBusParameters(addressWidth = 24, dataWidth = 32)
-                              )){
+//Class used to store the SoC configure
+case class SaxonSocParameters(clkFrequency : HertzNumber,
+                              uartBaudRate : Int,
+                              withMemoryStage : Boolean,
+                              hardwareBreakpointsCount : Int,
+                              gpioAWidth : Int,
+                              uartACtrlConfig : UartCtrlMemoryMappedConfig,
+                              flashCtrl: SpiXdrMasterCtrl.MemoryMappingParameters){
 
   def withArgs(args : Seq[String]) = this.copy(
 
@@ -139,6 +112,47 @@ case class SaxonSocParameters(ioClkFrequency : HertzNumber,
   }
 }
 
+
+object SaxonSocParameters{
+  def default = up5kEvnDefault
+  def up5kEvnDefault = SaxonSocParameters(
+    clkFrequency = 12 MHz,
+    uartBaudRate = 115200,
+    withMemoryStage = false,
+    hardwareBreakpointsCount  = 2,
+    gpioAWidth = 8,
+    uartACtrlConfig = UartCtrlMemoryMappedConfig(
+      uartCtrlConfig = UartCtrlGenerics(
+        dataWidthMax      = 8,
+        clockDividerWidth = 20,
+        preSamplingSize   = 1,
+        samplingSize      = 3,
+        postSamplingSize  = 1
+      ),
+      initConfig = UartCtrlInitConfig(
+        baudrate = 115200,
+        dataLength = 7,  //7 => 8 bits
+        parity = UartParityType.NONE,
+        stop = UartStopType.ONE
+      ),
+      busCanWriteClockDividerConfig = false,
+      busCanWriteFrameConfig = false,
+      txFifoDepth = 16,
+      rxFifoDepth = 16
+    ),
+    flashCtrl = SpiXdrMasterCtrl.MemoryMappingParameters(
+      SpiXdrMasterCtrl.Parameters(
+        dataWidth = 8,
+        timerWidth = 4,
+        spi = SpiXdrParameter(2, 2, 1)
+      ).addFullDuplex(0,1,false),
+      cmdFifoDepth = 2,
+      rspFifoDepth = 2,
+      xip = SpiXdrMasterCtrl.XipBusParameters(addressWidth = 24, dataWidth = 32)
+    )
+  )
+}
+
 //Board agnostic SoC toplevel
 case class SaxonSoc(p : SaxonSocParameters) extends Component {
   val io = new Bundle {
@@ -179,7 +193,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
   val debugClockDomain = ClockDomain(
     clock = io.clk,
     reset = resetCtrl.debugReset,
-    frequency = FixedFrequency(p.ioClkFrequency),
+    frequency = FixedFrequency(p.clkFrequency),
     config = ClockDomainConfig(
       resetKind = spinal.core.SYNC
     )
@@ -188,7 +202,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
   val systemClockDomain = ClockDomain(
     clock = io.clk,
     reset = resetCtrl.systemReset,
-    frequency = FixedFrequency(p.ioClkFrequency),
+    frequency = FixedFrequency(p.clkFrequency),
     config = ClockDomainConfig(
       resetKind = spinal.core.SYNC
     )
@@ -235,7 +249,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
     apbMapping += machineTimer.io.bus -> (0x08000, 4 kB)
 
     val gpioACtrl = Apb3Gpio(8)
-    apbMapping += gpioACtrl.io.apb -> (0x20000, 4 kB)
+    apbMapping += gpioACtrl.io.apb -> (0x00000, 4 kB)
     gpioACtrl.io.gpio <> io.gpioA
 
     val uartCtrl = Apb3UartCtrl(p.uartACtrlConfig)
@@ -284,9 +298,6 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
 //Scala main used to generate the Up5kArea toplevel
 object SaxonSoc {
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(SaxonSoc(SaxonSocParameters(
-      ioClkFrequency = 12 MHz,
-      ioSerialBaudRate = 115200
-    ).withArgs(args)))
+    SpinalRtlConfig.generateVerilog(SaxonSoc(SaxonSocParameters.default.withArgs(args)))
   }
 }

@@ -12,7 +12,8 @@ lazy val root = (project in file(".")).
       "org.yaml" % "snakeyaml" % "1.8"
     ),
     name := "riscvSoftcoreContest",
-    scalaSource in Compile := baseDirectory.value / "hardware" / "scala"
+    scalaSource in Compile := baseDirectory.value / "hardware" / "scala",
+    scalaSource in Test    := baseDirectory.value / "test" / "scala"
   ).dependsOn(vexRiscv)
 
 lazy val vexRiscv = RootProject(file("../VexRiscv"))

@@ -53,9 +53,6 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
 //Scala main used to generate the Up5kAreaEvn toplevel
 object SaxonUp5kEvn{
   def main(args: Array[String]) {
-    SpinalRtlConfig.generateVerilog(SaxonUp5kEvn(SaxonSocParameters(
-      ioClkFrequency = 12 MHz,
-      ioSerialBaudRate = 115200
-    ).withArgs(args)))
+    SpinalRtlConfig.generateVerilog(SaxonUp5kEvn(SaxonSocParameters.up5kEvnDefault.withArgs(args)))
   }
 }

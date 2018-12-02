@@ -17,7 +17,7 @@ RISCV_OBJDUMP=${RISCV_BIN}objdump
 %.bin: %.elf
 	$(RISCV_OBJCOPY) -O binary $^ $@
 
-all: up5kEvn.bin
+all: up5kEvn.bin up5kEvnDemo.bin
 
 clean:
 	rm -rf *.d
