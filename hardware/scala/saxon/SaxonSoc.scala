@@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 case class SaxonSocParameters(clkFrequency : HertzNumber,
                               uartBaudRate : Int,
                               withMemoryStage : Boolean,
+                              executeRf : Boolean,
                               hardwareBreakpointsCount : Int,
                               gpioAWidth : Int,
                               uartACtrlConfig : UartCtrlMemoryMappedConfig,
@@ -65,13 +66,13 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
           regFileReadyKind = plugin.SYNC,
           zeroBoot = true,
           x0Init = false,
-          readInExecute = true,
+          readInExecute = executeRf,
           syncUpdateOnStall = true
         ),
         new IntAluPlugin,
         new SrcPlugin(
           separatedAddSub = false,
-          executeInsertion = true,
+          executeInsertion = executeRf,
           decodeAddSub = false
         ),
         new LightShifterPlugin(),
@@ -85,7 +86,7 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
           bypassWriteBackBuffer = false
         ),
         new CsrPlugin(new CsrPluginConfig(
-          catchIllegalAccess = true,
+          catchIllegalAccess = false,
           mvendorid = null,
           marchid = null,
           mimpid = null,
@@ -119,12 +120,13 @@ object SaxonSocParameters{
     clkFrequency = 12 MHz,
     uartBaudRate = 115200,
     withMemoryStage = false,
+    executeRf = false,
     hardwareBreakpointsCount  = 2,
     gpioAWidth = 8,
     uartACtrlConfig = UartCtrlMemoryMappedConfig(
       uartCtrlConfig = UartCtrlGenerics(
         dataWidthMax      = 8,
-        clockDividerWidth = 20,
+        clockDividerWidth = 12,
         preSamplingSize   = 1,
         samplingSize      = 3,
         postSamplingSize  = 1
@@ -137,8 +139,8 @@ object SaxonSocParameters{
       ),
       busCanWriteClockDividerConfig = false,
       busCanWriteFrameConfig = false,
-      txFifoDepth = 16,
-      rxFifoDepth = 16
+      txFifoDepth = 2,
+      rxFifoDepth = 4
     ),
     flashCtrl = SpiXdrMasterCtrl.MemoryMappingParameters(
       SpiXdrMasterCtrl.Parameters(
@@ -275,7 +277,8 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
 
     //Map the CPU into the SoC depending the Plugins used
     val cpuConfig = p.toVexRiscvConfig()
-    cpuConfig.add(new DebugPlugin(debugClockDomain, p.hardwareBreakpointsCount))
+//    cpuConfig.add(new DebugPlugin(debugClockDomain, p.hardwareBreakpointsCount))
+    io.jtag.flatten.filter(_.isOutput).foreach(_.assignDontCare())
 
     val cpu = new VexRiscv(cpuConfig)
     for (plugin <- cpu.plugins) plugin match {
