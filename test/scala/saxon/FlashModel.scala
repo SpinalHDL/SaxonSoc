@@ -52,6 +52,8 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
     }
   }
 
+  def info(m : String) = println(m)
+
   def idle(rising : Boolean, mosi : Int): Unit = 0
   def command(rising : Boolean, mosi : Int): Unit = {
     if (rising){
@@ -69,14 +71,65 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
             case _ =>
           }
         case 0 =>
-          println(s"CMD $buffer")
+          info(s"CMD ${buffer.toHexString}")
           buffer match {
             case 0x0B => counter = 24; address = 0; goto(readAddress)
             case 0x3B => counter = 24; address = 0; goto(readAddressDual)
+            case 0x9F => counter = 24; goto(readId)
+            case 0xD8 => counter = 24; address = 0; goto(eraseAddress)
+            case 0x02 => counter = 24; address = 0; goto(writeAddress)
+            case 0x05 => counter = 8; goto(readStatus)
             case _ =>
           }
         case _ =>
       }
+    }
+  }
+  def eraseAddress(rising : Boolean, mosi : Int): Unit = {
+    if (rising){
+      counter -= 1
+      address |= (mosi & 1) << counter
+      if (counter == 0) {
+        info(s"ERASE ${address.toHexString}")
+        address &= ~0xFFFF
+        for(i <- address to address + 0xFFFF) content(i) = 0xFF.toByte
+      }
+    }
+  }
+  def writeAddress(rising : Boolean, mosi : Int): Unit = {
+    if (rising){
+      counter -= 1
+      address |= (mosi & 1) << counter
+      if (counter == 0) {
+        counter = 8; buffer = 0;
+        goto(writePayload)
+      }
+    }
+  }
+
+  def writePayload(rising : Boolean, mosi : Int): Unit = {
+    if (rising){
+      counter -= 1
+      buffer |= (mosi & 1) << counter
+      if (counter == 0) {
+        info(s"WRITE [${address.toHexString}]=${buffer.toHexString}")
+        content(address) = (content(address) & buffer).toByte
+        address = (address & ~0xFF) | ((address + 1) & 0xFF)
+        counter = 8; buffer = 0;
+      }
+    }
+  }
+  def readStatus(rising : Boolean, mosi : Int): Unit = {
+    if (rising){
+      counter -= 1
+      miso = ((0 >> counter) & 1)
+    }
+  }
+
+  def readId(rising : Boolean, mosi : Int): Unit = {
+    if (rising){
+      counter -= 1
+      miso = ((0x123456 >> counter) & 1) << 1
     }
   }
   def readAddress(rising : Boolean, mosi : Int): Unit = {
@@ -84,7 +137,6 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
       counter -= 1
       address |= (mosi & 1) << counter
       if (counter == 0) {
-        println(s"ADDRESS $address")
         counter = 8; goto(readDummy)
       }
     }
@@ -113,7 +165,6 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
       counter -= 1
       address |= (mosi & 1) << counter
       if (counter == 0) {
-        println(s"ADDRESS $address")
         counter = 8; goto(readDummyDual)
       }
     }

@@ -107,7 +107,8 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
           wfiGenAsWait = false,
           wfiGenAsNop = true,
           ucycleAccess = CsrAccess.NONE
-        ))
+        )),
+        new YamlPlugin("cpu0.yaml")
       )
     )
     config
@@ -194,7 +195,6 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
       resetKind = BOOT //Bitstream loaded FF
     )
   )
-
 
   val resetCtrl = new ClockingArea(resetCtrlClockDomain) {
     val resetUnbuffered  = False
@@ -302,8 +302,8 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
 
     //Map the CPU into the SoC depending the Plugins used
     val cpuConfig = p.toVexRiscvConfig()
-//    cpuConfig.add(new DebugPlugin(debugClockDomain, p.hardwareBreakpointsCount))
-    io.jtag.flatten.filter(_.isOutput).foreach(_.assignDontCare())
+    cpuConfig.add(new DebugPlugin(debugClockDomain, p.hardwareBreakpointsCount))
+//    io.jtag.flatten.filter(_.isOutput).foreach(_.assignDontCare())
 
     val cpu = new VexRiscv(cpuConfig)
     for (plugin <- cpu.plugins) plugin match {

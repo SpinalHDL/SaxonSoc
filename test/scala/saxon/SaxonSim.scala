@@ -20,7 +20,11 @@ object SaxonSim {
   def main(args: Array[String]): Unit = {
     val simSlowDown = false
     def p = SaxonSocParameters.default
-    SimConfig.withWave.addRtl("test/common/up5k_cells_sim.v").compile(new SaxonSoc(p)).doSimUntilVoid{dut =>
+    val flashBin = null
+//    val flashBin = "software/bootloader/up5kEvnDemo.bin"
+//    val flashBin = "software/standalone/blinkAndEcho/build/blinkAndEcho.bin"
+
+    SimConfig.addRtl("test/common/up5k_cells_sim.v").compile(new SaxonSoc(p)).doSimUntilVoid{dut =>
       val systemClkPeriod = (1e12/dut.p.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 115200
@@ -28,6 +32,7 @@ object SaxonSim {
 
       val clockDomain = ClockDomain(dut.io.clk, dut.io.reset)
       clockDomain.forkStimulus(systemClkPeriod)
+      clockDomain.forkSimSpeedPrinter()
 
       val tcpJtag = JtagTcp(
         jtag = dut.io.jtag,
@@ -45,7 +50,7 @@ object SaxonSim {
       )
 
       val flash = FlashModel(dut.io.flash, clockDomain)
-      flash.loadBinary("software/bootloader/up5kEvnDemo.bin", 0x100000)
+      if(flashBin != null) flash.loadBinary(flashBin, 0x100000)
 
       val guiThread = fork{
         val guiToSim = mutable.Queue[Any]()
