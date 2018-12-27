@@ -256,6 +256,10 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
     //Define slave/peripheral components
     val ram = Spram()
     interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000l,  64 kB))
+/*  Alternatively one may use Bram on boards without SPRAM like hx8k
+    val ram = Bram(onChipRamSize = 8 kB)
+    interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000l,  8 kB))
+*/
 
     val xip = new Area {
       val ctrl = Apb3SpiXdrMasterCtrl(p.flashCtrl)
