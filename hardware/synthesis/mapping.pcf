@@ -24,6 +24,7 @@ set_io IOT_49A 43
 
 set_io IOB_22A 12
 set_io IOB_23B 21
+set_io IOB_24A 13
 
 set_io IOB_29B 19
 set_io IOB_31B 18

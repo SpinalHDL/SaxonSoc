@@ -2,6 +2,7 @@ package saxon
 
 import spinal.core._
 import spinal.lib._
+import spinal.lib.blackbox.lattice.ice40.{SB_PLL40_CORE, SB_PLL40_PAD, SB_PLL40_PAD_CONFIG}
 
 
 
@@ -25,6 +26,7 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
 
     val IOB_22A = out Bool()
     val IOB_23B = out Bool()
+    val IOB_24A = out Bool()
 
     val IOB_29B = in  Bool()
     val IOB_31B = in  Bool()
@@ -34,10 +36,52 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
     val LED_BLUE  = out Bool()
     val LED_GREEN = out Bool()
     val LED_RED   = out Bool()
-  }.setName("")
+  }
+  noIoPrefix()
 
   val clkBuffer = SB_GB()
   clkBuffer.USER_SIGNAL_TO_GLOBAL_BUFFER <> io.ICE_CLK
+
+
+//  val pll = SB_PLL40_CORE(SB_PLL40_PAD_CONFIG(
+//    DIVR = B"0000",
+//    DIVF = B"0111111",
+//    DIVQ = B"100",
+//    FILTER_RANGE = "001",
+//    FEEDBACK_PATH = "SIMPLE",
+//    DELAY_ADJUSTMENT_MODE_FEEDBACK = "FIXED",
+//    FDA_FEEDBACK = B"0000",
+//    DELAY_ADJUSTMENT_MODE_RELATIVE = "FIXED",
+//    FDA_RELATIVE = B"0000",
+//    SHIFTREG_DIV_MODE = B"00",
+//    PLLOUT_SELECT = "GENCLK",
+//    ENABLE_ICEGATE = False
+//  ))
+//
+//  pll.REFERENCECLK <> io.ICE_CLK
+//  pll.RESETB := True
+//  pll.BYPASS := False
+//
+//  val pllGb = SB_GB(pll.PLLOUTGLOBAL)
+//  val clkReg = ClockDomain(clkBuffer.GLOBAL_BUFFER_OUTPUT)(Reg(Bool))
+//  clkReg := !clkReg
+//  val pllReg = ClockDomain(pllGb)(BufferCC(clkReg))
+//  io.IOB_24A := pllReg
+
+
+//  val testGb = SB_GB(io.IOT_37A)
+//  val divider = ClockDomain(testGb) (Reg(UInt(2 bits)))
+//  divider := divider + 1
+//  val clks = divider.asBools.map(SB_GB(_))
+//
+//  val clkReg = ClockDomain(testGb)(Reg(Bool))
+//  clkReg := !clkReg
+//
+//
+//  val chain : List[Bool] = List.tabulate(2)(i => ClockDomain(clks(i))(Reg(Bool)))
+//  (chain, clkReg :: chain.dropRight(1)).zipped.foreach(_ := _.addTag(crossClockDomain))
+//  io.IOB_24A := chain.last
+
 
   val soc = SaxonSoc(p)
 
@@ -66,6 +110,7 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
   //debug
   io.IOB_22A := soc.systemClockDomain.readClockWire
   io.IOB_23B := soc.systemClockDomain.readResetWire
+  io.IOB_24A := False
 
   val xip = new ClockingArea(soc.systemClockDomain) {
     RegNext(soc.io.flash.ss.asBool) <> io.ICE_SS

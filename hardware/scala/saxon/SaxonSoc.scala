@@ -78,7 +78,7 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
         ),
         new LightShifterPlugin(),
         new BranchPlugin(
-          earlyBranch = true,
+          earlyBranch = false && !withMemoryStage,
           catchAddressMisaligned = false,
           fenceiGenAsAJump = true
         ),
@@ -86,6 +86,7 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
           bypassExecute = false,
           bypassWriteBackBuffer = false
         ),
+        new MulDivIterativePlugin(),
         new CsrPlugin(new CsrPluginConfig(
           catchIllegalAccess = false,
           mvendorid = null,
@@ -121,8 +122,8 @@ object SaxonSocParameters{
   def up5kEvnDefault = SaxonSocParameters(
     clkFrequency = 12 MHz,
     uartBaudRate = 115200,
-    withMemoryStage = false,
-    executeRf = false,
+    withMemoryStage = true,
+    executeRf = true,
     hardwareBreakpointsCount  = 2,
     gpioAWidth = 8,
     bootloaderBin = null,  //"software/bootloader/up5kEvn.bin"
@@ -142,8 +143,8 @@ object SaxonSocParameters{
       ),
       busCanWriteClockDividerConfig = false,
       busCanWriteFrameConfig = false,
-      txFifoDepth = 2,
-      rxFifoDepth = 4
+      txFifoDepth = 1,
+      rxFifoDepth = 1
     ),
     flashCtrl = SpiXdrMasterCtrl.MemoryMappingParameters(
       SpiXdrMasterCtrl.Parameters(
@@ -152,8 +153,8 @@ object SaxonSocParameters{
         spi = SpiXdrParameter(2, 2, 1)
 //      ).addFullDuplex(0,2,false),
       ).addFullDuplex(0,2,false).addHalfDuplex(id=1, rate=2, ddr=false, spiWidth=2),
-    cmdFifoDepth = 2,
-      rspFifoDepth = 2,
+      cmdFifoDepth = 1,
+      rspFifoDepth = 1,
       cpolInit = false,
       cphaInit = false,
       modInit = 0,
@@ -256,10 +257,10 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
     //Define slave/peripheral components
     val ram = Spram()
     interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000l,  64 kB))
-/*  Alternatively one may use Bram on boards without SPRAM like hx8k
-    val ram = Bram(onChipRamSize = 8 kB)
-    interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000l,  8 kB))
-*/
+//    //Alternatively one may use Bram on boards without SPRAM like hx8k
+//    val ram = Bram(onChipRamSize = 8 kB)
+//    interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000l,  8 kB))
+
 
     val xip = new Area {
       val ctrl = Apb3SpiXdrMasterCtrl(p.flashCtrl)
@@ -275,7 +276,6 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
       apbMapping += bootloader.io.apb -> (0x1E000, 4 kB)
     }
 
-
     val machineTimer = MachineTimer()
     apbMapping += machineTimer.io.bus -> (0x08000, 4 kB)
 
@@ -285,7 +285,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
 
     val uartCtrl = Apb3UartCtrl(p.uartACtrlConfig)
     uartCtrl.io.uart <> io.uartA
-    apbMapping += uartCtrl.io.apb  -> (0x10000, 4 kB)
+    apbMapping += uartCtrl.io.apb -> (0x10000, 4 kB)
 
 
     //Specify which master bus can access to which slave/peripheral
@@ -294,9 +294,35 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
 
     interconnect.addMasters(
       dBus   -> List(mainBus),
-      iBus   -> List(mainBus,    xip.accessBus),
+      iBus   -> List(mainBus),
       mainBus-> List(ram.io.bus, xip.accessBus, apbBridge.io.pipelinedMemoryBus)
     )
+
+//    interconnect.setConnector(xip.accessBus)((m,s) => {
+//      m.cmd.halfPipe() >> s.cmd
+//      m.rsp << s.rsp
+//    })
+//    interconnect.setConnector(iBus)((m,s) => {
+//      m.cmd.halfPipe() >> s.cmd
+//      m.rsp <-< s.rsp
+//    })
+//    interconnect.setConnector(dBus)((m,s) => {
+//      m.cmd.halfPipe() >> s.cmd
+//      m.rsp <-< s.rsp
+//    })
+//    interconnect.setConnector(mainBus)((m,s) => {
+//      m.cmd.s2mPipe().m2sPipe() >> s.cmd
+//      m.rsp << s.rsp
+//    })
+    interconnect.setConnector(dBus)((m,s) => {
+      m.cmd.halfPipe() >> s.cmd
+      m.rsp << s.rsp
+    })
+    interconnect.setConnector(xip.accessBus)((m,s) => {
+      m.cmd.halfPipe() >> s.cmd
+      m.rsp <-< s.rsp
+    })
+
 
     val apbDecoder = Apb3Decoder(
       master = apbBridge.io.apb,

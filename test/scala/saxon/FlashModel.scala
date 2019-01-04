@@ -12,7 +12,7 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
   val spiDataWithIndex = spi.data.zipWithIndex
   var spiDataRead = Array.fill(spi.p.dataWidth)(0)
 
-  var edgeHandler : (Boolean, Int) => Unit = idle
+  var edgeHandler : (Boolean,  => Int) => Unit = idle
   var counter, buffer, buffer2, address = 0
   var miso = 0
   var cmd = 0
@@ -23,39 +23,45 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
     for((v,i) <- bin.zipWithIndex) content(i + offset) = v
   }
 
-  def goto(that : (Boolean, Int) => Unit): Unit = {
+  def goto(that : (Boolean, => Int) => Unit): Unit = {
     edgeHandler = that
   }
 
-
-  cd.onSampling{
+  var dirty = false
+  cd.onActiveEdges{
     if(spi.ss.toInt == 1){
       sclkLast = false
       counter = 8
       goto(command)
     } else {
       val sclkWrite = spi.sclk.write.toInt
-      for(pin <- 0 until spi.p.dataWidth) {
+      if(dirty) for(pin <- 0 until spi.p.dataWidth) {
         spi.data(pin).read #= spiDataRead(pin)
         spiDataRead(pin) = 0
       }
+      dirty = false
       for(phase <- 0 until spi.p.ioRate){
         val sclk = ((sclkWrite >> phase) & 1) != 0
         if(sclkLast != sclk) {
-          var mosi = 0
-          for((v,pin) <- spiDataWithIndex) mosi |= ((v.write.toInt >> phase) & 1) << pin
-          edgeHandler(sclk, mosi)
+          edgeHandler(sclk, {
+            var mosi = 0
+            for((v,pin) <- spiDataWithIndex) mosi |= ((v.write.toInt >> phase) & 1) << pin
+            mosi
+          })
+          dirty = true
         }
-        for(pin <- 0 until spi.p.dataWidth) spiDataRead(pin) |= ((miso >> pin) & 1) << phase
+        if(dirty) for(pin <- 0 until spi.p.dataWidth) spiDataRead(pin) |= ((miso >> pin) & 1) << phase
         sclkLast = sclk
       }
     }
   }
 
-  def info(m : String) = println(m)
+  def info(m : String) = {
+//    println(m)
+  }
 
-  def idle(rising : Boolean, mosi : Int): Unit = 0
-  def command(rising : Boolean, mosi : Int): Unit = {
+  def idle(rising : Boolean, mosi : => Int): Unit = {}
+  def command(rising : Boolean, mosi : => Int): Unit = {
     if (rising){
       if(counter == 8){
         buffer = 0
@@ -85,7 +91,7 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
       }
     }
   }
-  def eraseAddress(rising : Boolean, mosi : Int): Unit = {
+  def eraseAddress(rising : Boolean, mosi : => Int): Unit = {
     if (rising){
       counter -= 1
       address |= (mosi & 1) << counter
@@ -96,7 +102,7 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
       }
     }
   }
-  def writeAddress(rising : Boolean, mosi : Int): Unit = {
+  def writeAddress(rising : Boolean, mosi : => Int): Unit = {
     if (rising){
       counter -= 1
       address |= (mosi & 1) << counter
@@ -107,7 +113,7 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
     }
   }
 
-  def writePayload(rising : Boolean, mosi : Int): Unit = {
+  def writePayload(rising : Boolean, mosi : => Int): Unit = {
     if (rising){
       counter -= 1
       buffer |= (mosi & 1) << counter
@@ -119,20 +125,20 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
       }
     }
   }
-  def readStatus(rising : Boolean, mosi : Int): Unit = {
+  def readStatus(rising : Boolean, mosi : => Int): Unit = {
     if (rising){
       counter -= 1
       miso = ((0 >> counter) & 1)
     }
   }
 
-  def readId(rising : Boolean, mosi : Int): Unit = {
+  def readId(rising : Boolean, mosi : => Int): Unit = {
     if (rising){
       counter -= 1
       miso = ((0x123456 >> counter) & 1) << 1
     }
   }
-  def readAddress(rising : Boolean, mosi : Int): Unit = {
+  def readAddress(rising : Boolean, mosi : => Int): Unit = {
     if (rising){
       counter -= 1
       address |= (mosi & 1) << counter
@@ -141,7 +147,7 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
       }
     }
   }
-  def readDummy(rising : Boolean, mosi : Int): Unit = {
+  def readDummy(rising : Boolean, mosi : => Int): Unit = {
     if (rising){
       counter -= 1
       if (counter == 0) {
@@ -149,7 +155,7 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
       }
     }
   }
-  def readPayload(rising : Boolean, mosi : Int): Unit = {
+  def readPayload(rising : Boolean, mosi : => Int): Unit = {
     if (!rising){
       counter -= 1
       miso = ((content(address) >> counter) & 1) << 1
@@ -160,7 +166,7 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
     }
   }
 
-  def readAddressDual(rising : Boolean, mosi : Int): Unit = {
+  def readAddressDual(rising : Boolean, mosi : => Int): Unit = {
     if (rising){
       counter -= 1
       address |= (mosi & 1) << counter
@@ -169,7 +175,7 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
       }
     }
   }
-  def readDummyDual(rising : Boolean, mosi : Int): Unit = {
+  def readDummyDual(rising : Boolean, mosi : => Int): Unit = {
     if (rising){
       counter -= 1
       if (counter == 0) {
@@ -177,7 +183,7 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
       }
     }
   }
-  def readPayloadDual(rising : Boolean, mosi : Int): Unit = {
+  def readPayloadDual(rising : Boolean, mosi : => Int): Unit = {
     if (!rising){
       counter -= 2
       miso = ((content(address) >> counter) & 3)

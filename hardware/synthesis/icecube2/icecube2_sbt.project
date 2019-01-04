@@ -4,7 +4,7 @@ Version=Lattice Semiconductor Corporation iCEcube - Release: 2017.08.27940 - Bui
 ProjectName=icecube2
 Vendor=SiliconBlue
 Synthesis=lse
-ProjectVFiles=../../netlist/SaxonUp5kEvn.v
+ProjectVFiles=../../netlist/SaxonUp5kEvn.v=work
 ProjectCFiles=constraints.sdc
 CurImplementation=icecube2_Implmnt
 Implementations=icecube2_Implmnt

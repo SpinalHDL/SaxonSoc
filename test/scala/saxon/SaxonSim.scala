@@ -20,11 +20,14 @@ object SaxonSim {
   def main(args: Array[String]): Unit = {
     val simSlowDown = false
     def p = SaxonSocParameters.default
-    val flashBin = null
+//    val flashBin = null
 //    val flashBin = "software/bootloader/up5kEvnDemo.bin"
 //    val flashBin = "software/standalone/blinkAndEcho/build/blinkAndEcho.bin"
+//    val flashBin = "../zephyr/zephyrSpinalHdl/samples/hello_world/build/zephyr/zephyr.bin"
+//    val flashBin = "../zephyr/zephyrSpinalHdl/samples/synchronization/build/zephyr/zephyr.bin"
+    val flashBin = "../zephyr/zephyrSpinalHdl/samples/philosophers/build/zephyr/zephyr.bin"
 
-    SimConfig.addRtl("test/common/up5k_cells_sim.v").compile(new SaxonSoc(p)).doSimUntilVoid{dut =>
+    SimConfig.addRtl("test/common/up5k_cells_sim.v").allOptimisation.compile(new SaxonSoc(p)).doSimUntilVoid{dut =>
       val systemClkPeriod = (1e12/dut.p.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 115200
@@ -32,7 +35,7 @@ object SaxonSim {
 
       val clockDomain = ClockDomain(dut.io.clk, dut.io.reset)
       clockDomain.forkStimulus(systemClkPeriod)
-      clockDomain.forkSimSpeedPrinter()
+      clockDomain.forkSimSpeedPrinter(4)
 
       val tcpJtag = JtagTcp(
         jtag = dut.io.jtag,
