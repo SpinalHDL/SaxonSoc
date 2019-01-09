@@ -201,7 +201,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
     val resetUnbuffered  = False
 
     //Power on reset counter
-    val resetCounter = Reg(UInt(6 bits)) init(0)
+    val resetCounter = Reg(UInt(8 bits)) init(0)
     when(!resetCounter.andR){
       resetCounter := resetCounter + 1
       resetUnbuffered := True

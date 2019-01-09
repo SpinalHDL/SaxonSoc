@@ -1,12 +1,26 @@
 TOPLEVEL = SaxonUp5kEvn
-
 ROOT = ../../..
 PIN_DEF = ../mapping.pcf
 VERILOGS = $(ROOT)/hardware/netlist/${TOPLEVEL}.v
 DEVICE = up5k
 
+ifeq (, $(shell which nextpnr-ice40))
+NEXTPNR ?= no
+else
+NEXTPNR ?= yes
+endif
+
+
+
 all: $(TOPLEVEL).rpt $(TOPLEVEL).bin
 
+ifeq ($(NEXTPNR),yes)
+%.json: ${VERILOGS}
+	yosys -p 'synth_ice40 -top $(TOPLEVEL) -json $@' $<  
+
+%.asc: $(PIN_DEF) %.json
+	nextpnr-ice40 --$(DEVICE) --json $(TOPLEVEL).json --pcf $(PIN_DEF) --asc $(TOPLEVEL).asc --pre-pack constraint.py $(NEXTPNR_ARG) 
+else
 %.blif: ${VERILOGS}
 	rm -f ${TOPLEVEL}.v*.bin
 	cp -f  ${ROOT}/hardware/netlist/${TOPLEVEL}.v*.bin . | true
@@ -14,6 +28,7 @@ all: $(TOPLEVEL).rpt $(TOPLEVEL).bin
 
 %.asc: $(PIN_DEF) %.blif
 	arachne-pnr -d $(subst up,,$(subst hx,,$(subst lp,,$(DEVICE)))) -o $@ -p $^
+endif
 
 %.bin: %.asc
 	icepack $< $@
@@ -44,12 +59,13 @@ prog: $(TOPLEVEL).bin
 	iceprog $<
 
 
+
 sudo-prog: $(TOPLEVEL).bin
 	@echo 'Executing prog as root!!!'
 	sudo iceprog $<
 
 clean:
-	rm -f $(TOPLEVEL).blif $(TOPLEVEL).asc $(TOPLEVEL).rpt $(TOPLEVEL).bin
+	rm -f $(TOPLEVEL).blif $(TOPLEVEL).asc $(TOPLEVEL).rpt $(TOPLEVEL).bin $(TOPLEVEL).json
 
 .SECONDARY:
 .PHONY: all prog clean
