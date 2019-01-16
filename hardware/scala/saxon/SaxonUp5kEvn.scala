@@ -108,8 +108,8 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
   ledDriver.RGB2 <> io.LED_RED
 
   //debug
-  io.IOB_22A := soc.systemClockDomain.readClockWire
-  io.IOB_23B := soc.systemClockDomain.readResetWire
+  io.IOB_22A := False
+  io.IOB_23B := False
   io.IOB_24A := False
 
   val xip = new ClockingArea(soc.systemClockDomain) {

@@ -18,7 +18,7 @@ ifeq ($(NEXTPNR),yes)
 %.json: ${VERILOGS}
 	yosys -p 'synth_ice40 -top $(TOPLEVEL) -json $@' $<  
 
-%.asc: $(PIN_DEF) %.json
+%.asc: $(PIN_DEF) %.json constraint.py
 	nextpnr-ice40 --$(DEVICE) --json $(TOPLEVEL).json --pcf $(PIN_DEF) --asc $(TOPLEVEL).asc --pre-pack constraint.py $(NEXTPNR_ARG) 
 else
 %.blif: ${VERILOGS}

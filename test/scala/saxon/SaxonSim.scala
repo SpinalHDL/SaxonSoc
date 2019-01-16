@@ -24,8 +24,8 @@ object SaxonSim {
 //    val flashBin = "software/bootloader/up5kEvnDemo.bin"
 //    val flashBin = "software/standalone/blinkAndEcho/build/blinkAndEcho.bin"
 //    val flashBin = "../zephyr/zephyrSpinalHdl/samples/hello_world/build/zephyr/zephyr.bin"
-//    val flashBin = "../zephyr/zephyrSpinalHdl/samples/synchronization/build/zephyr/zephyr.bin"
-    val flashBin = "../zephyr/zephyrSpinalHdl/samples/philosophers/build/zephyr/zephyr.bin"
+    val flashBin = "../zephyr/zephyrSpinalHdl/samples/synchronization/build/zephyr/zephyr.bin"
+//    val flashBin = "../zephyr/zephyrSpinalHdl/samples/philosophers/build/zephyr/zephyr.bin"
 
     SimConfig.addRtl("test/common/up5k_cells_sim.v").allOptimisation.compile(new SaxonSoc(p)).doSimUntilVoid{dut =>
       val systemClkPeriod = (1e12/dut.p.clkFrequency.toDouble).toLong

@@ -78,7 +78,7 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
         ),
         new LightShifterPlugin(),
         new BranchPlugin(
-          earlyBranch = false && !withMemoryStage,
+          earlyBranch = true,
           catchAddressMisaligned = false,
           fenceiGenAsAJump = true
         ),
@@ -315,7 +315,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
 //      m.rsp << s.rsp
 //    })
     interconnect.setConnector(dBus)((m,s) => {
-      m.cmd.halfPipe() >> s.cmd
+      m.cmd.stage() >> s.cmd
       m.rsp << s.rsp
     })
     interconnect.setConnector(xip.accessBus)((m,s) => {
