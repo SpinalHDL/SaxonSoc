@@ -1,7 +1,7 @@
-CFLAGS= -march=RV32I -MD
+CFLAGS= -march=rv32i -mabi=ilp32 -MD
 LFLAGS= -nostdlib  -mcmodel=medany -nostartfiles -ffreestanding -fPIC -fPIE
 
-RISCV_BIN ?= ${ZEPHYR_SDK_INSTALL_DIR}/sysroots/x86_64-pokysdk-linux/usr/bin/riscv32-zephyr-elf/riscv32-zephyr-elf-
+RISCV_BIN ?= riscv64-unknown-elf-
 RISCV_GCC=${RISCV_BIN}gcc
 RISCV_OBJCOPY=${RISCV_BIN}objcopy
 RISCV_OBJDUMP=${RISCV_BIN}objdump

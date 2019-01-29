@@ -1,4 +1,10 @@
 
+openocd =>
+https://github.com/SpinalHDL/openocd_riscv.git
+
+openocd for simulation
+src/openocd -f tcl/interface/jtag_tcp.cfg -c 'set SAXON_CPU0_YAML ../SaxonSoc/cpu0.yaml' -f tcl/target/saxon_xip.cfg
+
 
 Zephyr build =>
 git clone https://github.com/SpinalHDL/zephyr.git -b vexriscv

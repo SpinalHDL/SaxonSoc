@@ -1,6 +1,7 @@
 #include <stdint.h>
 
 #include "saxon.h"
+
 volatile char globalC = 'b';
 
 void main() {

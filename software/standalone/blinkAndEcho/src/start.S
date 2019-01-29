@@ -3,7 +3,7 @@
     .type _start,@function
 
 _start:
-#ifdef GP_OPT
+#ifdef USE_GP
 .option push
 .option norelax
 	la gp, __global_pointer$

@@ -3,9 +3,7 @@
 LDFLAGS += -lc
 
 CFLAGS += -I${STANDALONE}/include
-CFLAGS += -I${ZEPHYR_SDK_INSTALL_DIR}/sysroots/riscv32-zephyr-elf/usr/include
-LDFLAGS += -L${ZEPHYR_SDK_INSTALL_DIR}/sysroots/riscv32-zephyr-elf/usr/lib/riscv32-zephyr-elf/6.1.0
-LDFLAGS += -L${ZEPHYR_SDK_INSTALL_DIR}/sysroots/riscv32-zephyr-elf/usr/lib
+
 
 
 

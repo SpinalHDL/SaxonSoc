@@ -12,6 +12,6 @@ SRCS = 	$(wildcard src/*.c) \
 
 LDSCRIPT = ${STANDALONE}/common/linker_xip.ld
 
-include ${STANDALONE}/common/zephyrSdkGcc.mk
+include ${STANDALONE}/common/riscv64-unknown-elf.mk
 include ${STANDALONE}/common/standalone.mk
 
