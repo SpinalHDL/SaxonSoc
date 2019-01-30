@@ -8,7 +8,7 @@ CFLAGS += -I${STANDALONE}/include
 
 
 ifeq ($(DEBUG),yes)
-	CFLAGS += -g3 -O0
+	CFLAGS += -g3 -Og
 endif
 
 ifeq ($(DEBUG),no)
@@ -43,8 +43,6 @@ $(OBJDIR)/%.elf: $(OBJS) | $(OBJDIR)
 
 %.v: %.elf
 	$(RISCV_OBJCOPY) -O verilog $^ $@
-
-
 
 %.asm: %.elf
 	$(RISCV_OBJDUMP) -S -d $^ > $@
