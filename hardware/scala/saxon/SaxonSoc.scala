@@ -41,8 +41,9 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
       List(
         new IBusCachedPlugin(
           resetVector = if(bootloaderBin != null) 0xF001E000l else 0x01100000l,
+          withoutInjectorStage = true,
           config = InstructionCacheConfig(
-            cacheSize = 4096,
+            cacheSize = 8192,
             bytePerLine = 32,
             wayCount = 1,
             addressWidth = 32,
@@ -77,6 +78,7 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
           decodeAddSub = false
         ),
         new LightShifterPlugin(),
+//        new FullBarrelShifterPlugin(earlyInjection = true),
         new BranchPlugin(
           earlyBranch = true,
           catchAddressMisaligned = false,
@@ -86,7 +88,7 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
           bypassExecute = false,
           bypassWriteBackBuffer = false
         ),
-        new MulDivIterativePlugin(),
+//        new MulDivIterativePlugin(),
         new CsrPlugin(new CsrPluginConfig(
           catchIllegalAccess = false,
           mvendorid = null,
@@ -122,7 +124,7 @@ object SaxonSocParameters{
   def up5kEvnDefault = SaxonSocParameters(
     clkFrequency = 12 MHz,
     uartBaudRate = 115200,
-    withMemoryStage = true,
+    withMemoryStage = false,
     executeRf = true,
     hardwareBreakpointsCount  = 2,
     gpioAWidth = 8,
@@ -256,36 +258,36 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
 
     //Define slave/peripheral components
     val ram = Spram()
-    interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000l,  64 kB))
+    interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000l,  64 KiB))
 //    //Alternatively one may use Bram on boards without SPRAM like hx8k
-//    val ram = Bram(onChipRamSize = 8 kB)
-//    interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000l,  8 kB))
+//    val ram = Bram(onChipRamSize = 8 KiB)
+//    interconnect.addSlave(ram.io.bus, SizeMapping(0x80000000l,  8 KiB))
 
 
     val xip = new Area {
       val ctrl = Apb3SpiXdrMasterCtrl(p.flashCtrl)
       ctrl.io.spi <> io.flash
-      apbMapping += ctrl.io.apb -> (0x1F000, 4 kB)
+      apbMapping += ctrl.io.apb -> (0x1F000, 4 KiB)
 
       val accessBus = ctrl.io.xip.fromPipelinedMemoryBus()
-      interconnect.addSlave(accessBus, SizeMapping(0x01000000l, 16 MB))
+      interconnect.addSlave(accessBus, SizeMapping(0x01000000l, 16 MiB))
     }
 
     val bootloader = (p.bootloaderBin != null) generate new Area{
       val bootloader = Apb3Rom(p.bootloaderBin)
-      apbMapping += bootloader.io.apb -> (0x1E000, 4 kB)
+      apbMapping += bootloader.io.apb -> (0x1E000, 4 KiB)
     }
 
     val machineTimer = MachineTimer()
-    apbMapping += machineTimer.io.bus -> (0x08000, 4 kB)
+    apbMapping += machineTimer.io.bus -> (0x08000, 4 KiB)
 
     val gpioACtrl = Apb3Gpio(8)
-    apbMapping += gpioACtrl.io.apb -> (0x00000, 4 kB)
+    apbMapping += gpioACtrl.io.apb -> (0x00000, 4 KiB)
     gpioACtrl.io.gpio <> io.gpioA
 
     val uartCtrl = Apb3UartCtrl(p.uartACtrlConfig)
     uartCtrl.io.uart <> io.uartA
-    apbMapping += uartCtrl.io.apb -> (0x10000, 4 kB)
+    apbMapping += uartCtrl.io.apb -> (0x10000, 4 KiB)
 
 
     //Specify which master bus can access to which slave/peripheral
@@ -298,24 +300,8 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
       mainBus-> List(ram.io.bus, xip.accessBus, apbBridge.io.pipelinedMemoryBus)
     )
 
-//    interconnect.setConnector(xip.accessBus)((m,s) => {
-//      m.cmd.halfPipe() >> s.cmd
-//      m.rsp << s.rsp
-//    })
-//    interconnect.setConnector(iBus)((m,s) => {
-//      m.cmd.halfPipe() >> s.cmd
-//      m.rsp <-< s.rsp
-//    })
-//    interconnect.setConnector(dBus)((m,s) => {
-//      m.cmd.halfPipe() >> s.cmd
-//      m.rsp <-< s.rsp
-//    })
-//    interconnect.setConnector(mainBus)((m,s) => {
-//      m.cmd.s2mPipe().m2sPipe() >> s.cmd
-//      m.rsp << s.rsp
-//    })
     interconnect.setConnector(dBus)((m,s) => {
-      m.cmd.stage() >> s.cmd
+      m.cmd >> s.cmd
       m.rsp << s.rsp
     })
     interconnect.setConnector(xip.accessBus)((m,s) => {
