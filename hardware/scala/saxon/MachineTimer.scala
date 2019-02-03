@@ -19,6 +19,8 @@ case class MachineTimer() extends Component{
   io.mTimeInterrupt := interrupt
   mapper.readMultiWord(counter, 0x0)
   mapper.writeMultiWord(cmp, 0x8)
+//  io.mTimeInterrupt := RegNext(io.bus.PSEL(0)) init(False)
+//  io.bus.flatten.filter(_.isOutput).foreach(_.assignDontCare())
 }
 
 

@@ -2,14 +2,15 @@ package saxon
 
 import spinal.core._
 import spinal.lib._
-import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3Decoder, Apb3Gpio}
+import spinal.lib.bus.amba3.apb._
 import spinal.lib.bus.misc._
 import spinal.lib.bus.simple._
 import spinal.lib.com.jtag.Jtag
 import spinal.lib.com.spi.SpiMaster
 import spinal.lib.com.spi.ddr.{Apb3SpiXdrMasterCtrl, SpiXdrMaster, SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart._
-import spinal.lib.io.TriStateArray
+import spinal.lib.io.{Apb3Gpio2, Gpio, TriStateArray}
+import spinal.lib.misc.plic._
 import vexriscv.demo.Apb3Rom
 import vexriscv.{plugin, _}
 import vexriscv.ip.InstructionCacheConfig
@@ -24,10 +25,11 @@ case class SaxonSocParameters(clkFrequency : HertzNumber,
                               withMemoryStage : Boolean,
                               executeRf : Boolean,
                               hardwareBreakpointsCount : Int,
-                              gpioAWidth : Int,
+                              gpioA : Gpio.Parameter,
                               uartACtrlConfig : UartCtrlMemoryMappedConfig,
                               flashCtrl: SpiXdrMasterCtrl.MemoryMappingParameters,
-                              bootloaderBin : String){
+                              bootloaderBin : String,
+                              withJtag : Boolean){
 
   def withArgs(args : Seq[String]) = this.copy(
 
@@ -127,7 +129,11 @@ object SaxonSocParameters{
     withMemoryStage = false,
     executeRf = true,
     hardwareBreakpointsCount  = 2,
-    gpioAWidth = 8,
+    gpioA = Gpio.Parameter(
+      width = 8,
+      interrupt = List(0, 1)
+    ),
+    withJtag = true,
     bootloaderBin = null,  //"software/bootloader/up5kEvn.bin"
     uartACtrlConfig = UartCtrlMemoryMappedConfig(
       uartCtrlConfig = UartCtrlGenerics(
@@ -186,10 +192,10 @@ object SaxonSocParameters{
 case class SaxonSoc(p : SaxonSocParameters) extends Component {
   val io = new Bundle {
     val clk, reset = in Bool()
-    val gpioA = master(TriStateArray(p.gpioAWidth bits))
+    val gpioA = master(TriStateArray(p.gpioA.width bits))
     val uartA = master(Uart())
     val flash = master(SpiXdrMaster(p.flashCtrl.ctrl.spi))
-    val jtag = slave(Jtag())
+    val jtag = p.withJtag generate slave(Jtag())
   }
 
   val resetCtrlClockDomain = ClockDomain(
@@ -253,7 +259,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
       pipelineBridge = false,
       pipelinedMemoryBusConfig = mainBus.config
     )
-    interconnect.addSlave(apbBridge.io.pipelinedMemoryBus, SizeMapping(0xF0000000l, 16 MB))
+    interconnect.addSlave(apbBridge.io.pipelinedMemoryBus, SizeMapping(0xF0000000l, 16 MiB))
 
 
     //Define slave/peripheral components
@@ -281,13 +287,67 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
     val machineTimer = MachineTimer()
     apbMapping += machineTimer.io.bus -> (0x08000, 4 KiB)
 
-    val gpioACtrl = Apb3Gpio(8)
-    apbMapping += gpioACtrl.io.apb -> (0x00000, 4 KiB)
+    val gpioACtrl = Apb3Gpio2(p.gpioA)
+    apbMapping += gpioACtrl.io.bus -> (0x00000, 4 KiB)
     gpioACtrl.io.gpio <> io.gpioA
 
     val uartCtrl = Apb3UartCtrl(p.uartACtrlConfig)
     uartCtrl.io.uart <> io.uartA
     apbMapping += uartCtrl.io.apb -> (0x10000, 4 KiB)
+
+    val plic = new Area{
+      val apb = Apb3(addressWidth = 16, dataWidth = 32)
+      val bus = Apb3SlaveFactory(apb)
+
+      val priorityWidth = 1
+      val gateways = ArrayBuffer[PlicGateway]()
+
+      gateways += PlicGatewayActiveHigh(
+        source = uartCtrl.io.interrupt,
+        id = 1,
+        priorityWidth = priorityWidth
+      )
+//      gateways += PlicGatewayActiveHigh(
+//        source = RegNext(uartCtrl.io.interrupt) init(False),
+//        id = 2,
+//        priorityWidth = priorityWidth
+//      )
+//      PlicGatewayActiveHigh(
+//        source = gpioACtrl.io.interrupt =/= 0,
+//        id = 2,
+//        priorityWidth = priorityWidth
+//      )
+//      for(i <- 0 until p.gpioAWidth) gateways += PlicGatewayActiveHigh(
+//        source = gpioACtrl.io.interrupt(i),
+//        id = 2 + i,
+//        priorityWidth = priorityWidth
+//      )
+      for(i <- p.gpioA.interrupt) gateways += PlicGatewayActiveHigh(
+        source = gpioACtrl.io.interrupt(i),
+        id = 2 + i,
+        priorityWidth = priorityWidth
+      )
+      val targets = Seq(
+        PlicTarget(
+          gateways = gateways,
+          priorityWidth = priorityWidth
+        )
+      )
+
+      val plicMapping = PlicMapping.light.copy(
+//        gatewayPriorityReadGen = true,
+//        gatewayPendingReadGen = true,
+//        targetThresholdReadGen = true
+      )
+      gateways.foreach(_.priority := 1)
+      targets.foreach(_.threshold := 0)
+//      targets.foreach(_.ie.foreach(_ := True))
+      val mapping = PlicMapper(bus, plicMapping)(
+        gateways = gateways,
+        targets = targets
+      )
+      apbMapping += apb -> (0xF0000, 64 KiB)
+    }
 
 
     //Specify which master bus can access to which slave/peripheral
@@ -316,9 +376,12 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
     )
 
 
+
+
+
     //Map the CPU into the SoC depending the Plugins used
     val cpuConfig = p.toVexRiscvConfig()
-    cpuConfig.add(new DebugPlugin(debugClockDomain, p.hardwareBreakpointsCount))
+    p.withJtag generate cpuConfig.add(new DebugPlugin(debugClockDomain, p.hardwareBreakpointsCount))
 //    io.jtag.flatten.filter(_.isOutput).foreach(_.assignDontCare())
 
     val cpu = new VexRiscv(cpuConfig)
@@ -326,7 +389,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
       case plugin : IBusCachedPlugin => iBus << plugin.iBus.toPipelinedMemoryBus()
       case plugin : DBusSimplePlugin => dBus << plugin.dBus.toPipelinedMemoryBus()
       case plugin : CsrPlugin => {
-        plugin.externalInterrupt := False //Not used
+        plugin.externalInterrupt := plic.targets(0).iep //Not used
         plugin.timerInterrupt := machineTimer.io.mTimeInterrupt
       }
       case plugin : DebugPlugin         => plugin.debugClockDomain{

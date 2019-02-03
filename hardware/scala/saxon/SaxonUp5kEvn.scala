@@ -3,6 +3,7 @@ package saxon
 import spinal.core._
 import spinal.lib._
 import spinal.lib.blackbox.lattice.ice40.{SB_PLL40_CORE, SB_PLL40_PAD, SB_PLL40_PAD_CONFIG}
+import spinal.lib.io.{InOutWrapper, TriState}
 
 
 
@@ -16,17 +17,21 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
     val ICE_MOSI = inout(Analog(Bool))
     val ICE_MISO = inout(Analog(Bool))
 
-    val IOT_37A = in Bool()
-    val IOT_36B = in Bool()
-    val IOT_44B = in Bool()
-    val IOT_49A = in Bool()
+    //Switches
+    val IOT_37A = inout(Analog(Bool))
+    val IOT_36B = inout(Analog(Bool))
+    val IOT_44B = inout(Analog(Bool))
+    val IOT_49A = inout(Analog(Bool))
+
+    //Gpio
+    val IOB_22A = inout(Analog(Bool))
+    val IOB_23B = inout(Analog(Bool))
+    val IOB_24A = inout(Analog(Bool))
+    val IOB_25B = inout(Analog(Bool))
+
 
     val IOT_13B = out Bool()
     val IOT_16A = in  Bool()
-
-    val IOB_22A = out Bool()
-    val IOB_23B = out Bool()
-    val IOB_24A = out Bool()
 
     val IOB_29B = in  Bool()
     val IOB_31B = in  Bool()
@@ -89,11 +94,34 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
   soc.io.reset <> False
   soc.io.uartA.txd <> io.IOT_13B
   soc.io.uartA.rxd <> io.IOT_16A
-  soc.io.gpioA.read := io.IOT_49A ## io.IOT_44B ## io.IOT_36B ## io.IOT_37A ## B"0000"
-  soc.io.jtag.tms <> io.IOB_29B
-  soc.io.jtag.tdi <> io.IOB_31B
-  soc.io.jtag.tdo <> io.IOB_20A
-  soc.io.jtag.tck <> io.IOB_18A
+
+
+  def ioSbComb(io : Bool, design : TriState[Bool]): Unit ={
+    val bb = SB_IO("101001").setCompositeName(io, "SB")
+    bb.PACKAGE_PIN <> io
+    bb.D_IN_0 <> design.read
+    bb.D_OUT_0 <> design.write
+    bb.OUTPUT_ENABLE <> design.writeEnable
+  }
+
+  ioSbComb(io.IOT_37A, soc.io.gpioA(0))
+  ioSbComb(io.IOT_36B, soc.io.gpioA(1))
+  ioSbComb(io.IOT_44B, soc.io.gpioA(2))
+  ioSbComb(io.IOT_49A, soc.io.gpioA(3))
+  ioSbComb(io.IOB_22A, soc.io.gpioA(4))
+  ioSbComb(io.IOB_23B, soc.io.gpioA(5))
+  ioSbComb(io.IOB_24A, soc.io.gpioA(6))
+  ioSbComb(io.IOB_25B, soc.io.gpioA(7))
+//  soc.io.gpioA.read := io.IOT_49A ## io.IOT_44B ## io.IOT_36B ## io.IOT_37A ## B"0000"
+
+  if(p.withJtag) {
+    soc.io.jtag.tms <> io.IOB_29B
+    soc.io.jtag.tdi <> io.IOB_31B
+    soc.io.jtag.tdo <> io.IOB_20A
+    soc.io.jtag.tck <> io.IOB_18A
+  } else {
+    io.IOB_20A := False
+  }
 
 
   val ledDriver = SB_RGBA_DRV()
@@ -106,11 +134,6 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
   ledDriver.RGB0 <> io.LED_BLUE
   ledDriver.RGB1 <> io.LED_GREEN
   ledDriver.RGB2 <> io.LED_RED
-
-  //debug
-  io.IOB_22A := False
-  io.IOB_23B := False
-  io.IOB_24A := False
 
   val xip = new ClockingArea(soc.systemClockDomain) {
     RegNext(soc.io.flash.ss.asBool) <> io.ICE_SS
@@ -146,6 +169,6 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
 //Scala main used to generate the Up5kAreaEvn toplevel
 object SaxonUp5kEvn{
   def main(args: Array[String]) {
-    SpinalRtlConfig.generateVerilog(SaxonUp5kEvn(SaxonSocParameters.up5kEvnDefault.withArgs(args)))
+    SpinalRtlConfig.generateVerilog(InOutWrapper(SaxonUp5kEvn(SaxonSocParameters.up5kEvnDefault.withArgs(args))))
   }
 }
