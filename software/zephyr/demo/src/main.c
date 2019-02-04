@@ -1,13 +1,7 @@
-/*
- * Copyright (c) 2012-2014 Wind River Systems, Inc.
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
 #include <zephyr.h>
 #include <misc/printk.h>
-#include <irq.h>
 #include <device.h>
+#include <irq.h>
 #include <gpio.h>
 
 
@@ -18,69 +12,63 @@
 #define PRIORITY 7
 
 
-#define MY_DEV_IRQ  11+2       /* device uses IRQ 24 */
-#define MY_DEV_PRIO  2       /* device uses interrupt priority 2 */
-/* argument passed to my_isr(), in this case a pointer to the device */
+#define GPIOA_PORT "gpioA"
 
-#define MY_IRQ_FLAGS 0       /* IRQ flags. Unused on non-x86 */
+#define SWITCH_PORT GPIOA_PORT
+#define SWITCH_PIN 0
+#define SWITCH_IRQ  11+2
+#define SWITCH_PRIO  2
 
-#define LED_PORT "gpioA"
-#define LED	1
-#define SWITCH 0
+#define LED_PORT GPIOA_PORT
+#define LED_PIN	1
 
-void my_isr(void *arg)
+void switch_isr(void *arg)
 {
    static u32_t count = 0;
    printk("INTERRUPT %d\n", count++);
 }
 
-void my_isr_installer(void)
+
+void printer_thread(void)
 {
     struct device *dev;
-
-    dev = device_get_binding(LED_PORT);
-
-    gpio_pin_configure(dev, SWITCH, GPIO_DIR_IN | GPIO_INT | GPIO_INT_EDGE | GPIO_INT_ACTIVE_HIGH);
-    IRQ_CONNECT(MY_DEV_IRQ, MY_DEV_PRIO, my_isr, NULL, 0);
-    irq_enable(MY_DEV_IRQ);            /* enable IRQ */
-}
-
-
-
-
-
-void uart_out(void)
-{
-    struct device *dev;
-
 	dev = device_get_binding(LED_PORT);
-	/* Set LED pin as output */
-	gpio_pin_configure(dev, LED, GPIO_DIR_OUT);
 
     u32_t count = 0;
 	while (1) {
 		printk("Miaou %d\n", count++);
-		gpio_pin_write(dev, LED, count % 2);
+		gpio_pin_write(dev, LED_PIN, count % 2);
 		k_sleep(50);
 	}
 }
 
+void init(void)
+{
+    struct device *dev;
 
+    printk("Init start %s\n", CONFIG_BOARD);
 
+    //Init switch interrupt
+    dev = device_get_binding(SWITCH_PORT);
+    gpio_pin_configure(dev, SWITCH_PIN, GPIO_DIR_IN | GPIO_INT | GPIO_INT_EDGE | GPIO_INT_ACTIVE_HIGH);
+    IRQ_CONNECT(SWITCH_IRQ, SWITCH_PRIO, switch_isr, NULL, 0);
+    irq_enable(SWITCH_IRQ);
 
+    //Init led output
+    dev = device_get_binding(LED_PORT);
+    gpio_pin_configure(dev, LED_PIN, GPIO_DIR_OUT);
 
-
+    printk("Init done %s\n", CONFIG_BOARD);
+}
 
 
 void main(void)
 {
-	printk("Hello World! %s\n", CONFIG_BOARD);
-    my_isr_installer();
+    init();
 }
 
 
+K_THREAD_DEFINE(printerThread_id, STACKSIZE, printer_thread, NULL, NULL, NULL, PRIORITY, 0, K_NO_WAIT);
 
 
 
-K_THREAD_DEFINE(uart_out_id, STACKSIZE, uart_out, NULL, NULL, NULL,
-		PRIORITY, 0, K_NO_WAIT);

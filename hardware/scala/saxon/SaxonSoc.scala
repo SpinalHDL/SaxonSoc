@@ -389,7 +389,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
       case plugin : IBusCachedPlugin => iBus << plugin.iBus.toPipelinedMemoryBus()
       case plugin : DBusSimplePlugin => dBus << plugin.dBus.toPipelinedMemoryBus()
       case plugin : CsrPlugin => {
-        plugin.externalInterrupt := plic.targets(0).iep //Not used
+        plugin.externalInterrupt := plic.targets(0).iep
         plugin.timerInterrupt := machineTimer.io.mTimeInterrupt
       }
       case plugin : DebugPlugin         => plugin.debugClockDomain{
