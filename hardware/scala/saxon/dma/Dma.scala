@@ -5,22 +5,34 @@ import spinal.lib._
 import spinal.lib.bus.amba3.apb.sim.Apb3Driver
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3SlaveFactory}
 import spinal.lib.bus.simple.{PipelinedMemoryBus, PipelinedMemoryBusConfig}
+import spinal.lib.eda.bench.{Bench, Rtl}
+import spinal.lib.eda.icestorm.IcestormStdTargets
 
 import scala.util.Random
 object Dma{
 
-  case class MappingParameter( val channelOffset : Int = 0x100,
-                               val channelDelta : Int = 0x20,
-                               val channelSourceLengthOffset : Int = 0x0C,
-                               val channelSourceAddressOffset : Int = 0x08,
-                               val channelSourceConfigOffset : Int = 0x04,
-                               val channelSourceCtrlOffset : Int = 0x00,
+  case class MappingParameter(val channelOffset : Int = 0x100,
+                              val channelDelta : Int = 0x40,
 
-                               val channelSourceIncrementBit : Int = 0,
-                               val channelSourceReloadBit : Int = 4,
-                               val channelSourceFromInputBit : Int = 5,
-                               val channelSourceSizeBit : Int = 12,
-                               val channelSourceBurstBit : Int = 16)
+                              val channelSourceLengthOffset : Int = 0x0C,
+                              val channelSourceAddressOffset : Int = 0x08,
+                              val channelSourceConfigOffset : Int = 0x04,
+                              val channelSourceCtrlOffset : Int = 0x00,
+                              val channelSourceIncrementBit : Int = 0,
+                              val channelSourceReloadBit : Int = 4,
+                              val channelSourceFromInputBit : Int = 5,
+                              val channelSourceSizeBit : Int = 12,
+                              val channelSourceBurstBit : Int = 16,
+
+                              val channelDestinationLengthOffset : Int = 0x1C,
+                              val channelDestinationAddressOffset : Int = 0x18,
+                              val channelDestinationConfigOffset : Int = 0x14,
+                              val channelDestinationCtrlOffset : Int = 0x10,
+                              val channelDestinationIncrementBit : Int = 0,
+                              val channelDestinationReloadBit : Int = 4,
+                              val channelDestinationToOutputBit : Int = 5,
+                              val channelDestinationSizeBit : Int = 12,
+                              val channelDestinationBurstBit : Int = 16)
 
   case class Parameter( memConfig: PipelinedMemoryBusConfig,
                         inputs : Seq[InputParameter],
@@ -39,6 +51,7 @@ object Dma{
                               destinationLengthWidth : Int){
     assert(isPow2(fifoDepth))
     val fifoPtrType = HardType(UInt(log2Up(fifoDepth)+1 bits))
+    val fifoPtrTailType = HardType(UInt(log2Up(fifoDepth) bits))
     val burstType = HardType(UInt(log2Up(fifoDepth) bits))
   }
 
@@ -149,7 +162,7 @@ object Dma{
     case class Channel(cp : ChannelParameter) extends Bundle {
       val fifoHead = fifoRam.addressType()
       val source = new Bundle{
-        val enable = Bool()
+        val busy = Bool()
         val increment, reload = Bool()
         val fromInput = Bool()
         val address = UInt(p.memConfig.addressWidth bits)
@@ -157,22 +170,24 @@ object Dma{
         val length, counter = UInt(cp.sourceLengthWidth bits)
         val size = p.sizeType()
         val fifoPtr = cp.fifoPtrType()
+        val fifoPtrTail = cp.fifoPtrTailType()
         def fromMem = !fromInput
         def regify() : Unit = {
-          List(enable, enable, increment, reload, fromInput, address, burst, length, counter, size, fifoPtr).foreach(_.setAsReg())
-          enable.init(False)
+          List(busy, busy, increment, reload, fromInput, address, burst, length, counter, size, fifoPtr).foreach(_.setAsReg())
+          busy.init(False)
           fifoPtr init(0)
           fifoPtrIncrement := False
           when(fifoPtrIncrement){
             fifoPtr := fifoPtr + 1
           }
+          fifoPtrTail := fifoPtr.resized
         }
 
         val fifoPtrIncrement = Bool()
       }
 
       val destination = new Bundle{
-        val enable = Bool()
+        val busy = Bool()
         val increment, reload = Bool()
         val toOutput = Bool()
         def toMem = !toOutput
@@ -181,16 +196,27 @@ object Dma{
         val length, counter = UInt(cp.destinationLengthWidth bits)
         val size = p.sizeType()
         val fifoPtr = cp.fifoPtrType()
+        val fifoPtrTail = cp.fifoPtrTailType()
         def regify() : Unit = {
-          List(enable, enable, increment, reload, toOutput, address, burst, length, counter, size, fifoPtr).foreach(_.setAsReg())
-          enable.init(False)
+          List(busy, busy, increment, reload, toOutput, address, burst, length, counter, size, fifoPtr).foreach(_.setAsReg())
+          busy.init(False)
           fifoPtr init(0)
+          fifoPtrIncrement := False
+          when(fifoPtrIncrement){
+            fifoPtr := fifoPtr + 1
+          }
+          fifoPtrTail := fifoPtr.resized
         }
-      }
 
+        val fifoPtrIncrement = Bool()
+      }
+      val fifoFullOrEmpty, fifoFull, fifoEmpty = Bool()
       def regify(): Unit= {
         source.regify()
         destination.regify()
+        fifoFullOrEmpty := source.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0) === destination.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0)
+        fifoFull := fifoFullOrEmpty && source.fifoPtr.msb =/= destination.fifoPtr.msb
+        fifoEmpty := fifoFullOrEmpty && source.fifoPtr.msb === destination.fifoPtr.msb
       }
     }
 
@@ -243,7 +269,7 @@ object Dma{
     val memReadCmd = new Area {
       val proposal = new Area {
         val valid = Vec(channels.map(c =>
-          c.source.enable && c.source.fromMem && c.source.counter =/= c.source.length && !(c.source.fifoPtr - c.destination.fifoPtr + c.source.burst).msb
+          c.source.busy && c.source.fromMem && c.source.counter =/= c.source.length && !(c.source.fifoPtr - c.destination.fifoPtr + c.source.burst).msb
         ))
         val oneHot = OHMasking.first(valid)
       }
@@ -266,9 +292,9 @@ object Dma{
       }
 
       io.memRead.cmd.valid := busy && !cmdDone
-      io.memRead.cmd.payload.assignDontCare()
       io.memRead.cmd.address := selected.channel.source.address + (selected.channel.source.counter |<< selected.channel.source.size)
       io.memRead.cmd.write := False
+      io.memRead.cmd.data.assignDontCare()
       io.memRead.cmd.mask.assignDontCare()
 
       when(io.memRead.cmd.fire){
@@ -289,13 +315,60 @@ object Dma{
 
       when(io.memRead.rsp.valid){
         valid := True
-        address := (memReadCmd.selected.channel.fifoHead + memReadCmd.selected.channel.source.fifoPtr).resized
+        address := memReadCmd.selected.channel.fifoHead + memReadCmd.selected.channel.source.fifoPtrTail
         data := io.memRead.rsp.data  //TODO normalisation
         memReadCmd.selected.channel.source.fifoPtrIncrement := True
       }
     }
 
-//    val fifoRead = new Area{
+    val fifoRead = new Area {
+      val proposal = new Area {
+        val valid = Vec(channels.map(c =>
+          c.destination.busy && c.destination.toMem && c.destination.counter =/= c.destination.length && !c.fifoEmpty
+        ))
+        val oneHot = OHMasking.first(valid)
+      }
+      val busy = RegInit(False)
+      val fifoBeat, memBeat = Reg(beatType)
+      val selected = new Area{
+        val oh = Reg(proposal.oneHot)
+        val channel = channels(OHToUInt(oh))
+      }
+
+      val cmdDone = fifoBeat === selected.channel.destination.burst || selected.channel.destination.counter === selected.channel.destination.length || selected.channel.destination.fifoPtr === selected.channel.source.fifoPtr
+      val rspDone = memBeat === fifoBeat && cmdDone
+      when(!busy){
+        busy := proposal.valid.orR
+        selected.oh := proposal.oneHot
+        fifoBeat := 0
+        memBeat := 0
+      } otherwise {
+        busy := !rspDone
+      }
+
+      val fifoReadCmd = Stream(fifoRam.addressType)
+      fifoReadCmd.valid := busy && !rspDone
+      fifoReadCmd.payload := selected.channel.fifoHead + selected.channel.destination.fifoPtrTail
+      selected.channel.destination.fifoPtrIncrement setWhen(fifoReadCmd.fire)
+
+      val read = fifoRam.streamReadSync(fifoReadCmd)
+
+      val bufferIn = Stream(Bits(p.memConfig.dataWidth bits))
+      bufferIn.arbitrationFrom(read)
+      bufferIn.payload := read.payload
+
+      val bufferOut = bufferIn.s2mPipe()
+      io.memWrite.cmd.valid := busy && bufferOut.valid
+      io.memWrite.cmd.address := selected.channel.destination.address + (selected.channel.destination.counter |<< selected.channel.destination.size)
+      io.memWrite.cmd.write := True
+      io.memWrite.cmd.data := bufferOut.payload
+      io.memWrite.cmd.mask := "1111" //TODO
+      bufferOut.ready := io.memWrite.cmd.ready
+
+      when(io.memWrite.cmd.fire){
+        selected.channel.destination.counter := selected.channel.destination.counter + 1
+      }
+    }
 //      val proposal = new Area {
 //        val valid = Vec(channels.map(c =>
 //          c.destination.enable && c.destination.toMem && c.destination.counter =/= c.destination.length && !c.fifoEmpty
@@ -322,13 +395,12 @@ object Dma{
 //    }
 
 
-    io.memWrite.flatten.filter(_.isOutput).foreach(_.assignDontCare())
 
     val bus = Apb3SlaveFactory(io.config)
 
     for((channel, idx) <- channels.zipWithIndex){
       val offset = p.mapping.channelOffset + idx * p.mapping.channelDelta
-      bus.write(offset + p.mapping.channelSourceCtrlOffset, 0 -> channel.source.enable)
+      bus.write(offset + p.mapping.channelSourceCtrlOffset, 0 -> channel.source.busy)
       bus.write(
         offset + p.mapping.channelSourceConfigOffset,
         p.mapping.channelSourceIncrementBit -> channel.source.increment,
@@ -342,14 +414,79 @@ object Dma{
       when(bus.isWriting(offset + p.mapping.channelSourceCtrlOffset)){
         channel.source.counter := 0
       }
+
+      bus.write(offset + p.mapping.channelDestinationCtrlOffset, 0 -> channel.destination.busy)
+      bus.write(
+        offset + p.mapping.channelDestinationConfigOffset,
+        p.mapping.channelDestinationIncrementBit -> channel.destination.increment,
+        p.mapping.channelDestinationReloadBit -> channel.destination.reload,
+        p.mapping.channelDestinationToOutputBit -> channel.destination.toOutput,
+        p.mapping.channelDestinationSizeBit  -> channel.destination.size,
+        p.mapping.channelDestinationBurstBit  -> channel.destination.burst
+      )
+      bus.write(offset + p.mapping.channelDestinationAddressOffset, 0 -> channel.destination.address)
+      bus.write(offset + p.mapping.channelDestinationLengthOffset, 0 -> channel.destination.length)
+      when(bus.isWriting(offset + p.mapping.channelDestinationCtrlOffset)){
+        channel.destination.counter := 0
+      }
     }
   }
 
 }
 
+object DmaBench extends App{
+
+  def reduceIo[T <: Component](c : T): T ={
+    c.rework {
+      c.getOrdredNodeIo.foreach(_.allowDirectionLessIo)
+      val inputs = c.getOrdredNodeIo.filter(_.isInput).map(_.setAsDirectionLess())
+      val outputs = c.getOrdredNodeIo.filter(_.isOutput).map(_.setAsDirectionLess())
+      val o = outputs.map(_.setAsDirectionLess()).asBits()
+      val input = in(Bool())
+      val output = out(Bool())
+      val inputHistory = History(input, 1 to inputs.map(widthOf(_)).sum)
+      val inputVec = inputs.map{
+        case b : Bool => List(b)
+        case b : BitVector => b.asBools
+      }.flatten
+      (inputVec, inputHistory.asBits.asBools).zipped.foreach(_ := _)
+      println("HistoryLength=" + inputHistory.length)
+      output := RegNext(o.asBools.xorR)
+    }
+
+    c
+  }
+
+  val p = Dma.Parameter(
+    memConfig = PipelinedMemoryBusConfig(30,32),
+    inputs = Nil,
+    outputs = Nil,
+    channels = List(
+      Dma.ChannelParameter(
+        fifoDepth = 32,
+        sourceLengthWidth = 12,
+        destinationLengthWidth = 12
+      )
+    )
+  )
+  val dma = new Rtl {
+    override def getName(): String = "Dma"
+    override def getRtlPath(): String = "Dma.v"
+    SpinalVerilog(reduceIo(Dma.Dma(p)))
+  }
+
+
+  val rtls = List(dma)
+
+  val targets = IcestormStdTargets().take(1)
+
+  Bench(rtls, targets, "/eda/tmp/")
+
+}
 
 object DmaDebug extends App{
   import spinal.core.sim._
+
   val p = Dma.Parameter(
     memConfig = PipelinedMemoryBusConfig(30,32),
     inputs = Nil,
@@ -389,16 +526,41 @@ object DmaDebug extends App{
         (burst << p.mapping.channelSourceBurstBit)
       )
     }
+    def writeDestinationConfig(channelId : Int)(
+      increment : Boolean,
+      reload : Boolean,
+      toOutput : Boolean,
+      size : Int,
+      burst : Int,
+      address : Int,
+      length : Int): Unit ={
+      val offset = p.mapping.channelOffset + channelId * p.mapping.channelDelta
+      config.write(offset + p.mapping.channelDestinationLengthOffset, length)
+      config.write(offset + p.mapping.channelDestinationAddressOffset, address)
+      config.write(offset + p.mapping.channelDestinationConfigOffset,
+        (if (increment) 1 << p.mapping.channelDestinationIncrementBit else 0) |
+          (if (reload) 1 << p.mapping.channelDestinationReloadBit else 0) |
+          (if (toOutput) 1 << p.mapping.channelDestinationToOutputBit else 0) |
+          (size << p.mapping.channelDestinationSizeBit) |
+          (burst << p.mapping.channelDestinationBurstBit)
+      )
+    }
 
     def sourceStart(channelId : Int): Unit = {
       val offset = p.mapping.channelOffset + channelId * p.mapping.channelDelta
       config.write(offset + p.mapping.channelSourceCtrlOffset, 1)
     }
+    
+    def destinationStart(channelId : Int): Unit = {
+      val offset = p.mapping.channelOffset + channelId * p.mapping.channelDelta
+      config.write(offset + p.mapping.channelDestinationCtrlOffset, 1)
+    }
 
 
 
     val memory = new Array[Byte](0x10000)
-    Random.nextBytes(memory)
+    for(i <- 0 until memory.length) memory(i) = i.toByte
+//    Random.nextBytes(memory)
 
 
     def newMemoryAgent(bus : PipelinedMemoryBus): Unit = {
@@ -414,7 +576,7 @@ object DmaDebug extends App{
           val address = bus.cmd.address.toInt
           assert((address.toInt & 0x3) == 0)
           if(bus.cmd.write.toBoolean){
-            val data = bus.cmd.data.toInt
+            val data = bus.cmd.data.toLong
             val mask = bus.cmd.mask.toInt
             for(i <- 0 to 3){
               if((mask & (1 << i)) != 0){
@@ -434,7 +596,7 @@ object DmaDebug extends App{
     }
 
     newMemoryAgent(dut.io.memRead)
-//    newMemoryAgent(dut.io.memWrite)
+    newMemoryAgent(dut.io.memWrite)
 
 
     dut.clockDomain.forkStimulus(10)
@@ -449,17 +611,37 @@ object DmaDebug extends App{
       address = 0x100,
       length = 0x40
     )
+    writeDestinationConfig(0)(
+      increment = true,
+      reload = false,
+      toOutput = false,
+      size = 2,
+      burst = 8,
+      address = 0x200,
+      length = 0x40
+    )
     writeSourceConfig(1)(
       increment = true,
       reload = false,
       fromInput = false,
       size = 2,
       burst = 5,
-      address = 0x200,
+      address = 0x300,
+      length = 0x20
+    )
+    writeDestinationConfig(1)(
+      increment = true,
+      reload = false,
+      toOutput = false,
+      size = 2,
+      burst = 5,
+      address = 0x400,
       length = 0x20
     )
     sourceStart(1)
+    destinationStart(1)
     sourceStart(0)
-    dut.clockDomain.waitSampling(100)
+    destinationStart(0)
+    dut.clockDomain.waitSampling(300)
   }
 }
