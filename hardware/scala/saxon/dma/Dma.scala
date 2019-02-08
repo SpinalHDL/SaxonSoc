@@ -47,7 +47,7 @@ object Dma{
                          burstWidth : Int,
                          memory : Boolean = true,
                          stream : Boolean = true){
-
+    assert(memory || stream)
     val burstType = HardType(UInt(burstWidth bits))
   }
   case class ChannelParameter(fifoDepth : Int,
@@ -81,12 +81,12 @@ object Dma{
     val fifoDepth = p.channels.map(_.fifoDepth).sum
     val fifoRam = Mem(Bits(p.memConfig.dataWidth bits), fifoDepth)
 
-    class SourceDestinationBase(cp : ChannelParameter, sdp : SDParameter) extends Area {
+    class SourceDestinationBase(cp : ChannelParameter, sdp : SDParameter, addressWidth : Int) extends Area {
       val busy, stop = RegInit(False)
       val increment, reload, memory = Reg(Bool())
       val start, dontStop = False
 
-      val address = Reg(UInt(p.memConfig.addressWidth bits))
+      val address = Reg(UInt(addressWidth bits))
       val burst = Reg(sdp.burstType())
       val size = Reg(p.sizeType())
 
@@ -103,8 +103,8 @@ object Dma{
     case class Channel(val cp : ChannelParameter) extends Area {
       val reset = False
 
-      val source = new SourceDestinationBase(cp, cp.source)
-      val destination = new SourceDestinationBase(cp, cp.destination)
+      val source = new SourceDestinationBase(cp, cp.source, if(cp.source.memory) p.memConfig.addressWidth else log2Up(p.inputs.length))
+      val destination = new SourceDestinationBase(cp, cp.destination, if(cp.destination.memory) p.memConfig.addressWidth else log2Up(p.outputs.length))
 
       val sourceFifoPtr = U(channelToFifoOffset(cp), log2Up(fifoRam.wordCount) bits) | source.fifoPtr(widthOf(source.fifoPtr)-2 downto 0).resized
       val destinationFifoPtr = U(channelToFifoOffset(cp), log2Up(fifoRam.wordCount) bits) | destination.fifoPtr(widthOf(destination.fifoPtr)-2 downto 0).resized
@@ -118,7 +118,7 @@ object Dma{
     val channelToFifoOffset = (channelsByFifoSize, channelsByFifoSize.scanLeft(0)(_ + _.fifoDepth)).zipped.toMap
 
     val channels = p.channels.map(Channel(_))
-    
+
     val memReadCmd = new Area {
       val memoryChannels = channels.filter(_.cp.source.memory)
       val beatType = HardType(UInt(memoryChannels.map(_.cp.source.burstWidth).max bits))
@@ -174,16 +174,19 @@ object Dma{
 
     val fifoWrite = new Area{
       val memoryChannels = channels.filter(_.cp.source.memory)
+      val streamChannels = if(p.inputs.nonEmpty) channels.filter(_.cp.source.stream) else Nil
 
       val valid = False
       val address = fifoRam.addressType().assignDontCare()
       val data = fifoRam.wordType().assignDontCare()
       fifoRam.write(address, data, valid)
 
-      val selected = new Area{
-//        val inputsValid = channels.map(c => c.source.busy && !c.source.stop && !c.source.memory && io.inputs(c.source.address.resized).valid)
-
-
+      val stream = streamChannels.nonEmpty generate new Area{
+        val inputsValid = streamChannels.map(c => c.source.busy && !c.source.stop && !c.source.counterMatch && !c.source.memory && !c.fifoFull && io.inputs(c.source.address.resized).valid)
+        val index = OHToUInt(OHMasking.first(inputsValid))
+        def channel[T <: Data](f : Channel => T) = Vec(streamChannels.map(f))(index)
+        val sourceFifoPtr = channel(_.sourceFifoPtr)
+        val fifoPtrIncrement = channel(_.source.fifoPtrIncrement)
       }
 
       io.inputs.foreach(_.ready := False)
@@ -193,10 +196,14 @@ object Dma{
         data := io.memRead.rsp.data  //TODO normalisation
         memReadCmd.selected.fifoPtrIncrement := True
       } otherwise {
-//        valid := selected.inputsValid.orR
+        streamChannels.nonEmpty generate when(stream.inputsValid.orR) {
+          valid := True
+          address := stream.sourceFifoPtr
+          data := io.inputs(stream.index).data
+          io.inputs(stream.index).ready := True
+          stream.fifoPtrIncrement := True
+        }
       }
-
-
     }
 
     val fifoRead = new Area {
@@ -391,13 +398,13 @@ object DmaDebug extends App{
       Dma.ChannelParameter(
         fifoDepth = 16,
         source = Dma.SDParameter(
-          lengthWidth = 12,
+          lengthWidth = 14,
           burstWidth = 4,
           memory = true,
           stream = true
         ),
         destination = Dma.SDParameter(
-          lengthWidth = 12,
+          lengthWidth = 10,
           burstWidth = 4,
           memory = true,
           stream = true
