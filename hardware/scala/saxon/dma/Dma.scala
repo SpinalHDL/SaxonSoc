@@ -12,27 +12,23 @@ import scala.util.Random
 object Dma{
 
   case class MappingParameter(val channelOffset : Int = 0x100,
-                              val channelDelta : Int = 0x40,
+                              val channelDelta : Int = 0x80,
+                              val sourceOffset : Int = 0x40,
+                              val destinationOffset : Int = 0x60,
 
-                              val channelSourceLengthOffset : Int = 0x0C,
-                              val channelSourceAddressOffset : Int = 0x08,
-                              val channelSourceConfigOffset : Int = 0x04,
-                              val channelSourceCtrlOffset : Int = 0x00,
-                              val channelSourceIncrementBit : Int = 0,
-                              val channelSourceReloadBit : Int = 4,
-                              val channelSourceFromInputBit : Int = 5,
-                              val channelSourceSizeBit : Int = 12,
-                              val channelSourceBurstBit : Int = 16,
-
-                              val channelDestinationLengthOffset : Int = 0x1C,
-                              val channelDestinationAddressOffset : Int = 0x18,
-                              val channelDestinationConfigOffset : Int = 0x14,
-                              val channelDestinationCtrlOffset : Int = 0x10,
-                              val channelDestinationIncrementBit : Int = 0,
-                              val channelDestinationReloadBit : Int = 4,
-                              val channelDestinationToOutputBit : Int = 5,
-                              val channelDestinationSizeBit : Int = 12,
-                              val channelDestinationBurstBit : Int = 16)
+                              val channelLengthOffset : Int = 0x0C,
+                              val channelAddressOffset : Int = 0x08,
+                              val channelConfigOffset : Int = 0x04,
+                              val channelCtrlOffset : Int = 0x00,
+                              val channelIncrementBit : Int = 0,
+                              val channelReloadBit : Int = 4,
+                              val channelMemoryBit : Int = 5,
+                              val channelSizeBit : Int = 12,
+                              val channelBurstBit : Int = 16,
+                              val channelStartBit : Int = 0,
+                              val channelStopBit : Int = 1,
+                              val channelBusyBit : Int = 2,
+                              val channelResetBit : Int = 0)
 
   case class Parameter( memConfig: PipelinedMemoryBusConfig,
                         inputs : Seq[InputParameter],
@@ -79,141 +75,53 @@ object Dma{
     val fifoRam = Mem(Bits(p.memConfig.dataWidth bits), fifoDepth)
     var fifoAllocator = 0
 
-//    val channelsRegs = for(cp <- p.channels) yield Reg(new Bundle{
-//      val fifoPtrType = HardType(UInt(log2Up(cp.fifoDepth)+1 bits))
-//      val source = new Bundle{
-//        val enable = Bool()
-//        val increment, reload = Bool()
-//        val fromInput = Bool()
-//        def fromMem = !fromInput
-//        val address = UInt(p.memConfig.addressWidth bits)
-//        val length, counter = UInt(cp.sourceLengthWidth bits)
-//        val size = p.sizeType()
-//        val fifoPtr = fifoPtrType()
-//      }
-//      val destination = new Bundle{
-//        val enable = Bool()
-//        val increment, reload = Bool()
-//        val toOutput = Bool()
-//        def toMem = !toOutput
-//        val address = UInt(p.memConfig.addressWidth bits)
-//        val length, counter = UInt(cp.destinationLengthWidth bits)
-//        val size = p.sizeType()
-//        val fifoPtr = fifoPtrType()
-//      }
-//    })
-//
-//    val channelsLogic = for((cp, regs) <- (p.channels, channelsRegs).zipped) yield Reg(new Bundle{
-//      val fifoPtrType = HardType(UInt(log2Up(cp.fifoDepth)+1 bits))
-//      val source = new Bundle{
-//        val enable = Bool()
-//        val increment, reload = Bool()
-//        val fromInput = Bool()
-//        def fromMem = !fromInput
-//        val address = UInt(p.memConfig.addressWidth bits)
-//        val length, counter = UInt(cp.sourceLengthWidth bits)
-//        val size = p.sizeType()
-//        val fifoPtr = fifoPtrType()
-//      }
-//      val destination = new Bundle{
-//        val enable = Bool()
-//        val increment, reload = Bool()
-//        val toOutput = Bool()
-//        def toMem = !toOutput
-//        val address = UInt(p.memConfig.addressWidth bits)
-//        val length, counter = UInt(cp.destinationLengthWidth bits)
-//        val size = p.sizeType()
-//        val fifoPtr = fifoPtrType()
-//      }
-//    })
 
-//    val channels = for(cp <- p.channels) yield new Bundle{
-//      val fifoPtrType = HardType(UInt(log2Up(cp.fifoDepth)+1 bits))
-//      val fifoHead = U(fifoAllocator, fifoPtrType.getBitsWidth bits)
-//      fifoAllocator += cp.fifoDepth
-//      val source = new Bundle{
-//        val enable = RegInit(False)
-//        val increment, reload = Reg(Bool())
-//        val fromInput = Reg(Bool())
-//        def fromMem = !fromInput
-//        val address = Reg(UInt(p.memConfig.addressWidth bits))
-//        val burst = Reg(UInt(p.burstWidth bits))
-//        val length, counter = Reg(UInt(cp.sourceLengthWidth bits))
-//        val size = Reg(p.sizeType)
-//        val fifoPtr = Reg(fifoPtrType)
-//      }
-//      val destination = new Bundle{
-//        val enable = RegInit(False)
-//        val increment, reload = Reg(Bool())
-//        val toOutput = Reg(Bool())
-//        def toMem = !toOutput
-//        val address = Reg(UInt(p.memConfig.addressWidth bits))
-//        val burst = Reg(UInt(p.burstWidth bits))
-//        val length, counter = Reg(UInt(cp.destinationLengthWidth bits))
-//        val size = Reg(p.sizeType)
-//        val fifoPtr = Reg(fifoPtrType)
-//      }
-//
-//      val fifoFullOrEmpty = source.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0) === destination.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0)
-//      val fifoFull = fifoFullOrEmpty && source.fifoPtr.msb =/= destination.fifoPtr.msb
-//      val fifoEmpty = fifoFullOrEmpty && source.fifoPtr.msb === destination.fifoPtr.msb
-//    }
+    class SourceDestinationBase(cp : ChannelParameter) extends Bundle {
+      val busy = Bool()
+      val start = Bool()
+      val stop = Bool()
+      val dontStop = Bool()
+      val increment, reload = Bool()
+      val memory = Bool()
+      val address = UInt(p.memConfig.addressWidth bits)
+      val burst = cp.burstType()
+      val length, counter = UInt(cp.sourceLengthWidth bits)
+      val counterMatch = Bool()
+      val size = p.sizeType()
+      val fifoPtrIncrement = Bool()
+      val fifoPtr = cp.fifoPtrType()
+      val fifoPtrTail = cp.fifoPtrTailType()
+
+      def behaviour() : Unit = {
+        List(busy, stop, increment, reload, memory, address, burst, length, counter, size, fifoPtr).foreach(_.setAsReg())
+        busy.init(False)
+        stop.init(False)
+        start := False
+        dontStop := False
+        busy clearWhen(counterMatch || (stop && !dontStop)) setWhen(start)
+        fifoPtr init(0)
+        fifoPtrIncrement := False
+        when(fifoPtrIncrement){
+          fifoPtr := fifoPtr + 1
+        }
+        fifoPtrTail := fifoPtr.resized
+        counterMatch := counter === length
+
+      }
+    }
 
     case class Channel(cp : ChannelParameter) extends Bundle {
       val fifoHead = fifoRam.addressType()
-      val source = new Bundle{
-        val busy = Bool()
-        val increment, reload = Bool()
-        val fromInput = Bool()
-        val address = UInt(p.memConfig.addressWidth bits)
-        val burst = cp.burstType()
-        val length, counter = UInt(cp.sourceLengthWidth bits)
-        val size = p.sizeType()
-        val fifoPtr = cp.fifoPtrType()
-        val fifoPtrTail = cp.fifoPtrTailType()
-        def fromMem = !fromInput
-        def regify() : Unit = {
-          List(busy, busy, increment, reload, fromInput, address, burst, length, counter, size, fifoPtr).foreach(_.setAsReg())
-          busy.init(False)
-          fifoPtr init(0)
-          fifoPtrIncrement := False
-          when(fifoPtrIncrement){
-            fifoPtr := fifoPtr + 1
-          }
-          fifoPtrTail := fifoPtr.resized
-        }
+      val reset = Bool()
 
-        val fifoPtrIncrement = Bool()
-      }
+      val source = new SourceDestinationBase(cp)
+      val destination = new SourceDestinationBase(cp)
 
-      val destination = new Bundle{
-        val busy = Bool()
-        val increment, reload = Bool()
-        val toOutput = Bool()
-        def toMem = !toOutput
-        val address = UInt(p.memConfig.addressWidth bits)
-        val burst = cp.burstType()
-        val length, counter = UInt(cp.destinationLengthWidth bits)
-        val size = p.sizeType()
-        val fifoPtr = cp.fifoPtrType()
-        val fifoPtrTail = cp.fifoPtrTailType()
-        def regify() : Unit = {
-          List(busy, busy, increment, reload, toOutput, address, burst, length, counter, size, fifoPtr).foreach(_.setAsReg())
-          busy.init(False)
-          fifoPtr init(0)
-          fifoPtrIncrement := False
-          when(fifoPtrIncrement){
-            fifoPtr := fifoPtr + 1
-          }
-          fifoPtrTail := fifoPtr.resized
-        }
-
-        val fifoPtrIncrement = Bool()
-      }
       val fifoFullOrEmpty, fifoFull, fifoEmpty = Bool()
-      def regify(): Unit= {
-        source.regify()
-        destination.regify()
+      def behaviour(): Unit= {
+        source.behaviour()
+        destination.behaviour()
+        reset := False
         fifoFullOrEmpty := source.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0) === destination.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0)
         fifoFull := fifoFullOrEmpty && source.fifoPtr.msb =/= destination.fifoPtr.msb
         fifoEmpty := fifoFullOrEmpty && source.fifoPtr.msb === destination.fifoPtr.msb
@@ -223,53 +131,17 @@ object Dma{
 
     val channels = Vec(p.channels.map { cp =>
       val c = Channel(cp)
-      c.regify()
+      c.behaviour()
       c.fifoHead := fifoAllocator
       fifoAllocator += cp.fifoDepth
       c
     })
 
-
-
-
-//    val channels = for(cp <- p.channels) yield new Bundle{
-//      val fifoPtrType = HardType(UInt(log2Up(cp.fifoDepth)+1 bits))
-//      val fifoHead = U(fifoAllocator, fifoPtrType.getBitsWidth bits)
-//      fifoAllocator += cp.fifoDepth
-//      val source = new Bundle{
-//        val enable = RegInit(False)
-//        val increment, reload = Reg(Bool())
-//        val fromInput = Reg(Bool())
-//        def fromMem = !fromInput
-//        val address = Reg(UInt(p.memConfig.addressWidth bits))
-//        val burst = Reg(UInt(p.burstWidth bits))
-//        val length, counter = Reg(UInt(cp.sourceLengthWidth bits))
-//        val size = Reg(p.sizeType)
-//        val fifoPtr = Reg(fifoPtrType)
-//      }
-//      val destination = new Bundle{
-//        val enable = RegInit(False)
-//        val increment, reload = Reg(Bool())
-//        val toOutput = Reg(Bool())
-//        def toMem = !toOutput
-//        val address = Reg(UInt(p.memConfig.addressWidth bits))
-//        val burst = Reg(UInt(p.burstWidth bits))
-//        val length, counter = Reg(UInt(cp.destinationLengthWidth bits))
-//        val size = Reg(p.sizeType)
-//        val fifoPtr = Reg(fifoPtrType)
-//      }
-//
-//      val fifoFullOrEmpty = source.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0) === destination.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0)
-//      val fifoFull = fifoFullOrEmpty && source.fifoPtr.msb =/= destination.fifoPtr.msb
-//      val fifoEmpty = fifoFullOrEmpty && source.fifoPtr.msb === destination.fifoPtr.msb
-//    }
-
-
     val beatType = HardType(UInt(p.channels.map(_.burstType.getBitsWidth).max bits))
     val memReadCmd = new Area {
       val proposal = new Area {
         val valid = Vec(channels.map(c =>
-          c.source.busy && c.source.fromMem && c.source.counter =/= c.source.length && !(c.source.fifoPtr - c.destination.fifoPtr + c.source.burst).msb
+          c.source.busy && !c.source.stop && c.source.memory && !c.source.counterMatch && !(c.source.fifoPtr - c.destination.fifoPtr + c.source.burst).msb
         ))
         val oneHot = OHMasking.first(valid)
       }
@@ -280,7 +152,7 @@ object Dma{
         val channel = channels(OHToUInt(oh))
       }
 
-      val cmdDone = cmdBeat === selected.channel.source.burst || selected.channel.source.counter === selected.channel.source.length
+      val cmdDone = cmdBeat === selected.channel.source.burst || selected.channel.source.counterMatch
       val rspDone = rspBeat === rspBeat && cmdDone
       when(!busy){
         busy := proposal.valid.orR
@@ -289,6 +161,7 @@ object Dma{
         rspBeat := 0
       } otherwise {
         busy := !rspDone
+        selected.channel.source.dontStop := True
       }
 
       io.memRead.cmd.valid := busy && !cmdDone
@@ -324,7 +197,7 @@ object Dma{
     val fifoRead = new Area {
       val proposal = new Area {
         val valid = Vec(channels.map(c =>
-          c.destination.busy && c.destination.toMem && c.destination.counter =/= c.destination.length && !c.fifoEmpty
+          c.destination.busy && !c.source.stop && c.destination.memory && !c.destination.counterMatch && !c.fifoEmpty
         ))
         val oneHot = OHMasking.first(valid)
       }
@@ -335,8 +208,9 @@ object Dma{
         val channel = channels(OHToUInt(oh))
       }
 
-      val cmdDone = fifoBeat === selected.channel.destination.burst || selected.channel.destination.counter === selected.channel.destination.length || selected.channel.destination.fifoPtr === selected.channel.source.fifoPtr
+      val cmdDone = fifoBeat === selected.channel.destination.burst || selected.channel.destination.counterMatch || selected.channel.destination.fifoPtr === selected.channel.source.fifoPtr
       val rspDone = memBeat === fifoBeat && cmdDone
+
       when(!busy){
         busy := proposal.valid.orR
         selected.oh := proposal.oneHot
@@ -344,6 +218,7 @@ object Dma{
         memBeat := 0
       } otherwise {
         busy := !rspDone
+        selected.channel.destination.dontStop := True
       }
 
       val fifoReadCmd = Stream(fifoRam.addressType)
@@ -369,66 +244,41 @@ object Dma{
         selected.channel.destination.counter := selected.channel.destination.counter + 1
       }
     }
-//      val proposal = new Area {
-//        val valid = Vec(channels.map(c =>
-//          c.destination.enable && c.destination.toMem && c.destination.counter =/= c.destination.length && !c.fifoEmpty
-//        ))
-//        val oneHot = OHMasking.first(valid)
-//      }
-//      val busy = RegInit(False)
-//      val cmdBeat, rspBeat = Reg(UInt(p.burstWidth bits))
-//      val selected = new Area{
-//        val oh = Reg(proposal.oneHot)
-//        val channel = MuxOH(oh, channels)
-//      }
-//
-//      val cmdDone = cmdBeat === selected.channel.source.burst || selected.channel.source.counter =/= selected.channel.source.length
-//      val rspDone = rspBeat === rspBeat && cmdDone
-//      when(!busy){
-//        busy := proposal.valid.orR
-//        selected.oh := proposal.oneHot
-//        cmdBeat := 0
-//        rspBeat := 0
-//      } otherwise {
-//        busy := rspDone
-//      }
-//    }
-
+    
 
 
     val bus = Apb3SlaveFactory(io.config)
 
     for((channel, idx) <- channels.zipWithIndex){
-      val offset = p.mapping.channelOffset + idx * p.mapping.channelDelta
-      bus.write(offset + p.mapping.channelSourceCtrlOffset, 0 -> channel.source.busy)
-      bus.write(
-        offset + p.mapping.channelSourceConfigOffset,
-        p.mapping.channelSourceIncrementBit -> channel.source.increment,
-        p.mapping.channelSourceReloadBit -> channel.source.reload,
-        p.mapping.channelSourceFromInputBit -> channel.source.fromInput,
-        p.mapping.channelSourceSizeBit  -> channel.source.size,
-        p.mapping.channelSourceBurstBit  -> channel.source.burst
-      )
-      bus.write(offset + p.mapping.channelSourceAddressOffset, 0 -> channel.source.address)
-      bus.write(offset + p.mapping.channelSourceLengthOffset, 0 -> channel.source.length)
-      when(bus.isWriting(offset + p.mapping.channelSourceCtrlOffset)){
-        channel.source.counter := 0
+      def map(that : SourceDestinationBase, offset : Int): Unit = {
+        bus.write(
+          offset + p.mapping.channelCtrlOffset,
+          p.mapping.channelStartBit -> that.start,
+          p.mapping.channelStopBit -> that.stop
+        )
+        bus.read(
+          offset + p.mapping.channelCtrlOffset,
+          p.mapping.channelBusyBit -> that.busy
+        )
+        bus.write(
+          offset + p.mapping.channelConfigOffset,
+          p.mapping.channelIncrementBit -> that.increment,
+          p.mapping.channelReloadBit -> that.reload,
+          p.mapping.channelMemoryBit -> that.memory,
+          p.mapping.channelSizeBit  -> that.size,
+          p.mapping.channelBurstBit  -> that.burst
+        )
+        bus.write(offset + p.mapping.channelAddressOffset, 0 -> that.address)
+        bus.write(offset + p.mapping.channelLengthOffset, 0 -> that.length)
+        when(bus.isWriting(offset + p.mapping.channelCtrlOffset)){
+          that.counter := 0
+        }
       }
 
-      bus.write(offset + p.mapping.channelDestinationCtrlOffset, 0 -> channel.destination.busy)
-      bus.write(
-        offset + p.mapping.channelDestinationConfigOffset,
-        p.mapping.channelDestinationIncrementBit -> channel.destination.increment,
-        p.mapping.channelDestinationReloadBit -> channel.destination.reload,
-        p.mapping.channelDestinationToOutputBit -> channel.destination.toOutput,
-        p.mapping.channelDestinationSizeBit  -> channel.destination.size,
-        p.mapping.channelDestinationBurstBit  -> channel.destination.burst
-      )
-      bus.write(offset + p.mapping.channelDestinationAddressOffset, 0 -> channel.destination.address)
-      bus.write(offset + p.mapping.channelDestinationLengthOffset, 0 -> channel.destination.length)
-      when(bus.isWriting(offset + p.mapping.channelDestinationCtrlOffset)){
-        channel.destination.counter := 0
-      }
+      val offset = p.mapping.channelOffset + idx * p.mapping.channelDelta
+      bus.write(offset, p.mapping.channelResetBit -> channel.reset)
+      map(channel.source, offset + p.mapping.sourceOffset)
+      map(channel.destination, offset + p.mapping.destinationOffset)
     }
   }
 
@@ -507,54 +357,33 @@ object DmaDebug extends App{
   SimConfig.withWave.compile(new Dma.Dma(p)).doSim("test", 42){dut =>
     val config = Apb3Driver(dut.io.config, dut.clockDomain)
 
-    def writeSourceConfig(channelId : Int)(
-                          increment : Boolean,
-                          reload : Boolean,
-                          fromInput : Boolean,
-                          size : Int,
-                          burst : Int,
-                          address : Int,
-                          length : Int): Unit ={
-      val offset = p.mapping.channelOffset + channelId * p.mapping.channelDelta
-      config.write(offset + p.mapping.channelSourceLengthOffset, length)
-      config.write(offset + p.mapping.channelSourceAddressOffset, address)
-      config.write(offset + p.mapping.channelSourceConfigOffset,
-        (if (increment) 1 << p.mapping.channelSourceIncrementBit else 0) |
-        (if (reload) 1 << p.mapping.channelSourceReloadBit else 0) |
-        (if (fromInput) 1 << p.mapping.channelSourceFromInputBit else 0) |
-        (size << p.mapping.channelSourceSizeBit) |
-        (burst << p.mapping.channelSourceBurstBit)
-      )
-    }
-    def writeDestinationConfig(channelId : Int)(
+    def writeXConfig(offset : Int)(
       increment : Boolean,
       reload : Boolean,
-      toOutput : Boolean,
+      memory : Boolean,
       size : Int,
       burst : Int,
       address : Int,
       length : Int): Unit ={
-      val offset = p.mapping.channelOffset + channelId * p.mapping.channelDelta
-      config.write(offset + p.mapping.channelDestinationLengthOffset, length)
-      config.write(offset + p.mapping.channelDestinationAddressOffset, address)
-      config.write(offset + p.mapping.channelDestinationConfigOffset,
-        (if (increment) 1 << p.mapping.channelDestinationIncrementBit else 0) |
-          (if (reload) 1 << p.mapping.channelDestinationReloadBit else 0) |
-          (if (toOutput) 1 << p.mapping.channelDestinationToOutputBit else 0) |
-          (size << p.mapping.channelDestinationSizeBit) |
-          (burst << p.mapping.channelDestinationBurstBit)
+      config.write(offset + p.mapping.channelLengthOffset, length)
+      config.write(offset + p.mapping.channelAddressOffset, address)
+      config.write(offset + p.mapping.channelConfigOffset,
+        (if (increment) 1 << p.mapping.channelIncrementBit else 0) |
+          (if (reload) 1 << p.mapping.channelReloadBit else 0) |
+          (if (memory) 1 << p.mapping.channelMemoryBit else 0) |
+          (size << p.mapping.channelSizeBit) |
+          (burst << p.mapping.channelBurstBit)
       )
     }
 
-    def sourceStart(channelId : Int): Unit = {
-      val offset = p.mapping.channelOffset + channelId * p.mapping.channelDelta
-      config.write(offset + p.mapping.channelSourceCtrlOffset, 1)
+    def sourceOffset(channelId : Int) = p.mapping.channelOffset + channelId * p.mapping.channelDelta + p.mapping.sourceOffset
+    def destinationOffset(channelId : Int) = p.mapping.channelOffset + channelId * p.mapping.channelDelta + p.mapping.destinationOffset
+
+    def doStart(offset : Int): Unit = {
+      config.write(offset + p.mapping.channelCtrlOffset, 1 << p.mapping.channelStartBit)
     }
-    
-    def destinationStart(channelId : Int): Unit = {
-      val offset = p.mapping.channelOffset + channelId * p.mapping.channelDelta
-      config.write(offset + p.mapping.channelDestinationCtrlOffset, 1)
-    }
+
+
 
 
 
@@ -602,46 +431,46 @@ object DmaDebug extends App{
     dut.clockDomain.forkStimulus(10)
     dut.clockDomain.waitSampling(10)
 
-    writeSourceConfig(0)(
+    writeXConfig(sourceOffset(0))(
       increment = true,
       reload = false,
-      fromInput = false,
+      memory = true,
       size = 2,
       burst = 8,
       address = 0x100,
       length = 0x40
     )
-    writeDestinationConfig(0)(
+    writeXConfig(destinationOffset(0))(
       increment = true,
       reload = false,
-      toOutput = false,
+      memory = true,
       size = 2,
       burst = 8,
       address = 0x200,
       length = 0x40
     )
-    writeSourceConfig(1)(
+    writeXConfig(sourceOffset(1))(
       increment = true,
       reload = false,
-      fromInput = false,
+      memory = true,
       size = 2,
       burst = 5,
       address = 0x300,
       length = 0x20
     )
-    writeDestinationConfig(1)(
+    writeXConfig(destinationOffset(1))(
       increment = true,
       reload = false,
-      toOutput = false,
+      memory = true,
       size = 2,
       burst = 5,
       address = 0x400,
       length = 0x20
     )
-    sourceStart(1)
-    destinationStart(1)
-    sourceStart(0)
-    destinationStart(0)
+    doStart(sourceOffset(1))
+    doStart(destinationOffset(1))
+    doStart(sourceOffset(0))
+    doStart(destinationOffset(0))
     dut.clockDomain.waitSampling(300)
   }
 }
