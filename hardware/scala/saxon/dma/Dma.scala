@@ -73,8 +73,6 @@ object Dma{
 
     val fifoDepth = p.channels.map(_.fifoDepth).sum
     val fifoRam = Mem(Bits(p.memConfig.dataWidth bits), fifoDepth)
-    var fifoAllocator = 0
-
 
     class SourceDestinationBase(cp : ChannelParameter) extends Bundle {
       val busy = Bool()
@@ -90,7 +88,6 @@ object Dma{
       val size = p.sizeType()
       val fifoPtrIncrement = Bool()
       val fifoPtr = cp.fifoPtrType()
-      val fifoPtrTail = cp.fifoPtrTailType()
 
       def behaviour() : Unit = {
         List(busy, stop, increment, reload, memory, address, burst, length, counter, size, fifoPtr).foreach(_.setAsReg())
@@ -104,38 +101,40 @@ object Dma{
         when(fifoPtrIncrement){
           fifoPtr := fifoPtr + 1
         }
-        fifoPtrTail := fifoPtr.resized
         counterMatch := counter === length
 
       }
     }
 
     case class Channel(cp : ChannelParameter) extends Bundle {
-      val fifoHead = fifoRam.addressType()
       val reset = Bool()
 
       val source = new SourceDestinationBase(cp)
       val destination = new SourceDestinationBase(cp)
 
+      val sourceFifoPtr, destinationFifoPtr = fifoRam.addressType()
+
       val fifoFullOrEmpty, fifoFull, fifoEmpty = Bool()
+
       def behaviour(): Unit= {
         source.behaviour()
         destination.behaviour()
         reset := False
+
         fifoFullOrEmpty := source.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0) === destination.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0)
         fifoFull := fifoFullOrEmpty && source.fifoPtr.msb =/= destination.fifoPtr.msb
         fifoEmpty := fifoFullOrEmpty && source.fifoPtr.msb === destination.fifoPtr.msb
+
+        sourceFifoPtr := U(channelToFifoOffset(cp), log2Up(fifoRam.wordCount) bits) | source.fifoPtr(widthOf(source.fifoPtr)-2 downto 0).resized
+        destinationFifoPtr := U(channelToFifoOffset(cp), log2Up(fifoRam.wordCount) bits) | destination.fifoPtr(widthOf(destination.fifoPtr)-2 downto 0).resized
       }
     }
 
+    val channelsByFifoSize = p.channels.sortBy(_.fifoDepth).reverse
+    val channelToFifoOffset = (channelsByFifoSize, channelsByFifoSize.scanLeft(0)(_ + _.fifoDepth)).zipped.toMap
 
-    val channels = Vec(p.channels.map { cp =>
-      val c = Channel(cp)
-      c.behaviour()
-      c.fifoHead := fifoAllocator
-      fifoAllocator += cp.fifoDepth
-      c
-    })
+    val channels = Vec(p.channels.map(Channel(_)))
+    channels.foreach(_.behaviour())
 
     val beatType = HardType(UInt(p.channels.map(_.burstType.getBitsWidth).max bits))
     val memReadCmd = new Area {
@@ -186,12 +185,20 @@ object Dma{
       val data = fifoRam.wordType().assignDontCare()
       fifoRam.write(address, data, valid)
 
+      val selected = new Area{
+//        val inputsValid = channels.map(c => c.source.busy && !c.source.stop && !c.source.memory && io.inputs(c.source.address.resized).valid)
+      }
+
       when(io.memRead.rsp.valid){
         valid := True
-        address := memReadCmd.selected.channel.fifoHead + memReadCmd.selected.channel.source.fifoPtrTail
+        address := memReadCmd.selected.channel.sourceFifoPtr
         data := io.memRead.rsp.data  //TODO normalisation
         memReadCmd.selected.channel.source.fifoPtrIncrement := True
+      } otherwise {
+//        valid := selected.inputsValid.orR
       }
+
+
     }
 
     val fifoRead = new Area {
@@ -223,7 +230,7 @@ object Dma{
 
       val fifoReadCmd = Stream(fifoRam.addressType)
       fifoReadCmd.valid := busy && !rspDone
-      fifoReadCmd.payload := selected.channel.fifoHead + selected.channel.destination.fifoPtrTail
+      fifoReadCmd.payload := memReadCmd.selected.channel.destinationFifoPtr
       selected.channel.destination.fifoPtrIncrement setWhen(fifoReadCmd.fire)
 
       val read = fifoRam.streamReadSync(fifoReadCmd)
@@ -244,7 +251,7 @@ object Dma{
         selected.channel.destination.counter := selected.channel.destination.counter + 1
       }
     }
-    
+
 
 
     val bus = Apb3SlaveFactory(io.config)
@@ -308,10 +315,20 @@ object DmaBench extends App{
   }
 
   val p = Dma.Parameter(
-    memConfig = PipelinedMemoryBusConfig(30,32),
+    memConfig = PipelinedMemoryBusConfig(32,32),
     inputs = Nil,
     outputs = Nil,
     channels = List(
+      Dma.ChannelParameter(
+        fifoDepth = 32,
+        sourceLengthWidth = 12,
+        destinationLengthWidth = 12
+      ),
+      Dma.ChannelParameter(
+        fifoDepth = 32,
+        sourceLengthWidth = 12,
+        destinationLengthWidth = 12
+      ),
       Dma.ChannelParameter(
         fifoDepth = 32,
         sourceLengthWidth = 12,
