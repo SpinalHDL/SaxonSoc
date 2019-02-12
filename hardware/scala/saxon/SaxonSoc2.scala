@@ -289,7 +289,7 @@ object SaxonSoc2 {
           new BlinkerPlugin(clockDomain),
           new ExternalClockDomain(12 MHz, clockDomain),
           new PipelinedMemoryBusInterconnectPlugin(clockDomain, interconnect),
-          new SpramPlugin(clockDomain, interconnect, ram),
+          new SpramPlugin(clockDomain, ram),
           new Apb3DecoderPlugin(clockDomain,apbMapping, apbDecoderInput, Apb3Config(20,32)),
           new Apb3GpioPlugin(clockDomain, gpioABus, Gpio.Parameter(8, List(0, 1))).setName("gpioA"),
           new Apb3GpioPlugin(clockDomain, gpioBBus, Gpio.Parameter(8, List(0, 1))).setName("gpioB"),
