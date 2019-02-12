@@ -5,26 +5,26 @@ import spinal.core._
 
 object Keys{
 
-  val A = new Key[Int]
-  val B = new Key[Int]
+  val A = new Handle[Int]
+  val B = new Handle[Int]
 }
 
 
 class KeyAPlugin(value : Int) extends Plugin {
-  override def locks = Seq(Keys.A)
+  locks ++= Seq(Keys.A)
 
-  override lazy val logic = {
+  val logic = add task {
     println(s"set Key A" + value)
     Keys.A.set(value)
   }
 }
 
 class AdderPlugin(width : Int) extends Plugin{
-  override def dependancies = Seq(Keys.A)
-  override def locks = Seq(Keys.B)
+  dependencies ++= Seq(Keys.A)
+  locks ++= Seq(Keys.B)
 
 
-  override lazy val logic = new Area{
+  val logic = add task new Area{
     println(s"Build " + width)
     val a, b = in UInt (width bits)
     val result = out UInt (width bits)
@@ -34,9 +34,9 @@ class AdderPlugin(width : Int) extends Plugin{
 }
 
 class KeyBPlugin extends Plugin {
-  override def dependancies = Seq(Keys.B)
+  dependencies ++= Seq(Keys.B)
 
-  override lazy val logic = {
+  val logic = add task {
     println(s"Key B=" + Keys.B.get)
 
   }

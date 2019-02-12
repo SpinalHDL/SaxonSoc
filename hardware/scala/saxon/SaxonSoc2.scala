@@ -26,10 +26,8 @@ object SaxonSoc2Keys{
 
 import SaxonSoc2Keys._
 
-class ExternalClockDomain(clkFrequency : HertzNumber, cd : Key[ClockDomain]) extends Plugin{
-  override def products = Seq(cd)
-
-  override lazy val logic = new Area{
+class ExternalClockDomain(clkFrequency : HertzNumber, cd : Handle[ClockDomain]) extends Plugin{
+  val logic = add task new Area{
     val io = new Bundle {
       val clk, reset = in Bool()
     }
@@ -70,28 +68,31 @@ class ExternalClockDomain(clkFrequency : HertzNumber, cd : Key[ClockDomain]) ext
   }
 }
 
-class BlinkerPlugin(clockDomain : Key[ClockDomain]) extends Plugin(clockDomain){
-  override lazy val logic = new Area {
+class BlinkerPlugin(clockDomain : Handle[ClockDomain]) extends Plugin(clockDomain){
+
+  val content = add task new Area {
     val blink = out(RegInit(False))
     blink := !blink
   }
+
+//  val logic = tasks plug new Area {
+//    val blink = out(RegInit(False))
+//    blink := !blink
+//  }
 }
 
-class InstancePlugin[T](clockDomain : Key[ClockDomain], key : Key[T], instance : => T) extends Plugin(clockDomain){
-  override def products = List(key)
-  override lazy val logic = key.set(instance)
+class InstancePlugin[T](clockDomain : Handle[ClockDomain], key : Handle[T], instance : => T) extends Plugin(clockDomain){
+  val logic = add task key.set(instance)
 }
 
-class PipelinedMemoryBusInterconnectPlugin(clockDomain : Key[ClockDomain], interconnect : Key[PipelinedMemoryBusInterconnect]) extends Plugin(clockDomain){
-  override def products = List(interconnect)
-  override lazy val logic = interconnect.set(PipelinedMemoryBusInterconnect())
+class PipelinedMemoryBusInterconnectPlugin(clockDomain : Handle[ClockDomain], interconnect : Handle[PipelinedMemoryBusInterconnect]) extends Plugin(clockDomain){
+  val logic = add task interconnect.set(PipelinedMemoryBusInterconnect())
 }
 
-class PipelinedMemoryBusToApbBridgePlugin(clockDomain : Key[ClockDomain], input : Key[PipelinedMemoryBus], output : Key[Apb3]) extends Plugin(clockDomain){
-  override def dependancies = List(output)
-  override def products = List(input)
+class PipelinedMemoryBusToApbBridgePlugin(clockDomain : Handle[ClockDomain], input : Handle[PipelinedMemoryBus], output : Handle[Apb3]) extends Plugin(clockDomain){
+  dependencies += output
 
-  override lazy val logic = new Area{
+  val logic = add task new Area{
     val bridge = new PipelinedMemoryBusToApbBridge(
       apb3Config = output.config,
       pipelineBridge = false,
@@ -104,8 +105,8 @@ class PipelinedMemoryBusToApbBridgePlugin(clockDomain : Key[ClockDomain], input 
 }
 
 
-class Apb3GpioPlugin(clockDomain : Key[ClockDomain], bus : Key[Apb3], p : Gpio.Parameter) extends Plugin(clockDomain){
-  override lazy val logic = new Area{
+class Apb3GpioPlugin(clockDomain : Handle[ClockDomain], bus : Handle[Apb3], p : Gpio.Parameter) extends Plugin(clockDomain){
+  val logic = add task new Area{
     val ctrl = Apb3Gpio2(p)
     val gpio = master(TriStateArray(p.width))
     gpio <> ctrl.io.gpio
@@ -113,11 +114,10 @@ class Apb3GpioPlugin(clockDomain : Key[ClockDomain], bus : Key[Apb3], p : Gpio.P
   }
 }
 
-class Apb3DecoderPlugin(clockDomain : Key[ClockDomain], mapping : Key[ArrayBuffer[(Apb3, SizeMapping)]], input : Key[Apb3], config : Apb3Config) extends Plugin(clockDomain) {
-  override def dependancies = List(mapping)
-  override def products = List(input)
+class Apb3DecoderPlugin(clockDomain : Handle[ClockDomain], mapping : Handle[ArrayBuffer[(Apb3, SizeMapping)]], input : Handle[Apb3], config : Apb3Config) extends Plugin(clockDomain) {
+  dependencies += mapping
 
-  override lazy val logic = new Area {
+  val logic = add task new Area {
     val inputBus = Apb3(config)
     val decoder = Apb3Decoder(
       master = inputBus,
@@ -130,19 +130,15 @@ class Apb3DecoderPlugin(clockDomain : Key[ClockDomain], mapping : Key[ArrayBuffe
 
 
 
-class SpramPlugin(clockDomain : Key[ClockDomain], bus : Key[PipelinedMemoryBus]) extends Plugin(clockDomain){
-  override def products = List(bus)
-  override lazy val logic = new Area{
+class SpramPlugin(clockDomain : Handle[ClockDomain], bus : Handle[PipelinedMemoryBus]) extends Plugin(clockDomain){
+  val logic = add task new Area{
     val ram = Spram()
     bus.set(ram.io.bus)
   }
 }
 
-class VexRiscvPlugin(clockDomain : Key[ClockDomain], iBusKey : Key[PipelinedMemoryBus], dBusKey : Key[PipelinedMemoryBus], cpuConfig : VexRiscvConfig) extends Plugin(clockDomain){
-
-  override def products = List(iBusKey, dBusKey)
-
-  override lazy val logic = new Area {
+class VexRiscvPlugin(clockDomain : Handle[ClockDomain], iBusKey : Handle[PipelinedMemoryBus], dBusKey : Handle[PipelinedMemoryBus], cpuConfig : VexRiscvConfig) extends Plugin(clockDomain){
+  val logic = add task new Area {
     val cpu = new VexRiscv(cpuConfig)
     val iBus = iBusKey.set(PipelinedMemoryBus(32, 32))
     val dBus = dBusKey.set(PipelinedMemoryBus(32, 32))
@@ -274,15 +270,12 @@ object SaxonSoc2 {
         )
       )
 
-      val clockDomain = new Key[ClockDomain]
-      val interconnect = new Key[PipelinedMemoryBusInterconnect]
-      val ram = new Key[PipelinedMemoryBus]
-      val iBus, dBus = new Key[PipelinedMemoryBus]
-      val apbBridgeInput = new Key[PipelinedMemoryBus]
-      val apbDecoderInput = new Key[Apb3]
-      val apbMapping = new DefaultKey(ArrayBuffer[(Apb3, SizeMapping)]())
-      val gpioABus = new Key[Apb3]
-      val gpioBBus = new Key[Apb3]
+      val clockDomain = Handle[ClockDomain]
+      val interconnect = Handle[PipelinedMemoryBusInterconnect]
+      val iBus, dBus = Handle[PipelinedMemoryBus]
+      val ram, apbBridgeInput = Handle[PipelinedMemoryBus]
+      val apbMapping = HandleInit(ArrayBuffer[(Apb3, SizeMapping)]())
+      val apbDecoderInput, gpioABus, gpioBBus = Handle[Apb3]
 
       val p = SaxonSoc2Parameters(
         plugins = ArrayBuffer(
@@ -295,10 +288,10 @@ object SaxonSoc2 {
           new Apb3GpioPlugin(clockDomain, gpioBBus, Gpio.Parameter(8, List(0, 1))).setName("gpioB"),
           new PipelinedMemoryBusToApbBridgePlugin(clockDomain, apbBridgeInput, apbDecoderInput),
           new VexRiscvPlugin(clockDomain, iBus, dBus, vexRiscvConfig),
-          new Plugin(clockDomain) {
-            override def dependancies = List(interconnect, iBus, dBus, ram, apbBridgeInput)
+          new Plugin{
+            dependencies ++= List(interconnect, iBus, dBus, ram, apbBridgeInput)
 
-            override lazy val logic = new Area {
+            add task new Area {
               val mainBus = PipelinedMemoryBus(addressWidth = 32, dataWidth = 32)
               interconnect.addSlave(apbBridgeInput, SizeMapping(0xF0000000l, 16 MiB))
               interconnect.addSlave(ram, SizeMapping(0x80000000l,  64 KiB))
@@ -310,10 +303,10 @@ object SaxonSoc2 {
               )
             }
           },
-          new Plugin(clockDomain) {
-            override def dependancies = List(gpioABus, gpioBBus)
-            override def products = List(apbMapping)
-            override lazy val logic = new Area {
+          new Plugin {
+            dependencies ++= List(gpioABus, gpioBBus)
+            locks += apbMapping
+            tasks += new Area {
               apbMapping += ((gpioABus , (0x00000, 4 KiB)))
               apbMapping += ((gpioBBus , (0x01000, 4 KiB)))
             }

@@ -6,41 +6,57 @@ import spinal.core.internals.classNameOf
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-object Key{
-  implicit def keyImplicit[T](key : Key[T])(implicit c : Composable) : T = key.get
+object Handle{
+  def apply[T] = new Handle[T]
+  implicit def keyImplicit[T](key : Handle[T])(implicit c : Composable) : T = key.get
 }
 
-class Key[T]{
+class Handle[T]{
+  def default : T = ???
   def apply(implicit c : Composable) : T = get(c)
-
   def get(implicit c : Composable) : T = {
-    c.database(this).asInstanceOf[T]
+    c.database.getOrElseUpdate(this, default).asInstanceOf[T]
   }
-
   def set(value : T)(implicit c : Composable) : T = {
     c.database(this) = value
     value
   }
 }
 
-class DefaultKey[T](default : => T) extends Key[T]{
-  override def get(implicit c: Composable): T = c.database.getOrElseUpdate(this, default).asInstanceOf[T]
+object HandleInit{
+  def apply[T](init : => T)  = new HandleInit[T](init)
 }
 
-abstract class Plugin(val implicitCd : Key[ClockDomain] = null) extends Nameable {
+class HandleInit[T](init : => T) extends Handle[T]{
+  override def default : T = init
+}
+
+object Task{
+  implicit def taskToValue[T](task : Task[T]) : T = task.value
+}
+
+class Task[T](gen : => T){
+  var value : T = null.asInstanceOf[T]
+  def build() : Unit = value = gen
+}
+
+abstract class Plugin(val implicitCd : Handle[ClockDomain] = null) extends Nameable {
   implicit var c : Composable = null
   var elaborated = false
-  def dependancies : Seq[Any] = Nil
-  def locks : Seq[Any] = Nil
-  lazy val logic : Any = ???
+  val tasks = ArrayBuffer[Task[_]]()
+  val dependencies = ArrayBuffer[Any]()
+  val locks = ArrayBuffer[Any]()
+  if(implicitCd != null) dependencies += implicitCd
 
-  def dependanciesHidden : Seq[Any] = Nil
-  def locksHidden : Seq[Any] = Nil
-
-  def dependanciesAll : Seq[Any] = dependancies ++ dependanciesHidden ++ (if(implicitCd != null) List(implicitCd) else Nil)
-  def locksAll : Seq[Any] = locks ++ locksHidden
-
-  lazy val logicHidden : Any = {}
+  //User API
+  implicit def lambdaToTask[T](lambda : => T) = new Task(lambda)
+  def add = new {
+    def task[T](gen : => T) : Task[T] = {
+      val task = new Task(gen)
+      tasks += task
+      task
+    }
+  }
 }
 
 class Composable {
@@ -60,14 +76,17 @@ class Composable {
       println(s"Step $step")
       var progressed = false
       val produced = database.keys.toSet - plugins.filter(!_.elaborated).flatMap(_.locks).toSet
-      for(p <- plugins if !p.elaborated && p.dependanciesAll.forall(d => produced.contains(d))){
+      for(p <- plugins if !p.elaborated && p.dependencies.forall(d => produced.contains(d))){
         println(s"Build " + p.getName)
         if(p.implicitCd != null) p.implicitCd.push()
-        p.logic match {
-          case n : Nameable => {
-            n.setCompositeName(p, true)
+        for(task <- p.tasks){
+          task.build()
+          task.value match {
+            case n : Nameable => {
+              n.setCompositeName(p, true)
+            }
+            case _ =>
           }
-          case _ =>
         }
         if(p.implicitCd != null) p.implicitCd.pop()
         p.elaborated = true
