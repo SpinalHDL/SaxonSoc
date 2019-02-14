@@ -1,11 +1,12 @@
 package saxon.experimental
 
+import java.util
+
 import spinal.core._
 import spinal.core.internals.classNameOf
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-
+import scala.collection.mutable.{ArrayBuffer, Stack}
 object Handle{
   def apply[T] = new Handle[T]
   implicit def keyImplicit[T](key : Handle[T])(implicit c : Composable) : T = key.get
@@ -40,13 +41,28 @@ class Task[T](gen : => T){
   def build() : Unit = value = gen
 }
 
-abstract class Plugin(val implicitCd : Handle[ClockDomain] = null) extends Nameable {
-  implicit var c : Composable = null
+abstract class Plugin(@dontName constructionCd : Handle[ClockDomain] = null) extends Nameable {
   var elaborated = false
-  val tasks = ArrayBuffer[Task[_]]()
-  val dependencies = ArrayBuffer[Any]()
-  val locks = ArrayBuffer[Any]()
-  if(implicitCd != null) dependencies += implicitCd
+  @dontName implicit var c : Composable = null
+  @dontName val dependencies = ArrayBuffer[Any]()
+  @dontName val locks = ArrayBuffer[Any]()
+  @dontName val tasks = ArrayBuffer[Task[_]]()
+  @dontName val plugins = ArrayBuffer[Plugin]()
+
+  var implicitCd : Handle[ClockDomain] = null
+  if(constructionCd != null) on(constructionCd)
+
+
+  def on(clockDomain : Handle[ClockDomain]): this.type ={
+    implicitCd = clockDomain
+    dependencies += clockDomain
+    this
+  }
+
+//  {
+//    val stack = Composable.stack
+//    if(stack.nonEmpty) stack.head.plugins += this
+//  }
 
   //User API
   implicit def lambdaToTask[T](lambda : => T) = new Task(lambda)
@@ -57,26 +73,41 @@ abstract class Plugin(val implicitCd : Handle[ClockDomain] = null) extends Namea
       task
     }
   }
+  def add[T <: Plugin](plugin : T) : T = {
+    plugins += plugin
+    plugin
+  }
 }
-
+//object Composable{
+//  def stack = GlobalData.get.userDatabase.getOrElseUpdate(Composable, new Stack[Composable]).asInstanceOf[Stack[Composable]]
+//}
 class Composable {
+//  Composable.stack.push(this)
   val plugins = ArrayBuffer[Plugin]()
   val database = mutable.LinkedHashMap[Any, Any]()
   def add(that : Plugin) = plugins += that
   def build(): Unit = {
     implicit val c = this
     println(s"Build start")
-    for(p <- plugins) {
+    val pluginsAll = ArrayBuffer[Plugin]()
+    def addPlugin(plugin: Plugin, clockDomain : Handle[ClockDomain]): Unit = {
+      if(plugin.implicitCd == null && clockDomain != null) plugin.on(clockDomain)
+      pluginsAll += plugin
+      for(child <- plugin.plugins) addPlugin(child, plugin.implicitCd)
+    }
+    for(plugin <- plugins) addPlugin(plugin, null)
+    for(p <- pluginsAll) {
+      p.reflectNames()
       p.c = this
       val splitName = classNameOf(p).splitAt(1)
       if(p.isUnnamed) p.setWeakName(splitName._1.toLowerCase + splitName._2)
     }
     var step = 0
-    while(plugins.exists(!_.elaborated)){
+    while(pluginsAll.exists(!_.elaborated)){
       println(s"Step $step")
       var progressed = false
-      val produced = database.keys.toSet - plugins.filter(!_.elaborated).flatMap(_.locks).toSet
-      for(p <- plugins if !p.elaborated && p.dependencies.forall(d => produced.contains(d))){
+      val produced = database.keys.toSet - pluginsAll.filter(!_.elaborated).flatMap(_.locks).toSet
+      for(p <- pluginsAll if !p.elaborated && p.dependencies.forall(d => produced.contains(d))){
         println(s"Build " + p.getName)
         if(p.implicitCd != null) p.implicitCd.push()
         for(task <- p.tasks){
@@ -97,5 +128,6 @@ class Composable {
       }
       step += 1
     }
+//    Composable.stack.pop()
   }
 }
