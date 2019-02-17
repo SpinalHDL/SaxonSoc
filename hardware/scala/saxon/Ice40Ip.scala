@@ -20,7 +20,7 @@ case class SB_SPRAM256KA() extends BlackBox{
 
 object SB_GB{
   def apply(input : Bool) : Bool = {
-    val c = SB_GB().setCompositeName(input, "SB_GB")
+    val c = SB_GB().setCompositeName(input, "SB_GB", true)
     c.USER_SIGNAL_TO_GLOBAL_BUFFER := input
     c.GLOBAL_BUFFER_OUTPUT
   }

@@ -221,7 +221,7 @@ case class SaxonSoc(p : SaxonSocParameters) extends Component {
     //Create all reset used later in the design
     val systemResetSet = False
     val debugReset = SB_GB(RegNext(resetUnbuffered))
-    val systemReset = SB_GB(RegNext(resetUnbuffered || systemResetSet))
+    val systemReset = SB_GB(RegNext(resetUnbuffered || BufferCC(systemResetSet)))
   }
 
   val debugClockDomain = ClockDomain(

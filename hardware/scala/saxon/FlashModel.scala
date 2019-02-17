@@ -1,11 +1,10 @@
 package saxon
 
-import java.nio.file.{Files, Paths}
-
-import spinal.core.ClockDomain
-import spinal.sim._
+import spinal.core._
 import spinal.core.sim._
 import spinal.lib.com.spi.ddr.SpiXdrMaster
+import java.nio.file.{Files, Paths}
+
 
 case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
   var sclkLast = false
