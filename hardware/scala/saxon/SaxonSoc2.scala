@@ -118,6 +118,7 @@ class PipelinedMemoryBusInterconnectPlugin() extends Plugin{
 
 class PipelinedMemoryBusToApbBridgePlugin(output : Handle[Apb3]) extends Plugin{
   dependencies += output
+
   val input = Handle[PipelinedMemoryBus]
   val logic = add task new Area{
     val bridge = new PipelinedMemoryBusToApbBridge(
@@ -177,18 +178,9 @@ class VexRiscvPlugin(val config : Handle[VexRiscvConfig] = Unset,
   val externalInterrupt, timerInterrupt = Handle[Bool]
 
   dependencies ++= List(config)
-
-//  dependencies += add(new Plugin{
-//    dependencies += withJtag
-//    add task{
-//      if(withJtag.value) VexRiscvPlugin.this.dependencies += debugClockDomain
-//    }
-//  })
-
-
-  dependencies += add(Dependable(withJtag){
-    if(withJtag.value) VexRiscvPlugin.this.dependencies ++= List(debugClockDomain, debugAskReset)
-  })
+  dependencies += Dependable(withJtag){
+    if(withJtag.value) dependencies ++= List(debugClockDomain, debugAskReset)
+  }
 
   val jtag = add task (withJtag.get generate slave(Jtag()))
   val logic = add task new Area {
@@ -409,17 +401,13 @@ class SpiFlashXipPlugin(p : SpiXdrMasterCtrl.MemoryMappingParameters) extends Pl
 
 
 class BaseSoc extends Plugin{
-  val cpu = add(new VexRiscvPlugin())
-  val interconnect = add(new PipelinedMemoryBusInterconnectPlugin())
-  val apbDecoder = add(new Apb3DecoderPlugin(Apb3Config(20,32)))
-  val apbBridge = add(new PipelinedMemoryBusToApbBridgePlugin(apbDecoder.input))
+  val cpu = new VexRiscvPlugin()
+  val interconnect = new PipelinedMemoryBusInterconnectPlugin()
+  val apbDecoder = new Apb3DecoderPlugin(Apb3Config(20,32))
+  val apbBridge = new PipelinedMemoryBusToApbBridgePlugin(apbDecoder.input)
 
-  val apbMapping = add(new Plugin{
-    locks += apbDecoder.mapping
-  })
-
-  val interconnectMapping = add(new Plugin{
-    dependencies ++= List(interconnect.factory,  cpu.iBus, cpu.dBus, apbBridge.input)
+  val interconnectMapping = new Plugin{
+    dependencies ++= List(cpu, apbBridge)
     add task {
       interconnect.factory.addSlave( apbBridge.input, SizeMapping(0xF0000000l,  16 MiB))
       interconnect.factory.addMasters(
@@ -427,13 +415,11 @@ class BaseSoc extends Plugin{
         (cpu.dBus,    List(apbBridge.input))
       )
     }
-  })
-
+  }
 
 
   def addGpio(apbOffset : Int, p : Gpio.Parameter) = this add new Plugin{
-    dependencies += interconnect
-    locks += apbDecoder.mapping
+    locks += apbDecoder
 
     val logic = add task new Area {
       val ctrl = Apb3Gpio2(p)
@@ -445,8 +431,7 @@ class BaseSoc extends Plugin{
   }
 
   def addUart(apbOffset : Int, p : UartCtrlMemoryMappedConfig) = this add new Plugin{
-    dependencies += interconnect
-    locks += apbDecoder.mapping
+    locks += apbDecoder
 
     val logic = add task new Area {
       val ctrl = Apb3UartCtrl(p)
@@ -459,7 +444,7 @@ class BaseSoc extends Plugin{
 
 
   def addIce40Spram() = this add new Plugin{
-    dependencies += interconnect
+    dependencies += cpu
 
     val logic = add task new Area {
       val ram = Spram()
@@ -470,8 +455,8 @@ class BaseSoc extends Plugin{
   }
 
   def addMachineTimer() = this add new Plugin{
-    dependencies += cpu.timerInterrupt
-    locks += apbDecoder.mapping
+    dependencies += cpu
+    locks += apbDecoder
 
     val logic = add task new Area {
       val machineTimer = MachineTimer()
@@ -482,8 +467,8 @@ class BaseSoc extends Plugin{
   }
 
   def addSpiXip(p : SpiXdrMasterCtrl.MemoryMappingParameters) = this add new Plugin{
-    dependencies += interconnect
-    locks += apbDecoder.mapping
+    dependencies += cpu
+    locks += apbDecoder
 
     val logic = add task new Area {
       val flash = master(SpiXdrMaster(p.ctrl.spi))
@@ -502,8 +487,8 @@ class BaseSoc extends Plugin{
     val gateways = Handle(ArrayBuffer[PlicGateway]())
     val priorityWidth = 1
 
-    dependencies ++= List(cpu.externalInterrupt, gateways)
-    locks += apbDecoder.mapping
+    dependencies ++= List(cpu, gateways)
+    locks += apbDecoder
 
     def addInterrupt[T <: Plugin](sourcePlugin : T, id : Int)(sourceAccess : T => Bool) = {
       sourcePlugin.locks += this
