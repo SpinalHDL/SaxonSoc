@@ -31,7 +31,7 @@ import scala.runtime.Nothing$
 
 
 
-case class ExternalClockDomain(clkFrequency : Handle[HertzNumber] = Unset, withDebug : Handle[Boolean] = Unset) extends Plugin{
+case class ExternalClockDomain(clkFrequency : Handle[HertzNumber] = Unset, withDebug : Handle[Boolean] = Unset) extends Generator{
   val systemClockDomain = Handle[ClockDomain]
   val debugClockDomain = Handle[ClockDomain]
   val doSystemReset = Handle[() => Unit]
@@ -100,23 +100,23 @@ case class ExternalClockDomain(clkFrequency : Handle[HertzNumber] = Unset, withD
   }
 }
 
-case class BlinkerPlugin() extends Plugin{
+case class BlinkerPlugin() extends Generator{
   val content = add task new Area {
     val blink = out(RegInit(False))
     blink := !blink
   }
 }
 
-class InstancePlugin[T](key : Handle[T], instance : => T) extends Plugin{
+class InstancePlugin[T](key : Handle[T], instance : => T) extends Generator{
   val logic = add task key.set(instance)
 }
 
-class PipelinedMemoryBusInterconnectPlugin() extends Plugin{
+class PipelinedMemoryBusInterconnectPlugin() extends Generator{
   val factory = Handle[PipelinedMemoryBusInterconnect]
   val logic = add task factory.set(PipelinedMemoryBusInterconnect())
 }
 
-class PipelinedMemoryBusToApbBridgePlugin(output : Handle[Apb3]) extends Plugin{
+class PipelinedMemoryBusToApbBridgePlugin(output : Handle[Apb3]) extends Generator{
   dependencies += output
 
   val input = Handle[PipelinedMemoryBus]
@@ -133,7 +133,7 @@ class PipelinedMemoryBusToApbBridgePlugin(output : Handle[Apb3]) extends Plugin{
 }
 
 
-class Apb3GpioPlugin(p : Gpio.Parameter) extends Plugin{
+class Apb3GpioPlugin(p : Gpio.Parameter) extends Generator{
   val bus = Handle[Apb3]
   val logic = add task new Area{
     val ctrl = Apb3Gpio2(p)
@@ -143,7 +143,7 @@ class Apb3GpioPlugin(p : Gpio.Parameter) extends Plugin{
   }
 }
 
-class Apb3DecoderPlugin(config : Handle[Apb3Config] = Unset) extends Plugin {
+class Apb3DecoderPlugin(config : Handle[Apb3Config] = Unset) extends Generator {
   val mapping = Handle(ArrayBuffer[(Apb3, SizeMapping)]())
   val input = Handle[Apb3]
 
@@ -161,7 +161,7 @@ class Apb3DecoderPlugin(config : Handle[Apb3Config] = Unset) extends Plugin {
 
 
 
-class SpramPlugin() extends Plugin{
+class SpramPlugin() extends Generator{
   val bus = Handle[PipelinedMemoryBus]
   val logic = add task new Area{
     val ram = Spram()
@@ -173,7 +173,7 @@ class SpramPlugin() extends Plugin{
 class VexRiscvPlugin(val config : Handle[VexRiscvConfig] = Unset,
                      val withJtag : Handle[Boolean] = Unset,
                      val debugClockDomain : Handle[ClockDomain] = Unset,
-                     val debugAskReset : Handle[() => Unit] = Unset) extends Plugin{
+                     val debugAskReset : Handle[() => Unit] = Unset) extends Generator{
   val iBus, dBus = Handle[PipelinedMemoryBus]
   val externalInterrupt, timerInterrupt = Handle[Bool]
 
@@ -221,8 +221,8 @@ class VexRiscvPlugin(val config : Handle[VexRiscvConfig] = Unset,
 class ComposableComponent extends Component{
   val c = new Composable()
   addPrePopTask(() => c.build())
-  def register[T <: Plugin](that : T) : T = {
-    c.plugins += that
+  def register[T <: Generator](that : T) : T = {
+    c.generators += that
     that
   }
 }
@@ -230,12 +230,12 @@ class ComposableComponent extends Component{
 
 
 
-class PluginComponent[T <: Plugin](val plugin : T) extends Component{
+class PluginComponent[T <: Generator](val generator : T) extends Component{
   val c = new Composable()
-  c.plugins += plugin
+  c.generators += generator
   c.build()
-  plugin.setName("")
-  this.setDefinitionName(classNameOf(plugin))
+  generator.setName("")
+  this.setDefinitionName(classNameOf(generator))
 }
 
 
@@ -388,7 +388,7 @@ object SpiFlashXipPlugin{
   )
 }
 
-class SpiFlashXipPlugin(p : SpiXdrMasterCtrl.MemoryMappingParameters) extends Plugin {
+class SpiFlashXipPlugin(p : SpiXdrMasterCtrl.MemoryMappingParameters) extends Generator {
 
   val flash = add task master(SpiXdrMaster(p.ctrl.spi))
   val accessBus = Handle[PipelinedMemoryBus]
@@ -400,13 +400,13 @@ class SpiFlashXipPlugin(p : SpiXdrMasterCtrl.MemoryMappingParameters) extends Pl
 }
 
 
-class BaseSoc extends Plugin{
+class BaseSoc extends Generator{
   val cpu = new VexRiscvPlugin()
   val interconnect = new PipelinedMemoryBusInterconnectPlugin()
   val apbDecoder = new Apb3DecoderPlugin(Apb3Config(20,32))
   val apbBridge = new PipelinedMemoryBusToApbBridgePlugin(apbDecoder.input)
 
-  val interconnectMapping = new Plugin{
+  val interconnectMapping = new Generator{
     dependencies ++= List(cpu, apbBridge)
     add task {
       interconnect.factory.addSlave( apbBridge.input, SizeMapping(0xF0000000l,  16 MiB))
@@ -418,7 +418,7 @@ class BaseSoc extends Plugin{
   }
 
 
-  def addGpio(apbOffset : Int, p : Gpio.Parameter) = this add new Plugin{
+  def addGpio(apbOffset : Int, p : Gpio.Parameter) = this add new Generator{
     locks += apbDecoder
 
     val logic = add task new Area {
@@ -430,7 +430,7 @@ class BaseSoc extends Plugin{
     }
   }
 
-  def addUart(apbOffset : Int, p : UartCtrlMemoryMappedConfig) = this add new Plugin{
+  def addUart(apbOffset : Int, p : UartCtrlMemoryMappedConfig) = this add new Generator{
     locks += apbDecoder
 
     val logic = add task new Area {
@@ -443,7 +443,7 @@ class BaseSoc extends Plugin{
   }
 
 
-  def addIce40Spram() = this add new Plugin{
+  def addIce40Spram() = this add new Generator{
     dependencies += cpu
 
     val logic = add task new Area {
@@ -454,7 +454,7 @@ class BaseSoc extends Plugin{
     }
   }
 
-  def addMachineTimer() = this add new Plugin{
+  def addMachineTimer() = this add new Generator{
     dependencies += cpu
     locks += apbDecoder
 
@@ -466,7 +466,7 @@ class BaseSoc extends Plugin{
     }
   }
 
-  def addSpiXip(p : SpiXdrMasterCtrl.MemoryMappingParameters) = this add new Plugin{
+  def addSpiXip(p : SpiXdrMasterCtrl.MemoryMappingParameters) = this add new Generator{
     dependencies += cpu
     locks += apbDecoder
 
@@ -483,14 +483,14 @@ class BaseSoc extends Plugin{
     }
   }
 
-  def addSimplePlic() = this add new Plugin {
+  def addSimplePlic() = this add new Generator {
     val gateways = Handle(ArrayBuffer[PlicGateway]())
     val priorityWidth = 1
 
     dependencies ++= List(cpu, gateways)
     locks += apbDecoder
 
-    def addInterrupt[T <: Plugin](sourcePlugin : T, id : Int)(sourceAccess : T => Bool) = {
+    def addInterrupt[T <: Generator](sourcePlugin : T, id : Int)(sourceAccess : T => Bool) = {
       sourcePlugin.locks += this
       sourcePlugin.add task {
         gateways += PlicGatewayActiveHigh(
@@ -527,7 +527,7 @@ class BaseSoc extends Plugin{
 }
 
 
-class CustomSoc extends Plugin{
+class CustomSoc extends Generator{
   val system = new BaseSoc()
   system.cpu.config.set(CpuConfig.minimalWithCsr)
   system.cpu.withJtag.set(true)
@@ -597,7 +597,7 @@ object CustomSocSim{
     val flashBin = "software/zephyr/demo/build/zephyr/zephyr.bin"
 
     SimConfig.addRtl("test/common/up5k_cells_sim.v").compile(new PluginComponent(new CustomSoc)).doSimUntilVoid("test", seed = 42){dut =>
-      import dut.plugin._
+      import dut.generator._
       val systemClkPeriod = (1e12/clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 115200

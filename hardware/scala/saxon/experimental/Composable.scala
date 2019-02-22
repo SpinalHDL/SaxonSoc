@@ -16,7 +16,7 @@ object Unset extends  Unset{
 
 object Dependable{
   def apply(d : Dependable*)(body : => Unit) = {
-    val p = new Plugin()
+    val p = new Generator()
     p.dependencies ++= d
     p.add task(body)
     p
@@ -65,8 +65,8 @@ class Handle[T] extends Nameable with Dependable{
   }
   def setFrom(that : Handle[T]) = that.propagateTo(this)
   def hasDependents(implicit c : Composable) : Boolean = {
-    def hit(p : Plugin) : Boolean = p.dependencies.contains(this) || p.plugins.exists(hit)
-    c.plugins.exists(hit) || propagations.exists(_.hasDependents)
+    def hit(p : Generator) : Boolean = p.dependencies.contains(this) || p.generators.exists(hit)
+    c.generators.exists(hit) || propagations.exists(_.hasDependents)
   }
 
   val listeners = ArrayBuffer[() => Unit]()
@@ -89,7 +89,7 @@ class HandleInit[T](initValue : => T) extends Handle[T]{
 }
 
 object Task{
-  implicit def taskToValue[T](task : Task[T]) : T = task.value
+  implicit def generatorToValue[T](generator : Task[T]) : T = generator.value
 }
 
 class Task[T](gen : => T){
@@ -97,23 +97,23 @@ class Task[T](gen : => T){
   def build() : Unit = value = gen
 }
 
-object Plugin{
-  def stack = GlobalData.get.userDatabase.getOrElseUpdate(Plugin, new Stack[Plugin]).asInstanceOf[Stack[Plugin]]
+object Generator{
+  def stack = GlobalData.get.userDatabase.getOrElseUpdate(Generator, new Stack[Generator]).asInstanceOf[Stack[Generator]]
 }
 
-class Plugin(@dontName constructionCd : Handle[ClockDomain] = null) extends Nameable  with Dependable with DelayedInit {
-  if(Plugin.stack.nonEmpty && Plugin.stack.head != null){
-    Plugin.stack.head.plugins += this
+class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends Nameable  with Dependable with DelayedInit {
+  if(Generator.stack.nonEmpty && Generator.stack.head != null){
+    Generator.stack.head.generators += this
   }
 
-  Plugin.stack.push(this)
+  Generator.stack.push(this)
   var elaborated = false
   @dontName implicit var c : Composable = null
 //  @dontName implicit val p : Plugin = this
   @dontName val dependencies = ArrayBuffer[Dependable]()
   @dontName val locks = ArrayBuffer[Dependable]()
   @dontName val tasks = ArrayBuffer[Task[_]]()
-  @dontName val plugins = ArrayBuffer[Plugin]()
+  @dontName val generators = ArrayBuffer[Generator]()
 
   var implicitCd : Handle[ClockDomain] = null
   if(constructionCd != null) on(constructionCd)
@@ -125,18 +125,18 @@ class Plugin(@dontName constructionCd : Handle[ClockDomain] = null) extends Name
   }
 
   def apply[T](body : => T): T = {
-    Plugin.stack.push(this)
+    Generator.stack.push(this)
     val b = body
-    Plugin.stack.pop()
+    Generator.stack.pop()
     b
   }
 //  {
 //    val stack = Composable.stack
-//    if(stack.nonEmpty) stack.head.plugins += this
+//    if(stack.nonEmpty) stack.head.generators += this
 //  }
 
   //User API
-  implicit def lambdaToTask[T](lambda : => T) = new Task(lambda)
+  implicit def lambdaToGenerator[T](lambda : => T) = new Task(lambda)
   def add = new {
     def task[T](gen : => T) : Task[T] = {
       val task = new Task(gen)
@@ -144,9 +144,9 @@ class Plugin(@dontName constructionCd : Handle[ClockDomain] = null) extends Name
       task
     }
   }
-  def add[T <: Plugin](plugin : => T) : T = {
-//    plugins += plugin
-    apply(plugin)
+  def add[T <: Generator](generator : => T) : T = {
+//    generators += generator
+    apply(generator)
   }
 
   override def isDone: Boolean = elaborated
@@ -155,7 +155,7 @@ class Plugin(@dontName constructionCd : Handle[ClockDomain] = null) extends Name
   override def delayedInit(body: => Unit) = {
     body
     if ((body _).getClass.getDeclaringClass == this.getClass) {
-      Plugin.stack.pop()
+      Generator.stack.pop()
     }
   }
 }
@@ -164,41 +164,41 @@ class Plugin(@dontName constructionCd : Handle[ClockDomain] = null) extends Name
 //}
 class Composable {
 //  Composable.stack.push(this)
-  val plugins = ArrayBuffer[Plugin]()
+  val generators = ArrayBuffer[Generator]()
   val database = mutable.LinkedHashMap[Any, Any]()
-  def add(that : Plugin) = plugins += that
+  def add(that : Generator) = generators += that
   def build(): Unit = {
     implicit val c = this
     println(s"Build start")
-    val pluginsAll = ArrayBuffer[Plugin]()
-    def addPlugin(plugin: Plugin, clockDomain : Handle[ClockDomain]): Unit = {
-      if(plugin.implicitCd == null && clockDomain != null) plugin.on(clockDomain)
-      pluginsAll += plugin
-      for(child <- plugin.plugins) addPlugin(child, plugin.implicitCd)
+    val generatorsAll = ArrayBuffer[Generator]()
+    def addPlugin(generator: Generator, clockDomain : Handle[ClockDomain]): Unit = {
+      if(generator.implicitCd == null && clockDomain != null) generator.on(clockDomain)
+      generatorsAll += generator
+      for(child <- generator.generators) addPlugin(child, generator.implicitCd)
     }
-    for(plugin <- plugins) addPlugin(plugin, null)
-    for(p <- pluginsAll) {
+    for(generator <- generators) addPlugin(generator, null)
+    for(p <- generatorsAll) {
       p.reflectNames()
       p.c = this
       val splitName = classNameOf(p).splitAt(1)
       if(p.isUnnamed) p.setWeakName(splitName._1.toLowerCase + splitName._2)
     }
-    pluginsAll.flatMap(_.dependencies).distinct.foreach{
+    generatorsAll.flatMap(_.dependencies).distinct.foreach{
       case h : Handle[_] => h.init
       case _ =>
     }
     var step = 0
-    while(pluginsAll.exists(!_.elaborated)){
+    while(generatorsAll.exists(!_.elaborated)){
       println(s"Step $step")
       var progressed = false
-      val locks = pluginsAll.filter(!_.elaborated).flatMap(_.locks).toSet
-      val produced = pluginsAll.flatMap(_.dependencies).filter(_.isDone) -- locks
-      for(p <- pluginsAll if !p.elaborated && p.dependencies.forall(d => produced.contains(d)) && !locks.contains(p)){
+      val locks = generatorsAll.filter(!_.elaborated).flatMap(_.locks).toSet
+      val produced = generatorsAll.flatMap(_.dependencies).filter(_.isDone) -- locks
+      for(p <- generatorsAll if !p.elaborated && p.dependencies.forall(d => produced.contains(d)) && !locks.contains(p)){
         println(s"Build " + p.getName)
         if(p.implicitCd != null) p.implicitCd.push()
-        for(task <- p.tasks){
-          task.build()
-          task.value match {
+        for(generator <- p.tasks){
+          generator.build()
+          generator.value match {
             case n : Nameable => {
               n.setCompositeName(p, true)
             }
@@ -209,14 +209,14 @@ class Composable {
         p.elaborated = true
         progressed = true
       }
-//      val p = pluginsAll.find(p => !p.elaborated && p.dependencies.forall(d => produced.contains(d)) && !locks.contains(p))
+//      val p = generatorsAll.find(p => !p.elaborated && p.dependencies.forall(d => produced.contains(d)) && !locks.contains(p))
 //      p match {
 //        case Some(p) => {
 //          println(s"Build " + p.getName)
 //          if (p.implicitCd != null) p.implicitCd.push()
-//          for (task <- p.tasks) {
-//            task.build()
-//            task.value match {
+//          for (generator <- p.generators) {
+//            generator.build()
+//            generator.value match {
 //              case n: Nameable => {
 //                n.setCompositeName(p, true)
 //              }
@@ -230,7 +230,7 @@ class Composable {
 //        case _ =>
 //      }
       if(!progressed){
-        SpinalError(s"Composable hang, remaings are :\n${pluginsAll.filter(!_.elaborated).map(p => s"- ${p} depend on ${p.dependencies.mkString(", ")}").mkString("\n")}")
+        SpinalError(s"Composable hang, remaings are :\n${generatorsAll.filter(!_.elaborated).map(p => s"- ${p} depend on ${p.dependencies.mkString(", ")}").mkString("\n")}")
       }
       step += 1
     }

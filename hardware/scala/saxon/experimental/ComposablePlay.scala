@@ -10,7 +10,7 @@ object Keys{
 }
 
 
-class KeyAPlugin(value : Int) extends Plugin {
+class KeyAPlugin(value : Int) extends Generator {
   locks ++= Seq(Keys.A)
 
   val logic = add task {
@@ -19,7 +19,7 @@ class KeyAPlugin(value : Int) extends Plugin {
   }
 }
 
-class AdderPlugin(width : Int) extends Plugin{
+class AdderPlugin(width : Int) extends Generator{
   dependencies ++= Seq(Keys.A)
   locks ++= Seq(Keys.B)
 
@@ -33,7 +33,7 @@ class AdderPlugin(width : Int) extends Plugin{
   }
 }
 
-class KeyBPlugin extends Plugin {
+class KeyBPlugin extends Generator {
   dependencies ++= Seq(Keys.B)
 
   val logic = add task {
@@ -45,9 +45,9 @@ class KeyBPlugin extends Plugin {
 
 
 
-class ComposablePlay(plugins : Seq[Plugin]) extends Component{
+class ComposablePlay(plugins : Seq[Generator]) extends Component{
   val c = new Composable()
-  c.plugins ++= plugins
+  c.generators ++= plugins
   c.build()
 }
 
