@@ -231,7 +231,7 @@ object Dma{
       val bufferOut = bufferStage.stage
       output << bufferOut
 
-      val fillMe = bufferStage.valid
+      val fillMe = !bufferStage.valid && ! bufferIn.valid
     }
 
     val fifoRead = new Area {
@@ -662,8 +662,8 @@ object DmaTester extends App {
   Random.setSeed(42)
   val p = Dma.Parameter(
     memConfig = PipelinedMemoryBusConfig(30, 32),
-    inputs = List.fill(5)(Dma.InputParameter(dataWidth = 32)),
-    outputs = List.fill(5)(Dma.OutputParameter(dataWidth = 32)),
+    inputs = List.fill(10)(Dma.InputParameter(dataWidth = 32)),
+    outputs = List.fill(10)(Dma.OutputParameter(dataWidth = 32)),
     channels = Dma.ChannelParameter(
       fifoDepth = 32,
       source = Dma.SDParameter(
@@ -678,7 +678,7 @@ object DmaTester extends App {
         memory = true,
         stream = true
       )
-    ) :: List.fill(10){
+    ) :: List.fill(9){
       val fifoDepth = Math.max(1, 1 << Random.nextInt(5))
       Dma.ChannelParameter(
         fifoDepth = fifoDepth,
@@ -699,7 +699,7 @@ object DmaTester extends App {
   )
 
 
-  SimConfig.allOptimisation.compile(new Dma.Dma(p)).doSim("test", 42) { dut =>
+  SimConfig.withWave.compile(new Dma.Dma(p)).doSim("test", 42) { dut =>
 
 
 
@@ -720,20 +720,10 @@ object DmaTester extends App {
           val address = bus.cmd.address.toInt
           assert((address.toInt & 0x3) == 0)
           if(bus.cmd.write.toBoolean){
-            val data = bus.cmd.data.toLong
-            val mask = bus.cmd.mask.toInt
-            for(i <- 0 to 3){
-//              if((mask & (1 << i)) != 0){
-//                memory(address + i) = (data >> (i*8)).toByte
-//              }
-            }
+
           } else {
             bus.rsp.valid #= true
-            var buffer = 0l
-//            for(i <- 0 to 3){
-//              buffer |= (memory(address + i).toLong & 0xFF) << (i*8)
-//            }
-            bus.rsp.data #= buffer
+            bus.rsp.data #= address
           }
         }
       }
@@ -779,10 +769,17 @@ object DmaTester extends App {
     def addressToChannelId(address : Int) = address / channelAddressRange
 
     val channels = for(i <- 0 until p.channels.length) yield new {
-      val memWriteCmdScoreboards = new MemCmdScoreboard
-      val memReadCmdScoreboards = new MemCmdScoreboard
+      val memWriteCmdScoreboard, memReadCmdScoreboard = new MemCmdScoreboard
 
       val readCallbacks =  mutable.Queue[BigInt => Unit]()
+    }
+
+    val inputs = for(i <- 0 until p.inputs.length) yield new {
+      val readCallbacks, inputCallbacks =  mutable.Queue[BigInt => Unit]()
+    }
+    val outputs = for(i <- 0 until p.outputs.length) yield new {
+      val scoreboard = new ScoreboardInOrder[SimData]
+      val monitor = StreamMonitor(dut.io.outputs(i), dut.clockDomain)(scoreboard.pushDut(_))
     }
 
     val memReadRspCallback =  mutable.Queue[BigInt => Unit]()
@@ -791,7 +788,7 @@ object DmaTester extends App {
     val meReadCmdMonitor = StreamMonitor(dut.io.memRead.cmd, dut.clockDomain){ payload =>
       val cmd = SimData.copy(payload)
       val channelId = addressToChannelId(payload.address.toInt)
-      channels(channelId).memReadCmdScoreboards.pushDut(cmd)
+      channels(channelId).memReadCmdScoreboard.pushDut(cmd)
 
       memReadRspCallback += (channels(channelId).readCallbacks.dequeue())
     }
@@ -799,7 +796,7 @@ object DmaTester extends App {
     val memWriteCmdMonitor = StreamMonitor(dut.io.memWrite.cmd, dut.clockDomain){ payload =>
       val cmd = SimData.copy(payload)
       val channelId = addressToChannelId(payload.address.toInt)
-      channels(channelId).memWriteCmdScoreboards.pushDut(cmd)
+      channels(channelId).memWriteCmdScoreboard.pushDut(cmd)
     }
 
     FlowMonitor(dut.io.memRead.rsp, dut.clockDomain) { payload =>
@@ -807,10 +804,12 @@ object DmaTester extends App {
     }
 
 
+
     val config = Apb3Driver(dut.io.config, dut.clockDomain)
     dut.clockDomain.forkStimulus(10)
     dut.clockDomain.waitSampling(10)
     dut.clockDomain.forkSimSpeedPrinter()
+    SimTimeout(10*1000000)
 
 
     var configTarget, configHit = 0
@@ -823,9 +822,10 @@ object DmaTester extends App {
       configHit += 1
     }
     var taskCount = 0
+    //TODO
     val channelsFree = mutable.ArrayBuffer[Int]() ++ (0 until p.channels.length)
-    val inputsFree = mutable.ArrayBuffer[Int]() ++ (0 until p.inputs.length)
-    val outputsFree = mutable.ArrayBuffer[Int]() ++ (0 until p.outputs.length)
+    val inputsFree = mutable.ArrayBuffer[Int]()   ++ (0 until p.inputs.length)
+    val outputsFree = mutable.ArrayBuffer[Int]()  ++ (0 until p.outputs.length)
     def alloc(array : mutable.ArrayBuffer[Int]) : Int = {
       val i = Random.nextInt(array.size)
       val value = array(i)
@@ -884,28 +884,36 @@ object DmaTester extends App {
       val dst = new SdData()
       dst.increment = true
       dst.reload = false
-      dst.memory = true
+      dst.memory = Random.nextBoolean()
+      val outputId = !dst.memory generate alloc(outputsFree)
       dst.size = 2
       dst.burst = Math.min(cp.fifoDepth-1,  Random.nextInt(1 << cp.destination.burstWidth))
-      dst.address = (channelId * channelAddressRange + Random.nextInt(channelAddressRange/2)) & ~ 0x3
+      dst.address = if(dst.memory) (channelId * channelAddressRange + Random.nextInt(channelAddressRange/2)) & ~ 0x3 else outputId
       dst.length = length
+
 
 
       for(beat <- 0 to src.length) {
         val cmd = SimData()
         cmd("write") = 0
         cmd.address = src.address + (beat << src.size)
-        channels(channelId).memReadCmdScoreboards.pushRef(cmd)
+        channels(channelId).memReadCmdScoreboard.pushRef(cmd)
       }
 
       for(beat <- 0 to dst.length){
-        channels(channelId).readCallbacks += { data =>
-          val cmd = SimData()
-          cmd("write") = 1
-          cmd.address = dst.address + (beat << dst.size)
-          cmd.data = data
-          cmd.mask = 0xF
-          channels(channelId).memWriteCmdScoreboards.pushRef(cmd)
+         channels(channelId).readCallbacks += { data =>
+         if(dst.memory) {
+           val cmd = SimData()
+           cmd("write") = 1
+           cmd.address = dst.address + (beat << dst.size)
+           cmd.data = data
+           cmd.mask = 0xF
+           channels(channelId).memWriteCmdScoreboard.pushRef(cmd)
+         } else {
+           val cmd = SimData()
+             cmd.data = data
+             outputs(outputId).scoreboard.pushRef(cmd)
+           }
         }
       }
 
@@ -920,10 +928,11 @@ object DmaTester extends App {
       }
       dut.clockDomain.waitSampling(Random.nextInt(100))
       channelsFree += channelId
+      if(!dst.memory) outputsFree += outputId
     }
 
-    val agents = for(agent <- 0 to 4) yield fork {
-      for (i <- 0 until 10000) createTask()
+    val agents = for(agent <- 0 until 5) yield fork {
+      for (i <- 0 until 100) createTask()
     }
 
     agents.foreach(_.join())
@@ -932,9 +941,14 @@ object DmaTester extends App {
     dut.clockDomain.waitSampling(20000)
 
     for(c <- channels) {
-      println(s"${c.memReadCmdScoreboards.matches} ${c.memWriteCmdScoreboards.matches}")
-      c.memWriteCmdScoreboards.checkEmptyness()
-      c.memReadCmdScoreboards.checkEmptyness()
+      println(s"${c.memReadCmdScoreboard.matches} ${c.memWriteCmdScoreboard.matches}")
+      c.memWriteCmdScoreboard.checkEmptyness()
+      c.memReadCmdScoreboard.checkEmptyness()
+    }
+
+
+    for(o <- outputs){
+      o.scoreboard.checkEmptyness()
     }
   }
 }
