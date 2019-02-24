@@ -671,11 +671,11 @@ object DmaTester extends App {
     val memory = new Array[Byte](0x10000)
     Random.nextBytes(memory)
 
-    //TODO pipeline
     def newMemoryAgent(bus : PipelinedMemoryBus): Unit = {
       bus.cmd.ready #= true
       bus.rsp.valid #= false
 
+      var pendingRsp = 0
       dut.clockDomain.onSamplings{
         bus.cmd.ready #= true
         bus.rsp.valid #= false
@@ -684,12 +684,14 @@ object DmaTester extends App {
         if(bus.cmd.valid.toBoolean){
           val address = bus.cmd.address.toInt
           assert((address.toInt & 0x3) == 0)
-          if(bus.cmd.write.toBoolean){
-
-          } else {
-            bus.rsp.valid #= true
-//            bus.rsp.data #= address
+          if(!bus.cmd.write.toBoolean){
+            pendingRsp += 1
           }
+        }
+
+        if(pendingRsp != 0 && Random.nextBoolean()){
+          bus.rsp.valid #= true
+          pendingRsp -= 1
         }
       }
     }
@@ -849,7 +851,7 @@ object DmaTester extends App {
 
       src.increment = true
       src.reload = false
-      src.memory = Random.nextBoolean()
+      src.memory = (Random.nextBoolean() && cp.source.memory) || !cp.source.stream
       val inputId = !src.memory generate alloc(inputsFree)
       src.size = size
       src.burst = Math.min(cp.fifoDepth-1, Random.nextInt(1 << cp.source.burstWidth))
@@ -860,7 +862,7 @@ object DmaTester extends App {
       val dst = new SdData()
       dst.increment = true
       dst.reload = false
-      dst.memory = Random.nextBoolean()
+      dst.memory = (Random.nextBoolean() && cp.destination.memory) || !cp.destination.stream
       val outputId = !dst.memory generate alloc(outputsFree)
       dst.size = size
       dst.burst = Math.min(cp.fifoDepth-1,  Random.nextInt(1 << cp.destination.burstWidth))
