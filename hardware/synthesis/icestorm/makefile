@@ -12,10 +12,12 @@ endif
 
 
 
-all: $(TOPLEVEL).rpt $(TOPLEVEL).bin
+all: $(TOPLEVEL).rpt $(TOPLEVEL)*.bin
 
 ifeq ($(NEXTPNR),yes)
 %.json: ${VERILOGS}
+	rm -f ${TOPLEVEL}.v*.bin
+	cp -f  ${ROOT}/hardware/netlist/${TOPLEVEL}.v*.bin . | true
 	yosys -p 'synth_ice40 -top $(TOPLEVEL) -json $@' $<  
 
 %.asc: $(PIN_DEF) %.json constraint.py
