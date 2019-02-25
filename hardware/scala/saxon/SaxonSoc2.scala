@@ -17,6 +17,7 @@ import spinal.lib.misc.plic._
 import scala.collection.mutable.ArrayBuffer
 import experimental._
 import javax.swing.{BoxLayout, JButton, JFrame}
+import saxon.dma._
 import spinal.core.internals.classNameOf
 import spinal.core.sim.{SimConfig, fork, sleep}
 import spinal.lib.com.jtag.sim.JtagTcp
@@ -91,7 +92,7 @@ case class ExternalClockDomain(clkFrequency : Handle[HertzNumber] = Unset, withD
     }
   }
 
-  def connectTo(s : BaseSoc): this.type ={
+  def connectTo(s : SaxonSocBase): this.type ={
     s on(this.systemClockDomain)
     s.cpu.debugClockDomain.setFrom(this.debugClockDomain)
     s.cpu.debugAskReset.setFrom(this.doSystemReset)
@@ -205,15 +206,6 @@ class VexRiscvPlugin(val config : Handle[VexRiscvConfig] = Unset,
       }
       case _ =>
     }
-
-
-//    val mainBus = PipelinedMemoryBus(addressWidth = 32, dataWidth = 32)
-//    interconnect.addSlave(mainBus, DefaultMapping)
-//    interconnect.addMasters(
-//      dBus   -> List(mainBus),
-//      iBus   -> List(mainBus),
-//      mainBus-> List(ram)
-//    )
   }
 }
 
@@ -400,19 +392,22 @@ class SpiFlashXipPlugin(p : SpiXdrMasterCtrl.MemoryMappingParameters) extends Ge
 }
 
 
-class BaseSoc extends Generator{
+class SaxonSocBase extends Generator{
   val cpu = new VexRiscvPlugin()
   val interconnect = new PipelinedMemoryBusInterconnectPlugin()
   val apbDecoder = new Apb3DecoderPlugin(Apb3Config(20,32))
   val apbBridge = new PipelinedMemoryBusToApbBridgePlugin(apbDecoder.input)
+  val mainBus = add task PipelinedMemoryBus(addressWidth = 32, dataWidth = 32)
 
-  val interconnectMapping = new Generator{
+  val mapper = new Generator{
     dependencies ++= List(cpu, apbBridge)
-    add task {
+    val logic = add task new Area {
+      interconnect.factory.addSlave(mainBus, DefaultMapping)
       interconnect.factory.addSlave( apbBridge.input, SizeMapping(0xF0000000l,  16 MiB))
       interconnect.factory.addMasters(
-        (cpu.iBus,    List()),
-        (cpu.dBus,    List(apbBridge.input))
+        (cpu.dBus, List(mainBus)),
+        (cpu.iBus, List(mainBus)),
+        ( mainBus,    List(apbBridge.input))
       )
     }
   }
@@ -444,13 +439,12 @@ class BaseSoc extends Generator{
 
 
   def addIce40Spram() = this add new Generator{
-    dependencies += cpu
+    dependencies ++= List(SaxonSocBase.this, interconnect.factory)
 
     val logic = add task new Area {
       val ram = Spram()
       interconnect.factory.addSlave(ram.io.bus, SizeMapping(0x80000000l,  64 KiB))
-      interconnect.factory.addConnection(cpu.iBus, ram.io.bus)
-      interconnect.factory.addConnection(cpu.dBus, ram.io.bus)
+      interconnect.factory.addConnection(mainBus, ram.io.bus)
     }
   }
 
@@ -467,7 +461,7 @@ class BaseSoc extends Generator{
   }
 
   def addSpiXip(p : SpiXdrMasterCtrl.MemoryMappingParameters) = this add new Generator{
-    dependencies += cpu
+    dependencies ++= List(cpu, SaxonSocBase.this)
     locks += apbDecoder
 
     val logic = add task new Area {
@@ -479,7 +473,53 @@ class BaseSoc extends Generator{
 
       interconnect.factory.addSlave(accessBus, SizeMapping(0x01000000l, 16 MiB))
       interconnect.factory.addConnection(cpu.iBus, accessBus)
-      interconnect.factory.addConnection(cpu.dBus, accessBus)
+      interconnect.factory.addConnection(mainBus, accessBus)
+      interconnect.factory.setConnector(accessBus)((m,s) => {
+        m.cmd.halfPipe() >> s.cmd
+        m.rsp <-< s.rsp
+      })
+    }
+  }
+
+  def addDma() = this add new Generator{
+    dependencies ++= List(SaxonSocBase.this, interconnect.factory)
+    locks ++= List(apbDecoder)
+
+    val logic = add task new Area{
+      val p = Dma.Parameter(
+        memConfig = PipelinedMemoryBusConfig(32,32),
+        inputs = Nil,
+        outputs = Nil,
+        channels = List(
+          Dma.ChannelParameter(
+            fifoDepth = 32,
+            source = Dma.SDParameter(
+              lengthWidth = 12,
+              burstWidth = 4,
+              memory = true,
+              stream = true
+            ),
+            destination = Dma.SDParameter(
+              lengthWidth = 12,
+              burstWidth = 4,
+              memory = true,
+              stream = true
+            )
+          )
+        )
+      )
+
+      val ctrl = Dma(p)
+      interconnect.factory.addMasters(
+        (ctrl.io.memRead, List(mainBus)),
+        (ctrl.io.memWrite, List(mainBus))
+      )
+      apbDecoder.mapping += (ctrl.io.config -> (0xE0000, 4 KiB))
+
+//      interconnect.factory.setConnector(accessBus)((m,s) => {
+//        m.cmd.halfPipe() >> s.cmd
+//        m.rsp <-< s.rsp
+//      })
     }
   }
 
@@ -527,8 +567,8 @@ class BaseSoc extends Generator{
 }
 
 
-class CustomSoc extends Generator{
-  val system = new BaseSoc()
+class SaxonDocDefault extends Generator{
+  val system = new SaxonSocBase()
   system.cpu.config.set(CpuConfig.minimalWithCsr)
   system.cpu.withJtag.set(true)
 
@@ -539,14 +579,7 @@ class CustomSoc extends Generator{
   val gpioA = system.addGpio(
     apbOffset = 0x00000,
     Gpio.Parameter(
-      width = 12,
-      interrupt = List(0, 1)
-    )
-  )
-  val gpioB = system.addGpio(
-    apbOffset = 0x01000,
-    Gpio.Parameter(
-      width = 12,
+      width = 8,
       interrupt = List(0, 1)
     )
   )
@@ -581,12 +614,13 @@ class CustomSoc extends Generator{
 
   val machineTimer = system.addMachineTimer()
 
+  val dma = system.addDma()
 }
 
 
-object CustomSoc{
+object SaxonDocDefault{
   def main(args: Array[String]): Unit = {
-    SpinalVerilog(new PluginComponent(new CustomSoc))
+    SpinalRtlConfig.generateVerilog(new PluginComponent(new SaxonDocDefault))
   }
 }
 
@@ -596,7 +630,7 @@ object CustomSocSim{
 //    val flashBin = "software/standalone/blinkAndEcho/build/blinkAndEcho.bin"
     val flashBin = "software/zephyr/demo/build/zephyr/zephyr.bin"
 
-    SimConfig.addRtl("test/common/up5k_cells_sim.v").compile(new PluginComponent(new CustomSoc)).doSimUntilVoid("test", seed = 42){dut =>
+    SimConfig.addRtl("test/common/up5k_cells_sim.v").compile(new PluginComponent(new SaxonDocDefault)).doSimUntilVoid("test", seed = 42){ dut =>
       import dut.generator._
       val systemClkPeriod = (1e12/clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4

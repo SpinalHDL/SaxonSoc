@@ -88,12 +88,13 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
 //  io.IOB_24A := chain.last
 
 
-  val soc = SaxonSoc(p)
-
-  soc.io.clk   <> clkBuffer.GLOBAL_BUFFER_OUTPUT
-  soc.io.reset <> False
-  soc.io.uartA.txd <> io.IOT_13B
-  soc.io.uartA.rxd <> io.IOT_16A
+//  val soc = SaxonSoc(p)
+  val soc = new PluginComponent(new SaxonDocDefault)
+  import soc.generator._
+  clockCtrl.io.clk   <> clkBuffer.GLOBAL_BUFFER_OUTPUT
+  clockCtrl.io.reset <> False
+  uartA.logic.uart.txd <> io.IOT_13B
+  uartA.logic.uart.rxd <> io.IOT_16A
 
 
   def ioSbComb(io : Bool, design : TriState[Bool]): Unit ={
@@ -104,21 +105,21 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
     bb.OUTPUT_ENABLE <> design.writeEnable
   }
 
-  ioSbComb(io.IOT_37A, soc.io.gpioA(0))
-  ioSbComb(io.IOT_36B, soc.io.gpioA(1))
-  ioSbComb(io.IOT_44B, soc.io.gpioA(2))
-  ioSbComb(io.IOT_49A, soc.io.gpioA(3))
-  ioSbComb(io.IOB_22A, soc.io.gpioA(4))
-  ioSbComb(io.IOB_23B, soc.io.gpioA(5))
-  ioSbComb(io.IOB_24A, soc.io.gpioA(6))
-  ioSbComb(io.IOB_25B, soc.io.gpioA(7))
+  ioSbComb(io.IOT_37A, gpioA.logic.gpio(0))
+  ioSbComb(io.IOT_36B, gpioA.logic.gpio(1))
+  ioSbComb(io.IOT_44B, gpioA.logic.gpio(2))
+  ioSbComb(io.IOT_49A, gpioA.logic.gpio(3))
+  ioSbComb(io.IOB_22A, gpioA.logic.gpio(4))
+  ioSbComb(io.IOB_23B, gpioA.logic.gpio(5))
+  ioSbComb(io.IOB_24A, gpioA.logic.gpio(6))
+  ioSbComb(io.IOB_25B, gpioA.logic.gpio(7))
 //  soc.io.gpioA.read := io.IOT_49A ## io.IOT_44B ## io.IOT_36B ## io.IOT_37A ## B"0000"
 
   if(p.withJtag) {
-    soc.io.jtag.tms <> io.IOB_29B
-    soc.io.jtag.tdi <> io.IOB_31B
-    soc.io.jtag.tdo <> io.IOB_20A
-    soc.io.jtag.tck <> io.IOB_18A
+    system.cpu.jtag.tms <> io.IOB_29B
+    system.cpu.jtag.tdi <> io.IOB_31B
+    system.cpu.jtag.tdo <> io.IOB_20A
+    system.cpu.jtag.tck <> io.IOB_18A
   } else {
     io.IOB_20A := False
   }
@@ -127,26 +128,26 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
   val ledDriver = SB_RGBA_DRV()
   ledDriver.CURREN   := True
   ledDriver.RGBLEDEN := True
-  ledDriver.RGB0PWM  := soc.io.gpioA.write(0)
-  ledDriver.RGB1PWM  := soc.io.gpioA.write(1)
-  ledDriver.RGB2PWM  := soc.io.gpioA.write(2)
+  ledDriver.RGB0PWM  := gpioA.logic.gpio.write(0)
+  ledDriver.RGB1PWM  := gpioA.logic.gpio.write(1)
+  ledDriver.RGB2PWM  := gpioA.logic.gpio.write(2)
 
   ledDriver.RGB0 <> io.LED_BLUE
   ledDriver.RGB1 <> io.LED_GREEN
   ledDriver.RGB2 <> io.LED_RED
 
-  val xip = new ClockingArea(soc.systemClockDomain) {
-    RegNext(soc.io.flash.ss.asBool) <> io.ICE_SS
+  val xipIo = new ClockingArea(xip.implicitCd) {
+    RegNext(xip.logic.flash.ss.asBool) <> io.ICE_SS
 
     val sclkIo = SB_IO_SCLK()
     sclkIo.PACKAGE_PIN <> io.ICE_SCK
     sclkIo.CLOCK_ENABLE := True
 
     sclkIo.OUTPUT_CLK := ClockDomain.current.readClockWire
-    sclkIo.D_OUT_0 <> soc.io.flash.sclk.write(0)
-    sclkIo.D_OUT_1 <> RegNext(soc.io.flash.sclk.write(1))
+    sclkIo.D_OUT_0 <> xip.logic.flash.sclk.write(0)
+    sclkIo.D_OUT_1 <> RegNext(xip.logic.flash.sclk.write(1))
 
-    val datas = for ((data, pin) <- (soc.io.flash.data, List(io.ICE_MOSI, io.ICE_MISO).reverse).zipped) yield new Area {
+    val datas = for ((data, pin) <- (xip.logic.flash.data, List(io.ICE_MOSI, io.ICE_MISO).reverse).zipped) yield new Area {
       val dataIo = SB_IO_DATA()
       dataIo.PACKAGE_PIN := pin
       dataIo.CLOCK_ENABLE := True
