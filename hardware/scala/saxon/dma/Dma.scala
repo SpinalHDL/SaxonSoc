@@ -13,6 +13,8 @@ import scala.collection.mutable
 import scala.util.Random
 object Dma{
 
+  def apply(p : Parameter) = new Dma(p)
+
   case class MappingParameter(val channelOffset : Int = 0x100,
                               val channelDelta : Int = 0x80,
                               val sourceOffset : Int = 0x40,
@@ -347,7 +349,7 @@ object Dma{
 
 
         io.memWrite.cmd.valid := input.valid && memory
-        io.memWrite.cmd.address := address + (counter << size)
+        io.memWrite.cmd.address := address + (counter << size) //TODO reduce shift logic usage
         io.memWrite.cmd.address(wordRange) := 0
         io.memWrite.cmd.write := True
         io.memWrite.cmd.data.assignDontCare()
@@ -818,7 +820,6 @@ object DmaTester extends App {
       configHit += 1
     }
     var taskCount = 0
-    //TODO
     val channelsFree = mutable.ArrayBuffer[Int]() ++ (0 until p.channels.length)
     val inputsFree = mutable.ArrayBuffer[Int]()   ++ (0 until p.inputs.length)
     val outputsFree = mutable.ArrayBuffer[Int]()  ++ (0 until p.outputs.length)
