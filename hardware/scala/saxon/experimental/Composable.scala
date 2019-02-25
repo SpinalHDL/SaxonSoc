@@ -230,7 +230,7 @@ class Composable {
 //        case _ =>
 //      }
       if(!progressed){
-        SpinalError(s"Composable hang, remaings are :\n${generatorsAll.filter(!_.elaborated).map(p => s"- ${p} depend on ${p.dependencies.mkString(", ")}").mkString("\n")}")
+        SpinalError(s"Composable hang, remaings are :\n${generatorsAll.filter(!_.elaborated).map(p => s"- ${p} depend on ${p.dependencies.filter(d => !produced.contains(d)).mkString(", ")}").mkString("\n")}")
       }
       step += 1
     }
