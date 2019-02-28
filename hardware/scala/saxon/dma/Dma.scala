@@ -4,6 +4,7 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.amba3.apb.sim.Apb3Driver
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3SlaveFactory}
+import spinal.lib.bus.misc.SizeMapping
 import spinal.lib.bus.simple.{PipelinedMemoryBus, PipelinedMemoryBusCmd, PipelinedMemoryBusConfig}
 import spinal.lib.eda.bench.{Bench, Rtl}
 import spinal.lib.eda.icestorm.IcestormStdTargets
@@ -15,7 +16,8 @@ object Dma{
 
   def apply(p : Parameter) = new Dma(p)
 
-  case class MappingParameter(val channelOffset : Int = 0x100,
+  case class MappingParameter(val sharedRamOffset : Int = 0x100,
+                              val channelOffset : Int = 0x200,
                               val channelDelta : Int = 0x80,
                               val sourceOffset : Int = 0x40,
                               val destinationOffset : Int = 0x60,
@@ -35,6 +37,7 @@ object Dma{
                               val channelResetBit : Int = 0)
 
   case class Parameter( memConfig: PipelinedMemoryBusConfig,
+                        memoryLengthWidth : Int,
                         inputs : Seq[InputParameter],
                         outputs : Seq[OutputParameter],
                         channels : Seq[ChannelParameter],
@@ -86,75 +89,197 @@ object Dma{
   case class Dma(val p : Parameter) extends Component{
     val io = Io(p)
 
-    val fifoDepth = p.channels.map(_.fifoDepth).sum
-    val fifoRam = Mem(Bits(p.memConfig.dataWidth bits), fifoDepth)
     def wordRange = log2Up(p.memConfig.dataWidth/8)-1 downto 0
+    val sharedRam = new Area{
+      val memoryContextWordCount = 1 << log2Up(p.channels.size*4)
+      val memSize = 1 << log2Up(p.channels.map(_.fifoDepth).sum + memoryContextWordCount)
+      val contextBase = memSize - memoryContextWordCount
+      val contextRange = (log2Up(memoryContextWordCount)-1 downto 0)
+      val nonContextRange = (log2Up(memSize)-1 downto contextRange.size)
+      val mem = Mem(Bits(p.memConfig.dataWidth bits), memSize)
+      def wordRange = log2Up(p.memConfig.dataWidth/8)-1 downto 0
 
-    class SourceDestinationBase(cp : ChannelParameter,val sdp : SDParameter, addressWidth : Int) extends Area {
+      val readCmd = Vec(Stream(mem.addressType), 3)
+      val readRsp = mem.streamReadSyncMultiPort(readCmd)
+
+      val writeCmd = Vec(Stream(MemWriteCmd(mem)), 4)
+      val writeCmdSelected = StreamArbiterFactory.noLock.lowerFirst.on(writeCmd)
+      mem.writePort << writeCmdSelected.toFlow
+    }
+
+
+    class SourceDestinationBase(cp : ChannelParameter, val sdp : SDParameter, streamIdWidth : Int) extends Area {
       val busy, selfStop, userStop = RegInit(False)
       val increment, reload, memory = Reg(Bool()) //TODO harddrive memory if possible
       val start, dontStop = False
 
-      val address = Reg(UInt(addressWidth bits))
-      val burst = Reg(sdp.burstType())
-      val size = Reg(p.sizeType())
+       //Stream capable
+      val length, counter = sdp.stream generate Reg(UInt(sdp.lengthWidth bits))
+      val streamId = sdp.stream generate Reg(UInt(streamIdWidth bits))
+      val counterIncrement = sdp.stream generate False
+      val counterMatch = sdp.stream generate counter === length
 
-      val length, counter = Reg(UInt(sdp.lengthWidth bits))
-      val alignement = Reg(UInt(log2Up(p.memConfig.dataWidth/8) bits))
+      //Memory capable
+      val burst = sdp.memory generate Reg(sdp.burstType())
+      val size = sdp.memory generate Reg(p.sizeType())
+      val alignement = sdp.memory generate Reg(UInt(log2Up(p.memConfig.dataWidth/8) bits))
+      val alignementIncrement = sdp.memory generate False
+
       val fifoPtr = Reg(cp.fifoPtrType()) init(0)
-      val counterIncrement, fifoPtrIncrement, alignementIncrement = False
-      val counterMatch = counter === length
+      val fifoPtrIncrement  = False
 
       val stop = userStop || selfStop
       val done = busy && !dontStop && (selfStop || userStop)
-      selfStop setWhen(counterIncrement && counterMatch) clearWhen(done)
+      val memoryStop = sdp.memory generate False
+      if(sdp.memory) selfStop setWhen(memoryStop)
+      if(sdp.stream) selfStop setWhen(counterIncrement && counterMatch)
+      selfStop clearWhen(done)
       start setWhen(done && reload && !userStop)
       busy clearWhen(done) setWhen(start)
       fifoPtr := fifoPtr + U(fifoPtrIncrement)
-      if(sdp.lengthWidth != 0) when(counterIncrement) {
-        counter := counter + ((0 until p.sizeCount).map(s => U(1 << s)).read(size)).resized
+      if(sdp.lengthWidth != 0 && sdp.stream) when(counterIncrement) {
+        counter := counter + 1
       }
-      alignement := alignement + (alignementIncrement ? (0 until p.sizeCount).map(v => U(1 << v)).read(size) | U(0)).resized
+      if(sdp.memory) alignement := alignement + (alignementIncrement ? (0 until p.sizeCount).map(v => U(1 << v)).read(size) | U(0)).resized
       when(start){
-        counter := 0
-        alignement := address.resized
+        if(sdp.stream) counter := 0
       }
     }
 
     case class Channel(val cp : ChannelParameter) extends Area {
       val reset = False
 
-      val source = new SourceDestinationBase(cp, cp.source, if(cp.source.memory) p.memConfig.addressWidth else log2Up(p.inputs.length))
-      val destination = new SourceDestinationBase(cp, cp.destination, if(cp.destination.memory) p.memConfig.addressWidth else log2Up(p.outputs.length))
+      val source = new SourceDestinationBase(cp, cp.source, log2Up(p.inputs.length))
+      val destination = new SourceDestinationBase(cp, cp.destination, log2Up(p.outputs.length))
 
-      val sourceFifoPtr = U(channelToFifoOffset(cp), log2Up(fifoRam.wordCount) bits) | source.fifoPtr(widthOf(source.fifoPtr)-2 downto 0).resized
-      val destinationFifoPtr = U(channelToFifoOffset(cp), log2Up(fifoRam.wordCount) bits) | destination.fifoPtr(widthOf(destination.fifoPtr)-2 downto 0).resized
+      val sourceFifoPtr = U(channelToFifoOffset(cp), log2Up(sharedRam.mem.wordCount) bits) | source.fifoPtr(widthOf(source.fifoPtr)-2 downto 0).resized
+      val destinationFifoPtr = U(channelToFifoOffset(cp), log2Up(sharedRam.mem.wordCount) bits) | destination.fifoPtr(widthOf(destination.fifoPtr)-2 downto 0).resized
 
       val fifoFullOrEmpty = source.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0) === destination.fifoPtr(log2Up(cp.fifoDepth)-1 downto 0)
       val fifoFull = fifoFullOrEmpty && source.fifoPtr.msb =/= destination.fifoPtr.msb
       val fifoEmpty = fifoFullOrEmpty && source.fifoPtr.msb === destination.fifoPtr.msb
     }
 
-    def muxAddress(index : UInt, sdList : Seq[SourceDestinationBase], streamCount : Int) : UInt = {
-      val ret = UInt(p.memConfig.addressWidth bits).assignDontCare()
-      switch(index) {
-        for ((sd, id) <- sdList.zipWithIndex) {
-          is(id){
-            if(!sd.sdp.memory) {
-              ret(0, log2Up(streamCount) bits) := sd.address.resized
-            } else {
-              ret := sd.address
-            }
-          }
-        }
-      }
-      ret
-    }
+//    def muxAddress(index : UInt, sdList : Seq[SourceDestinationBase], streamCount : Int) : UInt = {
+//      val ret = UInt(p.memConfig.addressWidth bits).assignDontCare()
+//      switch(index) {
+//        for ((sd, id) <- sdList.zipWithIndex) {
+//          is(id){
+//            if(!sd.sdp.memory) {
+//              ret(0, log2Up(streamCount) bits) := sd.address.resized
+//            } else {
+//              ret := sd.address
+//            }
+//          }
+//        }
+//      }
+//      ret
+//    }
 
     val channelsByFifoSize = p.channels.sortBy(_.fifoDepth).reverse
     val channelToFifoOffset = (channelsByFifoSize, channelsByFifoSize.scanLeft(0)(_ + _.fifoDepth)).zipped.toMap
 
     val channels = p.channels.map(Channel(_))
+
+    case class MemoryContext() extends Area{
+      val size = p.sizeType()
+      val address = Reg(UInt(p.memConfig.addressWidth bits))
+      val length, counter = Reg(UInt(p.memoryLengthWidth bits))
+      val counterMatch = counter === length
+      val counterIncrement = False
+      val counterClear = False
+      val addressPlusCounter = address + counter
+      val addressPlusCounterReg = RegNextWhen(addressPlusCounter, counterIncrement)
+
+      when(counterIncrement) {
+        counter := counter + ((0 until p.sizeCount).map(s => U(1 << s)).read(size)).resized
+      }
+      when(counterClear){
+        counter := 0
+      }
+    }
+    case class MemoryContextCtrl(context : MemoryContext,
+                                 portCount : Int,
+                                 readCmd : Stream[UInt],
+                                 readRsp : Stream[Bits],
+                                 writeCmd : Stream[MemWriteCmd[Bits]]) extends Area{
+      case class Port() extends Bundle{
+        val valid = Bool()
+        val channelId = UInt(log2Up(p.channels.length) bits)
+        val size = p.sizeType()
+        val fromDestination = Bool()
+        val hit = Bool()
+        val hitClear = Bool()
+        val release = Bool()
+      }
+      val ports = Vec(Port(), portCount)
+
+      val state = Reg(UInt(3 bits)) init(0)
+      val hitEnable = Reg(Bool)
+      val portId = UInt(log2Up(portCount) bits)
+      val portIdLock = Reg(UInt(log2Up(portCount) bits))
+      val channelId = Reg(UInt(log2Up(p.channels.length) bits))
+      portId := portIdLock
+      portIdLock := portId
+      ports.foreach(_.hit := False)
+
+      context.size := ports(portIdLock).size
+
+      readCmd.valid := False
+      readCmd.payload(sharedRam.nonContextRange).setAll()
+      readCmd.payload(sharedRam.contextRange) := ports(portId).channelId @@ ports(portId).fromDestination @@ state.lsb
+      readRsp.ready := True
+
+      writeCmd.valid := False
+      writeCmd.address(sharedRam.nonContextRange).setAll()
+      writeCmd.address(sharedRam.contextRange) := channelId @@ ports(portId).fromDestination @@ True
+      writeCmd.data.assignDontCare()
+
+      switch(state){
+        is(0){
+          portId := OHToUInt(OHMasking.first(ports.map(_.valid)))
+          hitEnable := True
+          channelId := ports(portId).channelId
+          when(ports.map(_.valid).orR){
+            readCmd.valid := True
+            when(readCmd.ready){
+              state := 1
+            }
+          }
+        }
+        is(1){
+          when(readRsp.valid){ context.address(context.address.range) := readRsp.payload.asUInt(context.address.range) }
+          readCmd.valid := True
+          when(readCmd.ready){
+            state := 2
+          }
+        }
+        is(2){
+          when(readRsp.valid){
+            context.length := readRsp.payload(context.length.range).asUInt
+            context.counter := (readRsp.payload >> p.memConfig.dataWidth/2)(context.length.range).asUInt
+          }
+          state := 3
+        }
+        is(3){
+          ports(portIdLock).hit := hitEnable
+          hitEnable.clearWhen(ports(portIdLock).hitClear)
+          when(ports(portIdLock).release){
+            state := 4
+          }
+        }
+        is(4){
+          writeCmd.valid := True
+          writeCmd.data(context.length.range) := context.length.asBits
+          writeCmd.data(p.memConfig.dataWidth/2, context.counter.getWidth bits) := context.counter.asBits
+          when(writeCmd.ready){
+            state := 0
+          }
+        }
+      }
+    }
+
+
 
     val memReadCmd = new Area {
       val memoryChannels = channels.filter(_.cp.source.memory)
@@ -168,45 +293,76 @@ object Dma{
       val busy = RegInit(False)
       val cmdBeat, rspBeat = Reg(beatType)
       val selected = new Area{
-        val index = Reg(UInt(log2Up(memoryChannels.length) bits))
-        def memoryChannel[T <: Data](f : Channel => T) = Vec(memoryChannels.map(f))(index)
+        val allIndex = Reg(UInt(log2Up(channels.length) bits))
+        val memoryIndex = Reg(UInt(log2Up(memoryChannels.length) bits))
+        def memoryChannel[T <: Data](f : Channel => T) = Vec(memoryChannels.map(f))(memoryIndex)
         val burst = memoryChannel(_.source.burst)
-        val address = memoryChannel(_.source.address)
         val size = memoryChannel(_.source.size)
-        val counter = memoryChannel(_.source.counter)
         val alignement = memoryChannel(_.source.alignement)
         val alignementIncrement = memoryChannel(_.source.alignementIncrement)
-        val counterMatch = memoryChannel(_.source.counterMatch)
-        val counterIncrement = memoryChannel(_.source.counterIncrement)
         val dontStop = memoryChannel(_.source.dontStop)
         val sourceFifoPtr = memoryChannel(_.sourceFifoPtr)
         val fifoPtrIncrement = memoryChannel(_.source.fifoPtrIncrement)
+        val memoryStop = memoryChannel(_.source.memoryStop)
+        val selfStop = memoryChannel(_.source.selfStop)
+        val context = MemoryContext()
+        val contextCtrl = MemoryContextCtrl(context, 1, sharedRam.readCmd(1), sharedRam.readRsp(1), sharedRam.writeCmd(1))
+        val contextPort = contextCtrl.ports(0)
       }
 
 
       val cmdDone = Reg(Bool)
       val rspDone = rspBeat === cmdBeat && cmdDone
-      when(!busy){
-        busy := proposal.valid.orR
-        selected.index := OHToUInt(proposal.oneHot)
-        cmdBeat := 0
-        rspBeat := 0
-        cmdDone := False
-      } otherwise {
-        busy := !rspDone
-        selected.dontStop := True
-        cmdDone setWhen(io.memRead.cmd.ready && (selected.counterMatch || cmdBeat === selected.burst))
-      }
+      selected.contextPort.valid := False
+      selected.contextPort.channelId := selected.allIndex
+      selected.contextPort.fromDestination := False
+      selected.contextPort.release := False
+      selected.contextPort.hitClear := False
+      selected.contextPort.size := selected.size
 
-      io.memRead.cmd.valid := busy && !cmdDone
-      io.memRead.cmd.address := selected.address + selected.counter
+
+
+
+      val memReadCmdEvent = Event
+      memReadCmdEvent.valid := busy && !cmdDone && selected.contextPort.hit
+      val memReadCmdEventStage = memReadCmdEvent.stage()
+      io.memRead.cmd.valid := memReadCmdEventStage.valid
+      memReadCmdEventStage.ready := io.memRead.cmd.ready
+      io.memRead.cmd.address := selected.context.addressPlusCounterReg
       io.memRead.cmd.address(wordRange) := 0
       io.memRead.cmd.write := False
       io.memRead.cmd.data.assignDontCare()
       io.memRead.cmd.mask.assignDontCare()
 
-      when(io.memRead.cmd.fire){
-        selected.counterIncrement := True
+
+      when(!busy){
+        when(proposal.valid.orR) {
+          busy := True
+        }
+        selected.memoryIndex := OHToUInt(proposal.oneHot)
+        var proposalIterator = proposal.oneHot.iterator
+        selected.allIndex := OHToUInt((0 until channels.length).map(i => if(p.channels(i).source.memory) proposalIterator.next() else False))
+        cmdBeat := 0
+        rspBeat := 0
+        cmdDone := False
+      } otherwise {
+        selected.contextPort.valid := True
+        selected.dontStop := True
+
+        cmdDone setWhen(selected.contextPort.hit && memReadCmdEvent.ready && (selected.context.counterMatch || cmdBeat === selected.burst))
+        selected.memoryStop setWhen(selected.contextPort.hit && memReadCmdEvent.fire && selected.context.counterMatch)
+        when(rspDone) {
+          busy := False
+          selected.contextPort.release := True
+          when(selected.selfStop){
+            selected.context.counterClear := True
+            selected.alignement := selected.context.address.resized
+          }
+        }
+      }
+
+      when(memReadCmdEvent.fire){
+        selected.context.counterIncrement := True
         cmdBeat := cmdBeat + 1
       }
 
@@ -218,19 +374,19 @@ object Dma{
     val fifoWrite = new Area{
       val streamChannels = if(p.inputs.nonEmpty) channels.filter(_.cp.source.stream) else Nil
 
-      val valid = False
-      val address = fifoRam.addressType().assignDontCare()
-      val data = fifoRam.wordType().assignDontCare()
-      fifoRam.write(address, data, valid)
+      def sharedRamWrite = sharedRam.writeCmd(0)
+      sharedRamWrite.valid := False
+      sharedRamWrite.address.assignDontCare()
+      sharedRamWrite.data.assignDontCare()
 
       val stream = streamChannels.nonEmpty generate new Area{
-        val inputsValid = streamChannels.map(c => c.source.busy && !c.source.stop && !c.source.memory && !c.fifoFull && io.inputs(c.source.address.resized).valid)
+        val inputsValid = streamChannels.map(c => c.source.busy && !c.source.stop && !c.source.memory && !c.fifoFull && io.inputs(c.source.streamId).valid)
         val index = OHToUInt(OHMasking.first(inputsValid))
         def channel[T <: Data](f : Channel => T) = Vec(streamChannels.map(f))(index)
         val sourceFifoPtr = channel(_.sourceFifoPtr)
         val fifoPtrIncrement = channel(_.source.fifoPtrIncrement)
         val counterIncrement = channel(_.source.counterIncrement)
-        val address = channel(_.source.address)
+        val streamId = channel(_.source.streamId)
       }
 
       val memReadRspShifted = Bits(p.memConfig.dataWidth bits).assignDontCare()
@@ -245,18 +401,19 @@ object Dma{
 
       io.inputs.foreach(_.ready := False)
       when(io.memRead.rsp.valid){
-        valid := True
-        address := memReadCmd.selected.sourceFifoPtr
-        data := memReadRspShifted
+        sharedRamWrite.valid := True
+        sharedRamWrite.address := memReadCmd.selected.sourceFifoPtr
+        sharedRamWrite.data := memReadRspShifted
         memReadCmd.selected.fifoPtrIncrement := True
         memReadCmd.selected.alignementIncrement := True
       } otherwise {
         if(p.inputs.nonEmpty) {
-          address := stream.sourceFifoPtr
-          data(0, p.inputs.map(_.dataWidth).max bits) := io.inputs.map(_.data.resized).read(stream.address.resized)
+          sharedRamWrite.address := stream.sourceFifoPtr
+          //TODO optimize mux
+          sharedRamWrite.data(0, p.inputs.map(_.dataWidth).max bits) := io.inputs.map(_.data.resized).read(stream.streamId.resized)
           streamChannels.nonEmpty generate when(stream.inputsValid.orR) {
-            valid := True
-            io.inputs(stream.address.resized).ready := True
+            sharedRamWrite.valid := True
+            io.inputs(stream.streamId.resized).ready := True
             stream.fifoPtrIncrement := True
             stream.counterIncrement := True
           }
@@ -273,6 +430,8 @@ object Dma{
       val fillMe = !bufferStage.valid && ! bufferIn.valid
     }
 
+
+
     val fifoRead = new Area {
       val memoryChannels = channels.filter(_.cp.destination.memory)
       val streamChannels = if(p.outputs.nonEmpty) channels.filter(_.cp.destination.stream) else Nil
@@ -280,13 +439,15 @@ object Dma{
 
       val cmd = new Area{
         val proposal = Vec(channels.map(c =>
-          c.destination.busy && !c.destination.stop && (c.destination.memory || (if(outputs.nonEmpty) outputs.map(_.fillMe).read(c.destination.address.resized) else False)) && !c.fifoEmpty
+          c.destination.busy && !c.destination.stop && (c.destination.memory || (if(outputs.nonEmpty && c.cp.destination.stream) outputs.map(_.fillMe).read(c.destination.streamId.resized) else False)) && !c.fifoEmpty
         ))
         val proposalValid = proposal.orR
         val oneHot = OHMasking.first(proposal)
         val memoryOneHot = oneHot.zipWithIndex.filter(e => p.channels(e._2).destination.memory).map(_._1)
+        val streamOneHot = oneHot.zipWithIndex.filter(e => p.channels(e._2).destination.stream).map(_._1)
         val index = OHToUInt(oneHot)
         val memoryIndex = OHToUInt(memoryOneHot)
+        val streamIndex = OHToUInt(streamOneHot)
         val lock = RegInit(False)
         val unlock = False
         val oneHotLock = RegNextWhen(oneHot, !lock)
@@ -294,15 +455,28 @@ object Dma{
         val valid = proposalValid || lock
         def allChannel[T <: Data](f : Channel => T) = Vec(channels.map(f))(index)
         def memoryChannel[T <: Data](f : Channel => T) = Vec(memoryChannels.map(f))(memoryIndex)
+        def streamChannel[T <: Data](f : Channel => T) : T = p.outputs.nonEmpty generate Vec(streamChannels.map(f))(streamIndex)
         val memory = allChannel(_.destination.memory)
         val burst = memoryChannel(_.destination.burst)
-        val counter = memoryChannel(_.destination.counter)
-        val counterMatch = allChannel(_.destination.counterMatch)
-        val counterIncrement = allChannel(_.destination.counterIncrement)
         val fifoEmpty = allChannel(_.fifoEmpty)
         val destinationFifoPtr = allChannel(_.destinationFifoPtr)
+        val memoryStop = memoryChannel(_.destination.memoryStop)
         val fifoPtrIncrement = allChannel(_.destination.fifoPtrIncrement)
         val dontStop = allChannel(_.destination.dontStop)
+        val context = MemoryContext()
+        val contextCtrl = MemoryContextCtrl(context, 1, sharedRam.readCmd(2), sharedRam.readRsp(2), sharedRam.writeCmd(2))
+        val contextPort = contextCtrl.ports(0)
+        val counterIncrement = streamChannel(_.destination.counterIncrement)
+        val size = memoryChannel(_.destination.size)
+        val alignement = memoryChannel(_.destination.alignement)
+
+
+
+        contextPort.valid := proposalValid && memory
+        contextPort.channelId := index
+        contextPort.fromDestination := True
+        contextPort.hitClear := unlock
+        contextPort.size := size
 
 
         dontStop.setWhen(valid)
@@ -310,18 +484,18 @@ object Dma{
         val beat = Reg(beatType) init(0)
         unlock setWhen(fifoEmpty)
 
-        val fifoReadCmd = Stream(fifoRam.addressType)
-        fifoReadCmd.valid := valid && !fifoEmpty
-        fifoReadCmd.payload := destinationFifoPtr
-        fifoPtrIncrement setWhen(fifoReadCmd.fire)
+        def sharedRamReadCmd = sharedRam.readCmd(0)
+        sharedRamReadCmd.valid := valid && !fifoEmpty && !(memory && !contextPort.hit)
+        sharedRamReadCmd.payload := destinationFifoPtr
+        fifoPtrIncrement setWhen(sharedRamReadCmd.fire)
 
 
-        when(valid && fifoReadCmd.fire){
-          counterIncrement := True
+        when(valid && sharedRamReadCmd.fire){
+          if(p.outputs.nonEmpty) counterIncrement := !memory
+          context.counterIncrement := memory
           if(widthOf(beat) != 0) beat := beat + U(memory)
-          when(counterMatch || beat === burst){
-            unlock := True
-          }
+          memoryStop := memory && context.counterMatch
+          unlock := memory && (context.counterMatch || beat === burst)
         }
 
         when(proposalValid && memory){
@@ -335,24 +509,26 @@ object Dma{
       }
 
       val rsp = new Area{
-        val input = fifoRam.streamReadSync(cmd.fifoReadCmd)
-        val index = RegNextWhen(cmd.index, cmd.fifoReadCmd.ready)
-        val memoryIndex = RegNextWhen(cmd.memoryIndex, cmd.fifoReadCmd.ready)
-        val counter = RegNextWhen(cmd.counter, cmd.fifoReadCmd.ready)
+        val input = sharedRam.readRsp(0)
+        val index = RegNextWhen(cmd.index, cmd.sharedRamReadCmd.ready)
+        val unlock = RegNextWhen(cmd.unlock, cmd.sharedRamReadCmd.ready)
+        val memoryIndex = RegNextWhen(cmd.memoryIndex, cmd.sharedRamReadCmd.ready)
+        val streamIndex = RegNextWhen(cmd.streamIndex, cmd.sharedRamReadCmd.ready)
         def allChannel[T <: Data](f : Channel => T) = Vec(channels.map(f))(index)
         def memoryChannel[T <: Data](f : Channel => T) = Vec(memoryChannels.map(f))(memoryIndex)
+        def streamChannel[T <: Data](f : Channel => T) = p.outputs.nonEmpty generate Vec(streamChannels.map(f))(streamIndex)
         val memory = allChannel(_.destination.memory)
-        val address = muxAddress(index, channels.map(_.destination), p.outputs.length)
         val dontStop = allChannel(_.destination.dontStop)
         val alignement = memoryChannel(_.destination.alignement)
         val alignementIncrement = memoryChannel(_.destination.alignementIncrement)
         val size = memoryChannel(_.destination.size)
+        val streamId = streamChannel(_.destination.streamId)
+        val selfStop = allChannel(_.destination.selfStop)
         dontStop.setWhen(input.valid)
 
 
-
         io.memWrite.cmd.valid := input.valid && memory
-        io.memWrite.cmd.address := address + counter
+        io.memWrite.cmd.address := cmd.context.addressPlusCounterReg
         io.memWrite.cmd.address(wordRange) := 0
         io.memWrite.cmd.write := True
         io.memWrite.cmd.data.assignDontCare()
@@ -368,11 +544,17 @@ object Dma{
         }
 
         for((output, id) <- outputs.zipWithIndex){
-          output.bufferIn.valid := input.valid && !memory && address(log2Up(outputs.size) - 1 downto 0) === id
+          output.bufferIn.valid := input.valid && !memory && streamId(log2Up(outputs.size) - 1 downto 0) === id
           output.bufferIn.data := input.payload.resized
         }
 
         input.ready := memory ? io.memWrite.cmd.ready | True
+        cmd.contextPort.release := input.fire && memory && (!cmd.contextPort.hit || cmd.fifoEmpty)
+
+        when(cmd.contextPort.release && selfStop){
+          cmd.context.counterClear := True
+          alignement := cmd.context.address.resized
+        }
       }
     }
 
@@ -381,7 +563,7 @@ object Dma{
     val bus = Apb3SlaveFactory(io.config)
 
     for((channel, idx) <- channels.zipWithIndex){
-      def map(that : SourceDestinationBase, offset : Int): Unit = {
+      def map(that : SourceDestinationBase, offset : Int, isDestination : Boolean): Unit = {
         bus.write(
           offset + p.mapping.channelCtrlOffset,
           p.mapping.channelStartBit -> that.start,
@@ -395,21 +577,46 @@ object Dma{
           offset + p.mapping.channelConfigOffset,
           p.mapping.channelIncrementBit -> that.increment,
           p.mapping.channelReloadBit -> that.reload,
-          p.mapping.channelMemoryBit -> that.memory,
-          p.mapping.channelSizeBit  -> that.size,
-          p.mapping.channelBurstBit  -> that.burst
+          p.mapping.channelMemoryBit -> that.memory
         )
-        bus.write(offset + p.mapping.channelAddressOffset, 0 -> that.address)
-        bus.write(offset + p.mapping.channelLengthOffset, 0 -> that.length)
-        when(bus.isWriting(offset + p.mapping.channelCtrlOffset)){
-          that.counter := 0
+
+        that.sdp.memory generate {
+          bus.write(
+            offset + p.mapping.channelConfigOffset,
+            p.mapping.channelSizeBit  -> that.size,
+            p.mapping.channelBurstBit  -> that.burst
+          )
+          bus.write(p.mapping.sharedRamOffset + idx*16 + (if(isDestination) 8 else 0), 0 -> that.alignement) //TODO can be optimized ?
+        }
+
+        that.sdp.stream generate {
+          bus.write(offset + p.mapping.channelAddressOffset, 0 -> that.streamId)
+          bus.write(offset + p.mapping.channelLengthOffset, 0 -> that.length)
+          when(bus.isWriting(offset + p.mapping.channelCtrlOffset)) {
+            that.counter := 0
+          }
         }
       }
 
       val offset = p.mapping.channelOffset + idx * p.mapping.channelDelta
       bus.write(offset, p.mapping.channelResetBit -> channel.reset)
-      map(channel.source, offset + p.mapping.sourceOffset)
-      map(channel.destination, offset + p.mapping.destinationOffset)
+      map(channel.source, offset + p.mapping.sourceOffset, false)
+      map(channel.destination, offset + p.mapping.destinationOffset, true)
+    }
+
+    {
+      def sharedMemWritePort = sharedRam.writeCmd.last
+      sharedMemWritePort.valid := False
+      sharedMemWritePort.address := U(sharedRam.contextBase, log2Up(sharedRam.memSize) bits) | (io.config.PADDR >> log2Up(p.memConfig.dataWidth/8))(sharedRam.contextRange).resized
+      sharedMemWritePort.data := io.config.PWDATA
+      when(io.config.PSEL.lsb && io.config.PENABLE && SizeMapping(p.mapping.sharedRamOffset, sharedRam.memoryContextWordCount*p.memConfig.dataWidth/8).hit(io.config.PADDR)){
+        when(io.config.PWRITE){
+          sharedMemWritePort.valid := True
+          when(!sharedMemWritePort.ready) {
+            bus.writeHalt()
+          }
+        }
+      }
     }
   }
 
@@ -486,23 +693,41 @@ object DmaBench extends App{
 //    )
 //  )
 
-  val channels = List.fill(4)(
+  val channels = List.tabulate(4)( i =>
     Dma.ChannelParameter(
       fifoDepth = 32,
       source = Dma.SDParameter(
         lengthWidth = 12,
         burstWidth = 4,
         memory = true,
-        stream = true
+        stream = i == 0
       ),
       destination = Dma.SDParameter(
-        lengthWidth = 12,
+        lengthWidth = if(i == 0) 12 else 4,
         burstWidth = 4,
-        memory = true,
+        memory = i == 0,
         stream = true
       )
     )
   )
+//
+//  val channels = List.tabulate(4)( i =>
+//    Dma.ChannelParameter(
+//      fifoDepth = 32,
+//      source = Dma.SDParameter(
+//        lengthWidth = -10,
+//        burstWidth = 4,
+//        memory = true,
+//        stream = false
+//      ),
+//      destination = Dma.SDParameter(
+//        lengthWidth = -10,
+//        burstWidth = 4,
+//        memory = true,
+//        stream = false
+//      )
+//    )
+//  )
 
   case class DmaRtl(channelCount : Int) extends  Rtl {
     override def getName(): String = "Dma" + channelCount
@@ -511,6 +736,7 @@ object DmaBench extends App{
     SpinalVerilog{
       val c = (Dma.Dma(Dma.Parameter(
       memConfig = PipelinedMemoryBusConfig(32,32),
+      memoryLengthWidth = 12,
       inputs = List(
         Dma.InputParameter(dataWidth = 8),
         Dma.InputParameter(dataWidth = 8)
@@ -519,6 +745,8 @@ object DmaBench extends App{
         Dma.OutputParameter(dataWidth = 8),
         Dma.OutputParameter(dataWidth = 8)
       ),
+//      inputs = Nil,
+//      outputs = Nil,
       channels = channels.take(channelCount)
     ))).setDefinitionName("Dma" + channelCount)
 //        c.io.memWrite.cmd.address.setAsDirectionLess().allowDirectionLessIo
@@ -545,6 +773,7 @@ object DmaDebug extends App{
 
   val p = Dma.Parameter(
     memConfig = PipelinedMemoryBusConfig(30,32),
+    memoryLengthWidth = 12,
     inputs = List(
       Dma.InputParameter(dataWidth = 32),
       Dma.InputParameter(dataWidth = 32)
@@ -586,7 +815,8 @@ object DmaDebug extends App{
       )
     )
   )
-  SimConfig.withWave.compile(new Dma.Dma(p)).doSim("test", 42){dut =>
+//  SimConfig.withWave.compile(new Dma.Dma(p)).doSim("test", 42){dut =>
+  SimConfig.allOptimisation.compile(new Dma.Dma(p)).doSim("test", 42){dut =>
     val config = Apb3Driver(dut.io.config, dut.clockDomain)
 
     def writeXConfig(offset : Int)(
@@ -715,6 +945,7 @@ object DmaTester extends App {
   Random.setSeed(42)
   val p = Dma.Parameter(
     memConfig = PipelinedMemoryBusConfig(30, 32),
+    memoryLengthWidth = 12,
     inputs = List.fill(10)(Dma.InputParameter(dataWidth = 8*(1 << Random.nextInt(3)))),
     outputs = List.fill(10)(Dma.OutputParameter(dataWidth = 8*(1 << Random.nextInt(3)))),
     channels = Dma.ChannelParameter(
@@ -731,10 +962,10 @@ object DmaTester extends App {
         memory = true,
         stream = true
       )
-    ) :: List.tabulate(9){i =>
+    ) :: List.tabulate(9){i => //TODO
       val fifoDepth = Math.max(1, 1 << (Random.nextInt(3) + Random.nextInt(3)))
-      val srcMemory = Random.nextBoolean()
-      val dstMemory = Random.nextBoolean()
+      val srcMemory = Random.nextBoolean() //TODO
+      val dstMemory = Random.nextBoolean() //TODO
       Dma.ChannelParameter(
         fifoDepth = fifoDepth,
         source = Dma.SDParameter(
@@ -762,17 +993,17 @@ object DmaTester extends App {
     val memory = new Array[Byte](0x10000)
     Random.nextBytes(memory)
 
-    def newMemoryAgent(bus : PipelinedMemoryBus): Unit = {
+    def newMemoryAgent(bus : PipelinedMemoryBus, randomizeReady : Boolean): Unit = {
       bus.cmd.ready #= true
       bus.rsp.valid #= false
 
       var pendingRsp = 0
       dut.clockDomain.onSamplings{
-        bus.cmd.ready #= true
+        if(randomizeReady) bus.cmd.ready.randomize()
         bus.rsp.valid #= false
         bus.rsp.data.randomize()
 
-        if(bus.cmd.valid.toBoolean){
+        if(bus.cmd.valid.toBoolean && bus.cmd.ready.toBoolean){
           val address = bus.cmd.address.toInt
           assert((address.toInt & 0x3) == 0)
           if(!bus.cmd.write.toBoolean){
@@ -787,8 +1018,8 @@ object DmaTester extends App {
       }
     }
 
-    newMemoryAgent(dut.io.memRead)
-    newMemoryAgent(dut.io.memWrite)
+    newMemoryAgent(dut.io.memRead, true)
+    newMemoryAgent(dut.io.memWrite, true)
 
 
     val inputsAgents = for((p,i) <- dut.p.inputs.zipWithIndex; input = dut.io.inputs(i)) yield new {
@@ -851,7 +1082,7 @@ object DmaTester extends App {
 
     val memReadRspCallback =  mutable.Queue[BigInt => Unit]()
 
-    val meReadCmdMonitor = StreamMonitor(dut.io.memRead.cmd, dut.clockDomain){ payload =>
+    val memReadCmdMonitor = StreamMonitor(dut.io.memRead.cmd, dut.clockDomain){ payload =>
       val cmd = SimData.copy(payload)
       val channelId = addressToChannelId(payload.address.toInt)
       channels(channelId).memReadCmdScoreboard.pushDut(cmd)
@@ -897,7 +1128,7 @@ object DmaTester extends App {
       array.remove(i)
       value
     }
-    case class SdData(){
+    case class SdData(channelId : Int, isSource : Boolean){
       var increment = true
       var reload = false
       var memory = true
@@ -915,6 +1146,8 @@ object DmaTester extends App {
             (size << p.mapping.channelSizeBit) |
             (burst << p.mapping.channelBurstBit)
         )
+        config.write(p.mapping.sharedRamOffset + 16*channelId + 0x00 + (if(isSource) 0 else 8), address)
+        config.write(p.mapping.sharedRamOffset + 16*channelId + 0x04 + (if(isSource) 0 else 8), length)
       }
     }
 
@@ -933,16 +1166,15 @@ object DmaTester extends App {
     def createTask() = {
       val channelId = alloc(channelsFree)
       val cp = p.channels(channelId)
-      val src, dst = new SdData()
+      val src = new SdData(channelId, true)
+      val dst = new SdData(channelId, false)
       val sourceAddress = sourceOffset(channelId)
       val destinationAddress = destinationOffset(channelId)
       val size = Random.nextInt(p.sizeCount)
       src.memory = (Random.nextBoolean() && cp.source.memory) || !cp.source.stream
-      dst.memory = (Random.nextBoolean() && cp.destination.memory) || !cp.destination.stream
+      dst.memory =  (Random.nextBoolean() && cp.destination.memory) || !cp.destination.stream
 
-      val length =  Random.nextInt(1 << Math.min(cp.source.lengthWidth >> (if(src.memory) size else 0),cp.destination.lengthWidth >> (if(dst.memory) size else 0)))
-
-
+      val length =  Random.nextInt(1 << Math.min(if(src.memory) p.memoryLengthWidth >> size else cp.source.lengthWidth, if(dst.memory) p.memoryLengthWidth >> size else cp.destination.lengthWidth))
 
       src.increment = true
       src.reload = false
@@ -1006,7 +1238,7 @@ object DmaTester extends App {
       configLocked(doStart(destinationAddress))
 
       while((configLocked(config.read(destinationAddress + p.mapping.channelCtrlOffset)) & (1 << p.mapping.channelBusyBit)) != 0){
-        dut.clockDomain.waitSampling(Random.nextInt(10))
+        dut.clockDomain.waitSampling(Random.nextInt(20))
       }
       dut.clockDomain.waitSampling(Random.nextInt(100))
       channelsFree += channelId
@@ -1014,8 +1246,9 @@ object DmaTester extends App {
       if(!dst.memory) outputsFree += outputId
     }
 
+    //TODO
     val agents = for(agent <- 0 until 5) yield fork {
-      for (i <- 0 until 1000) createTask()
+      for (i <- 0 until 100) createTask()
     }
 
     agents.foreach(_.join())
