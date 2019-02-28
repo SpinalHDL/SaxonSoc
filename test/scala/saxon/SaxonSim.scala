@@ -29,7 +29,7 @@ object SaxonSim {
 //    val flashBin = "../zephyr/zephyrSpinalHdl/samples/philosophers/build/zephyr/zephyr.bin"
     val flashBin = "software/zephyr/demo/build/zephyr/zephyr.bin"
 
-    SimConfig.addRtl("test/common/up5k_cells_sim.v").compile(new SaxonSoc(p)).doSimUntilVoid{dut =>
+    SimConfig.addRtl("test/common/up5k_cells_sim.v").withWave.compile(new SaxonSoc(p)).doSimUntilVoid("test", seed = 42){dut =>
       val systemClkPeriod = (1e12/dut.p.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 115200

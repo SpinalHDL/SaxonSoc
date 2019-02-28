@@ -488,6 +488,8 @@ class SaxonSocBase extends Generator{
     val logic = add task new Area{
       val p = Dma.Parameter(
         memConfig = PipelinedMemoryBusConfig(32,32),
+        memoryLengthWidth = 12,
+        singleMemoryPort = true,
         inputs = Nil,
         outputs = Nil,
         channels = List(
@@ -511,15 +513,11 @@ class SaxonSocBase extends Generator{
 
       val ctrl = Dma(p)
       interconnect.factory.addMasters(
-        (ctrl.io.memRead, List(mainBus)),
-        (ctrl.io.memWrite, List(mainBus))
+        (ctrl.io.mem, List(mainBus))
+//        (ctrl.io.memRead, List(mainBus)),
+//        (ctrl.io.memWrite, List(mainBus))
       )
       apbDecoder.mapping += (ctrl.io.config -> (0xE0000, 4 KiB))
-
-//      interconnect.factory.setConnector(accessBus)((m,s) => {
-//        m.cmd.halfPipe() >> s.cmd
-//        m.rsp <-< s.rsp
-//      })
     }
   }
 

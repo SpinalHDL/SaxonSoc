@@ -38,6 +38,7 @@ object Dma{
 
   case class Parameter( memConfig: PipelinedMemoryBusConfig,
                         memoryLengthWidth : Int,
+                        singleMemoryPort : Boolean,
                         inputs : Seq[InputParameter],
                         outputs : Seq[OutputParameter],
                         channels : Seq[ChannelParameter],
@@ -79,9 +80,9 @@ object Dma{
 
   case class Io(p : Parameter) extends Bundle{
     val config = slave(Apb3(12, 32))
-    val memRead = master(PipelinedMemoryBus(p.memConfig))
-    val memWrite = master(PipelinedMemoryBus(p.memConfig))
-//    val mem = master(PipelinedMemoryBus(p.memConfig))
+    val memRead = !p.singleMemoryPort generate master(PipelinedMemoryBus(p.memConfig))
+    val memWrite = !p.singleMemoryPort generate master(PipelinedMemoryBus(p.memConfig))
+    val mem = p.singleMemoryPort generate master(PipelinedMemoryBus(p.memConfig))
     val inputs = Vec(p.inputs.map(ip => slave(Stream(InputPayload(ip)))))
     val outputs = Vec(p.outputs.map(op => master(Stream(OutputPayload(op)))))
   }
@@ -99,10 +100,10 @@ object Dma{
       val mem = Mem(Bits(p.memConfig.dataWidth bits), memSize)
       def wordRange = log2Up(p.memConfig.dataWidth/8)-1 downto 0
 
-      val readCmd = Vec(Stream(mem.addressType), 3)
+      val readCmd = Vec(Stream(mem.addressType), 1 + (if(p.singleMemoryPort) 1 else 2))
       val readRsp = mem.streamReadSyncMultiPort(readCmd)
 
-      val writeCmd = Vec(Stream(MemWriteCmd(mem)), 4)
+      val writeCmd = Vec(Stream(MemWriteCmd(mem)), 2 + (if(p.singleMemoryPort) 1 else 2))
       val writeCmdSelected = StreamArbiterFactory.noLock.lowerFirst.on(writeCmd)
       mem.writePort << writeCmdSelected.toFlow
     }
@@ -279,6 +280,30 @@ object Dma{
       }
     }
 
+    val sharedMemoryContext = p.singleMemoryPort generate new Area{
+      val context = MemoryContext()
+      val contextCtrl = MemoryContextCtrl(context, 2, sharedRam.readCmd(1), sharedRam.readRsp(1), sharedRam.writeCmd(1))
+    }
+
+
+    val memHub = new Area{
+      val read = PipelinedMemoryBus(p.memConfig)
+      val write = Stream(PipelinedMemoryBusCmd(p.memConfig))
+      if(p.singleMemoryPort){
+        io.mem.cmd.valid := read.cmd.valid | write.valid
+        io.mem.cmd.address := sharedMemoryContext.context.addressPlusCounterReg
+        io.mem.cmd.address(wordRange) := 0
+        io.mem.cmd.write := write.valid
+        io.mem.cmd.data := write.data
+        io.mem.cmd.mask := write.mask
+        io.mem.rsp <> read.rsp
+        io.mem.cmd.ready <> read.cmd.ready
+        io.mem.cmd.ready <> write.ready
+      } else {
+        io.memRead <> read
+        io.memWrite.cmd <> write
+      }
+    }
 
 
     val memReadCmd = new Area {
@@ -305,9 +330,9 @@ object Dma{
         val fifoPtrIncrement = memoryChannel(_.source.fifoPtrIncrement)
         val memoryStop = memoryChannel(_.source.memoryStop)
         val selfStop = memoryChannel(_.source.selfStop)
-        val context = MemoryContext()
-        val contextCtrl = MemoryContextCtrl(context, 1, sharedRam.readCmd(1), sharedRam.readRsp(1), sharedRam.writeCmd(1))
-        val contextPort = contextCtrl.ports(0)
+        val context = if(p.singleMemoryPort) sharedMemoryContext.context else MemoryContext()
+        val contextCtrl = !p.singleMemoryPort generate MemoryContextCtrl(context, 1, sharedRam.readCmd(1), sharedRam.readRsp(1), sharedRam.writeCmd(1))
+        val contextPort = if(p.singleMemoryPort) sharedMemoryContext.contextCtrl.ports(0) else contextCtrl.ports(0)
       }
 
 
@@ -326,13 +351,13 @@ object Dma{
       val memReadCmdEvent = Event
       memReadCmdEvent.valid := busy && !cmdDone && selected.contextPort.hit
       val memReadCmdEventStage = memReadCmdEvent.stage()
-      io.memRead.cmd.valid := memReadCmdEventStage.valid
-      memReadCmdEventStage.ready := io.memRead.cmd.ready
-      io.memRead.cmd.address := selected.context.addressPlusCounterReg
-      io.memRead.cmd.address(wordRange) := 0
-      io.memRead.cmd.write := False
-      io.memRead.cmd.data.assignDontCare()
-      io.memRead.cmd.mask.assignDontCare()
+      memHub.read.cmd.valid := memReadCmdEventStage.valid
+      memReadCmdEventStage.ready := memHub.read.cmd.ready
+      memHub.read.cmd.address := selected.context.addressPlusCounterReg
+      memHub.read.cmd.address(wordRange) := 0
+      memHub.read.cmd.write := False
+      memHub.read.cmd.data.assignDontCare()
+      memHub.read.cmd.mask.assignDontCare()
 
 
       when(!busy){
@@ -366,7 +391,7 @@ object Dma{
         cmdBeat := cmdBeat + 1
       }
 
-      when(io.memRead.rsp.fire){
+      when(memHub.read.rsp.fire){
         rspBeat := rspBeat + 1
       }
     }
@@ -394,13 +419,13 @@ object Dma{
         for(i <- 0 to memReadCmd.selected.alignement.maxValue.toInt){
           is(i) {
             val byteCount = (0 until p.sizeCount).map(1 << _).filter(i % _ == 0).max
-            memReadRspShifted(8 * byteCount - 1 downto 0) := io.memRead.rsp.data(i * 8, byteCount * 8 bits)
+            memReadRspShifted(8 * byteCount - 1 downto 0) := memHub.read.rsp.data(i * 8, byteCount * 8 bits)
           }
         }
       }
 
       io.inputs.foreach(_.ready := False)
-      when(io.memRead.rsp.valid){
+      when(memHub.read.rsp.valid){
         sharedRamWrite.valid := True
         sharedRamWrite.address := memReadCmd.selected.sourceFifoPtr
         sharedRamWrite.data := memReadRspShifted
@@ -463,9 +488,9 @@ object Dma{
         val memoryStop = memoryChannel(_.destination.memoryStop)
         val fifoPtrIncrement = allChannel(_.destination.fifoPtrIncrement)
         val dontStop = allChannel(_.destination.dontStop)
-        val context = MemoryContext()
-        val contextCtrl = MemoryContextCtrl(context, 1, sharedRam.readCmd(2), sharedRam.readRsp(2), sharedRam.writeCmd(2))
-        val contextPort = contextCtrl.ports(0)
+        val context = if(p.singleMemoryPort) sharedMemoryContext.context else MemoryContext()
+        val contextCtrl = !p.singleMemoryPort generate MemoryContextCtrl(context, 1, sharedRam.readCmd(2), sharedRam.readRsp(2), sharedRam.writeCmd(2))
+        val contextPort = if(p.singleMemoryPort) sharedMemoryContext.contextCtrl.ports(1) else contextCtrl.ports(0)
         val counterIncrement = streamChannel(_.destination.counterIncrement)
         val size = memoryChannel(_.destination.size)
         val alignement = memoryChannel(_.destination.alignement)
@@ -492,7 +517,7 @@ object Dma{
 
         when(valid && sharedRamReadCmd.fire){
           if(p.outputs.nonEmpty) counterIncrement := !memory
-          context.counterIncrement := memory
+          context.counterIncrement setWhen(memory)
           if(widthOf(beat) != 0) beat := beat + U(memory)
           memoryStop := memory && context.counterMatch
           unlock := memory && (context.counterMatch || beat === burst)
@@ -527,18 +552,18 @@ object Dma{
         dontStop.setWhen(input.valid)
 
 
-        io.memWrite.cmd.valid := input.valid && memory
-        io.memWrite.cmd.address := cmd.context.addressPlusCounterReg
-        io.memWrite.cmd.address(wordRange) := 0
-        io.memWrite.cmd.write := True
-        io.memWrite.cmd.data.assignDontCare()
-        io.memWrite.cmd.mask := (0 until p.sizeCount).map(v => B((1 << (1 << v))-1)).read(size) |<< alignement
+        memHub.write.valid := input.valid && memory
+        memHub.write.address := cmd.context.addressPlusCounterReg
+        memHub.write.address(wordRange) := 0
+        memHub.write.write := True
+        memHub.write.data.assignDontCare()
+        memHub.write.mask := (0 until p.sizeCount).map(v => B((1 << (1 << v))-1)).read(size) |<< alignement
         alignementIncrement setWhen(memory && input.fire)
         switch(alignement){
           for(i <- 0 to alignement.maxValue.toInt){
             is(i) {
               val byteCount = (0 until p.sizeCount).map(1 << _).filter(i % _ == 0).max
-              io.memWrite.cmd.data(i * 8, byteCount * 8 bits) := input.payload(8 * byteCount - 1 downto 0)
+              memHub.write.data(i * 8, byteCount * 8 bits) := input.payload(8 * byteCount - 1 downto 0)
             }
           }
         }
@@ -548,7 +573,7 @@ object Dma{
           output.bufferIn.data := input.payload.resized
         }
 
-        input.ready := memory ? io.memWrite.cmd.ready | True
+        input.ready := memory ? memHub.write.ready | True
         cmd.contextPort.release := input.fire && memory && (!cmd.contextPort.hit || cmd.fifoEmpty)
 
         when(cmd.contextPort.release && selfStop){
@@ -737,6 +762,7 @@ object DmaBench extends App{
       val c = (Dma.Dma(Dma.Parameter(
       memConfig = PipelinedMemoryBusConfig(32,32),
       memoryLengthWidth = 12,
+      singleMemoryPort = true,
       inputs = List(
         Dma.InputParameter(dataWidth = 8),
         Dma.InputParameter(dataWidth = 8)
@@ -774,6 +800,7 @@ object DmaDebug extends App{
   val p = Dma.Parameter(
     memConfig = PipelinedMemoryBusConfig(30,32),
     memoryLengthWidth = 12,
+    singleMemoryPort = false,
     inputs = List(
       Dma.InputParameter(dataWidth = 32),
       Dma.InputParameter(dataWidth = 32)
@@ -946,6 +973,7 @@ object DmaTester extends App {
   val p = Dma.Parameter(
     memConfig = PipelinedMemoryBusConfig(30, 32),
     memoryLengthWidth = 12,
+    singleMemoryPort = true,
     inputs = List.fill(10)(Dma.InputParameter(dataWidth = 8*(1 << Random.nextInt(3)))),
     outputs = List.fill(10)(Dma.OutputParameter(dataWidth = 8*(1 << Random.nextInt(3)))),
     channels = Dma.ChannelParameter(
@@ -988,11 +1016,6 @@ object DmaTester extends App {
 //  SimConfig.withWave.compile(new Dma.Dma(p)).doSim("test", 42) { dut =>
   SimConfig.allOptimisation.compile(new Dma.Dma(p)).doSim("test", 42) { dut =>
 
-
-
-    val memory = new Array[Byte](0x10000)
-    Random.nextBytes(memory)
-
     def newMemoryAgent(bus : PipelinedMemoryBus, randomizeReady : Boolean): Unit = {
       bus.cmd.ready #= true
       bus.rsp.valid #= false
@@ -1018,8 +1041,12 @@ object DmaTester extends App {
       }
     }
 
-    newMemoryAgent(dut.io.memRead, true)
-    newMemoryAgent(dut.io.memWrite, true)
+    if(p.singleMemoryPort){
+      newMemoryAgent(dut.io.mem, true)
+    } else {
+      newMemoryAgent(dut.io.memRead, true)
+      newMemoryAgent(dut.io.memWrite, true)
+    }
 
 
     val inputsAgents = for((p,i) <- dut.p.inputs.zipWithIndex; input = dut.io.inputs(i)) yield new {
@@ -1082,7 +1109,7 @@ object DmaTester extends App {
 
     val memReadRspCallback =  mutable.Queue[BigInt => Unit]()
 
-    val memReadCmdMonitor = StreamMonitor(dut.io.memRead.cmd, dut.clockDomain){ payload =>
+    def onMemRead(payload : PipelinedMemoryBusCmd): Unit ={
       val cmd = SimData.copy(payload)
       val channelId = addressToChannelId(payload.address.toInt)
       channels(channelId).memReadCmdScoreboard.pushDut(cmd)
@@ -1090,17 +1117,24 @@ object DmaTester extends App {
       memReadRspCallback += (channels(channelId).readCallbacks.dequeue())
     }
 
-    val memWriteCmdMonitor = StreamMonitor(dut.io.memWrite.cmd, dut.clockDomain){ payload =>
+    def onMemWrite(payload : PipelinedMemoryBusCmd): Unit ={
       val cmd = SimData.copy(payload)
       val channelId = addressToChannelId(payload.address.toInt)
       channels(channelId).memWriteCmdScoreboard.pushDut(cmd)
     }
 
-    FlowMonitor(dut.io.memRead.rsp, dut.clockDomain) { payload =>
-      memReadRspCallback.dequeue()(payload.data.toBigInt)
+    val memMonitors = if(p.singleMemoryPort){
+      val memReadCmdMonitor = StreamMonitor(dut.io.mem.cmd, dut.clockDomain){ payload =>
+        if(payload.write.toBoolean) onMemWrite(payload) else onMemRead(payload)
+      }
+    } else {
+      val memReadCmdMonitor = StreamMonitor(dut.io.memRead.cmd, dut.clockDomain)(onMemRead)
+      val memWriteCmdMonitor = StreamMonitor(dut.io.memWrite.cmd, dut.clockDomain)(onMemWrite)
     }
 
-
+    FlowMonitor(if(p.singleMemoryPort) dut.io.mem.rsp else dut.io.memRead.rsp, dut.clockDomain) { payload =>
+      memReadRspCallback.dequeue()(payload.data.toBigInt)
+    }
 
     val config = Apb3Driver(dut.io.config, dut.clockDomain)
     dut.clockDomain.forkStimulus(10)
@@ -1247,7 +1281,7 @@ object DmaTester extends App {
     }
 
     //TODO
-    val agents = for(agent <- 0 until 5) yield fork {
+    val agents = for(agent <- 0 until Math.max(1, p.channels.length/2)) yield fork {
       for (i <- 0 until 100) createTask()
     }
 
