@@ -434,11 +434,15 @@ object Dma{
       } otherwise {
         if(p.inputs.nonEmpty) {
           sharedRamWrite.address := stream.sourceFifoPtr
-          //TODO optimize mux
-          sharedRamWrite.data(0, p.inputs.map(_.dataWidth).max bits) := io.inputs.map(_.data.resized).read(stream.streamId.resized)
+//          sharedRamWrite.data(0, p.inputs.map(_.dataWidth).max bits) := io.inputs.map(_.data.resized).read(stream.streamId)
+          switch(stream.streamId) {
+            for (i <- 0 until p.inputs.length) is(i){
+              sharedRamWrite.data(0, p.inputs(i).dataWidth bits) := io.inputs(i).data
+            }
+          }
           streamChannels.nonEmpty generate when(stream.inputsValid.orR) {
             sharedRamWrite.valid := True
-            io.inputs(stream.streamId.resized).ready := True
+            io.inputs(stream.streamId).ready := True
             stream.fifoPtrIncrement := True
             stream.counterIncrement := True
           }
@@ -464,7 +468,7 @@ object Dma{
 
       val cmd = new Area{
         val proposal = Vec(channels.map(c =>
-          c.destination.busy && !c.destination.stop && (c.destination.memory || (if(outputs.nonEmpty && c.cp.destination.stream) outputs.map(_.fillMe).read(c.destination.streamId.resized) else False)) && !c.fifoEmpty
+          c.destination.busy && !c.destination.stop && (c.destination.memory || (if(outputs.nonEmpty && c.cp.destination.stream) outputs.map(_.fillMe).read(c.destination.streamId) else False)) && !c.fifoEmpty
         ))
         val proposalValid = proposal.orR
         val oneHot = OHMasking.first(proposal)
@@ -569,7 +573,7 @@ object Dma{
         }
 
         for((output, id) <- outputs.zipWithIndex){
-          output.bufferIn.valid := input.valid && !memory && streamId(log2Up(outputs.size) - 1 downto 0) === id
+          output.bufferIn.valid := input.valid && !memory && streamId === id
           output.bufferIn.data := input.payload.resized
         }
 
@@ -644,7 +648,6 @@ object Dma{
       }
     }
   }
-
 }
 
 object DmaBench extends App{
@@ -718,23 +721,23 @@ object DmaBench extends App{
 //    )
 //  )
 
-  val channels = List.tabulate(4)( i =>
-    Dma.ChannelParameter(
-      fifoDepth = 32,
-      source = Dma.SDParameter(
-        lengthWidth = 12,
-        burstWidth = 4,
-        memory = true,
-        stream = i == 0
-      ),
-      destination = Dma.SDParameter(
-        lengthWidth = if(i == 0) 12 else 4,
-        burstWidth = 4,
-        memory = i == 0,
-        stream = true
-      )
-    )
-  )
+//  val channels = List.tabulate(4)( i =>
+//    Dma.ChannelParameter(
+//      fifoDepth = 32,
+//      source = Dma.SDParameter(
+//        lengthWidth = 12,
+//        burstWidth = 4,
+//        memory = true,
+//        stream = i == 0
+//      ),
+//      destination = Dma.SDParameter(
+//        lengthWidth = if(i == 0) 12 else 4,
+//        burstWidth = 4,
+//        memory = i == 0,
+//        stream = true
+//      )
+//    )
+//  )
 //
 //  val channels = List.tabulate(4)( i =>
 //    Dma.ChannelParameter(
@@ -754,6 +757,23 @@ object DmaBench extends App{
 //    )
 //  )
 
+    val channels = List.tabulate(4)( i =>
+      Dma.ChannelParameter(
+        fifoDepth = 32,
+        source = Dma.SDParameter(
+          lengthWidth = 12,
+          burstWidth = 4,
+          memory = true,
+          stream = true
+        ),
+        destination = Dma.SDParameter(
+          lengthWidth = 12,
+          burstWidth = 4,
+          memory = true,
+          stream = true
+        )
+      )
+    )
   case class DmaRtl(channelCount : Int) extends  Rtl {
     override def getName(): String = "Dma" + channelCount
     override def getRtlPath(): String = "Dma" + channelCount + ".v"
@@ -768,6 +788,8 @@ object DmaBench extends App{
         Dma.InputParameter(dataWidth = 8)
       ),
       outputs = List(
+//        Dma.OutputParameter(dataWidth = 8),
+//        Dma.OutputParameter(dataWidth = 8),
         Dma.OutputParameter(dataWidth = 8),
         Dma.OutputParameter(dataWidth = 8)
       ),
@@ -1204,15 +1226,19 @@ object DmaTester extends App {
       val dst = new SdData(channelId, false)
       val sourceAddress = sourceOffset(channelId)
       val destinationAddress = destinationOffset(channelId)
-      val size = Random.nextInt(p.sizeCount)
       src.memory = (Random.nextBoolean() && cp.source.memory) || !cp.source.stream
       dst.memory =  (Random.nextBoolean() && cp.destination.memory) || !cp.destination.stream
-
+      val inputId = !src.memory generate alloc(inputsFree)
+      val outputId = !dst.memory generate alloc(outputsFree)
+      var byteCountMax = p.memConfig.dataWidth/8
+      if(!src.memory) byteCountMax = Math.min(byteCountMax, p.inputs(inputId).dataWidth/8)
+      if(!dst.memory) byteCountMax = Math.min(byteCountMax, p.outputs(outputId).dataWidth/8)
+      val sizeMax = log2Up(byteCountMax)
+      val size = Random.nextInt(sizeMax + 1)
       val length =  Random.nextInt(1 << Math.min(if(src.memory) p.memoryLengthWidth >> size else cp.source.lengthWidth, if(dst.memory) p.memoryLengthWidth >> size else cp.destination.lengthWidth))
 
       src.increment = true
       src.reload = false
-      val inputId = !src.memory generate alloc(inputsFree)
       src.size = if(src.memory) size else 0
       src.burst = Math.min(cp.fifoDepth-1, Random.nextInt(1 << cp.source.burstWidth))
       src.address = if(src.memory) (channelId * channelAddressRange + Random.nextInt(channelAddressRange/2)) & ~ 0x3 else inputId
@@ -1220,7 +1246,6 @@ object DmaTester extends App {
 
       dst.increment = true
       dst.reload = false
-      val outputId = !dst.memory generate alloc(outputsFree)
       dst.size = if(dst.memory) size else 0
       dst.burst = Math.min(cp.fifoDepth-1,  Random.nextInt(1 << cp.destination.burstWidth))
       dst.address = if(dst.memory) (channelId * channelAddressRange + Random.nextInt(channelAddressRange/2)) & ~ 0x3 else outputId
