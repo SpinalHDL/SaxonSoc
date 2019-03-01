@@ -22,14 +22,17 @@ object Dma{
                               val sourceOffset : Int = 0x40,
                               val destinationOffset : Int = 0x60,
 
-                              val channelLengthOffset : Int = 0x0C,
+                              val channelStreamLengthOffset : Int = 0x0C,
                               val channelAddressOffset : Int = 0x08,
                               val channelConfigOffset : Int = 0x04,
                               val channelCtrlOffset : Int = 0x00,
+                              val channelMemoryLengthBit : Int = 0,
+                              val channelMemoryAlignementBit : Int = 14,
+                              val channelMemoryCounterBit : Int = 16,
+                              val channelMemorySizeBit : Int = 30,
                               val channelIncrementBit : Int = 0,
                               val channelReloadBit : Int = 4,
                               val channelMemoryBit : Int = 5,
-                              val channelSizeBit : Int = 12,
                               val channelBurstBit : Int = 16,
                               val channelStartBit : Int = 0,
                               val channelStopBit : Int = 1,
@@ -122,9 +125,6 @@ object Dma{
 
       //Memory capable
       val burst = sdp.memory generate Reg(sdp.burstType())
-      val size = sdp.memory generate Reg(p.sizeType())
-      val alignement = sdp.memory generate Reg(UInt(log2Up(p.memConfig.dataWidth/8) bits))
-      val alignementIncrement = sdp.memory generate False
 
       val fifoPtr = Reg(cp.fifoPtrType()) init(0)
       val fifoPtrIncrement  = False
@@ -141,7 +141,7 @@ object Dma{
       if(sdp.lengthWidth != 0 && sdp.stream) when(counterIncrement) {
         counter := counter + 1
       }
-      if(sdp.memory) alignement := alignement + (alignementIncrement ? (0 until p.sizeCount).map(v => U(1 << v)).read(size) | U(0)).resized
+
       when(start){
         if(sdp.stream) counter := 0
       }
@@ -183,20 +183,29 @@ object Dma{
     val channels = p.channels.map(Channel(_))
 
     case class MemoryContext() extends Area{
-      val size = p.sizeType()
       val address = Reg(UInt(p.memConfig.addressWidth bits))
       val length, counter = Reg(UInt(p.memoryLengthWidth bits))
       val counterMatch = counter === length
       val counterIncrement = False
-      val counterClear = False
+      val reset = False
       val addressPlusCounter = address + counter
       val addressPlusCounterReg = RegNextWhen(addressPlusCounter, counterIncrement)
+      val size = Reg(p.sizeType())
+      val alignement = Reg(UInt(log2Up(p.memConfig.dataWidth/8) bits))
+      val alignementIncrement = False
+
 
       when(counterIncrement) {
         counter := counter + ((0 until p.sizeCount).map(s => U(1 << s)).read(size)).resized
       }
-      when(counterClear){
+
+      when(alignementIncrement){
+        alignement := alignement + (0 until p.sizeCount).map(v => U(1 << v)).read(size).resized
+      }
+
+      when(reset){
         counter := 0
+        alignement := address.resized
       }
     }
     case class MemoryContextCtrl(context : MemoryContext,
@@ -207,7 +216,6 @@ object Dma{
       case class Port() extends Bundle{
         val valid = Bool()
         val channelId = UInt(log2Up(p.channels.length) bits)
-        val size = p.sizeType()
         val fromDestination = Bool()
         val hit = Bool()
         val hitClear = Bool()
@@ -224,7 +232,6 @@ object Dma{
       portIdLock := portId
       ports.foreach(_.hit := False)
 
-      context.size := ports(portIdLock).size
 
       readCmd.valid := False
       readCmd.payload(sharedRam.nonContextRange).setAll()
@@ -257,8 +264,10 @@ object Dma{
         }
         is(2){
           when(readRsp.valid){
-            context.length := readRsp.payload(context.length.range).asUInt
-            context.counter := (readRsp.payload >> p.memConfig.dataWidth/2)(context.length.range).asUInt
+            context.length := readRsp.payload(p.mapping.channelMemoryLengthBit, widthOf(context.length) bits).asUInt
+            context.size := readRsp.payload(p.mapping.channelMemorySizeBit, widthOf(context.size) bits).asUInt
+            context.counter := readRsp.payload(p.mapping.channelMemoryCounterBit, widthOf(context.counter) bits).asUInt
+            context.alignement := readRsp.payload(p.mapping.channelMemoryAlignementBit, widthOf(context.alignement) bits).asUInt
           }
           state := 3
         }
@@ -271,8 +280,10 @@ object Dma{
         }
         is(4){
           writeCmd.valid := True
-          writeCmd.data(context.length.range) := context.length.asBits
-          writeCmd.data(p.memConfig.dataWidth/2, context.counter.getWidth bits) := context.counter.asBits
+          writeCmd.data(p.mapping.channelMemoryLengthBit, widthOf(context.length) bits)   := context.length.asBits
+          writeCmd.data(p.mapping.channelMemorySizeBit, widthOf(context.size) bits) := context.size.asBits
+          writeCmd.data(p.mapping.channelMemoryAlignementBit, widthOf(context.alignement) bits) := context.alignement.asBits
+          writeCmd.data(p.mapping.channelMemoryCounterBit, widthOf(context.counter) bits) := context.counter.asBits
           when(writeCmd.ready){
             state := 0
           }
@@ -322,9 +333,6 @@ object Dma{
         val memoryIndex = Reg(UInt(log2Up(memoryChannels.length) bits))
         def memoryChannel[T <: Data](f : Channel => T) = Vec(memoryChannels.map(f))(memoryIndex)
         val burst = memoryChannel(_.source.burst)
-        val size = memoryChannel(_.source.size)
-        val alignement = memoryChannel(_.source.alignement)
-        val alignementIncrement = memoryChannel(_.source.alignementIncrement)
         val dontStop = memoryChannel(_.source.dontStop)
         val sourceFifoPtr = memoryChannel(_.sourceFifoPtr)
         val fifoPtrIncrement = memoryChannel(_.source.fifoPtrIncrement)
@@ -343,7 +351,6 @@ object Dma{
       selected.contextPort.fromDestination := False
       selected.contextPort.release := False
       selected.contextPort.hitClear := False
-      selected.contextPort.size := selected.size
 
 
 
@@ -380,8 +387,7 @@ object Dma{
           busy := False
           selected.contextPort.release := True
           when(selected.selfStop){
-            selected.context.counterClear := True
-            selected.alignement := selected.context.address.resized
+            selected.context.reset := True
           }
         }
       }
@@ -415,8 +421,8 @@ object Dma{
       }
 
       val memReadRspShifted = Bits(p.memConfig.dataWidth bits).assignDontCare()
-      switch(memReadCmd.selected.alignement){
-        for(i <- 0 to memReadCmd.selected.alignement.maxValue.toInt){
+      switch(memReadCmd.selected.context.alignement){
+        for(i <- 0 to memReadCmd.selected.context.alignement.maxValue.toInt){
           is(i) {
             val byteCount = (0 until p.sizeCount).map(1 << _).filter(i % _ == 0).max
             memReadRspShifted(8 * byteCount - 1 downto 0) := memHub.read.rsp.data(i * 8, byteCount * 8 bits)
@@ -430,7 +436,7 @@ object Dma{
         sharedRamWrite.address := memReadCmd.selected.sourceFifoPtr
         sharedRamWrite.data := memReadRspShifted
         memReadCmd.selected.fifoPtrIncrement := True
-        memReadCmd.selected.alignementIncrement := True
+        memReadCmd.selected.context.alignementIncrement := True
       } otherwise {
         if(p.inputs.nonEmpty) {
           sharedRamWrite.address := stream.sourceFifoPtr
@@ -496,8 +502,6 @@ object Dma{
         val contextCtrl = !p.singleMemoryPort generate MemoryContextCtrl(context, 1, sharedRam.readCmd(2), sharedRam.readRsp(2), sharedRam.writeCmd(2))
         val contextPort = if(p.singleMemoryPort) sharedMemoryContext.contextCtrl.ports(1) else contextCtrl.ports(0)
         val counterIncrement = streamChannel(_.destination.counterIncrement)
-        val size = memoryChannel(_.destination.size)
-        val alignement = memoryChannel(_.destination.alignement)
 
 
 
@@ -505,7 +509,6 @@ object Dma{
         contextPort.channelId := index
         contextPort.fromDestination := True
         contextPort.hitClear := unlock
-        contextPort.size := size
 
 
         dontStop.setWhen(valid)
@@ -548,9 +551,6 @@ object Dma{
         def streamChannel[T <: Data](f : Channel => T) = p.outputs.nonEmpty generate Vec(streamChannels.map(f))(streamIndex)
         val memory = allChannel(_.destination.memory)
         val dontStop = allChannel(_.destination.dontStop)
-        val alignement = memoryChannel(_.destination.alignement)
-        val alignementIncrement = memoryChannel(_.destination.alignementIncrement)
-        val size = memoryChannel(_.destination.size)
         val streamId = streamChannel(_.destination.streamId)
         val selfStop = allChannel(_.destination.selfStop)
         dontStop.setWhen(input.valid)
@@ -561,10 +561,10 @@ object Dma{
         memHub.write.address(wordRange) := 0
         memHub.write.write := True
         memHub.write.data.assignDontCare()
-        memHub.write.mask := (0 until p.sizeCount).map(v => B((1 << (1 << v))-1)).read(size) |<< alignement
-        alignementIncrement setWhen(memory && input.fire)
-        switch(alignement){
-          for(i <- 0 to alignement.maxValue.toInt){
+        memHub.write.mask := (0 until p.sizeCount).map(v => B((1 << (1 << v))-1)).read(cmd.context.size) |<< cmd.context.alignement
+        cmd.context.alignementIncrement setWhen(memory && input.fire)
+        switch(cmd.context.alignement){
+          for(i <- 0 to cmd.context.alignement.maxValue.toInt){
             is(i) {
               val byteCount = (0 until p.sizeCount).map(1 << _).filter(i % _ == 0).max
               memHub.write.data(i * 8, byteCount * 8 bits) := input.payload(8 * byteCount - 1 downto 0)
@@ -581,8 +581,7 @@ object Dma{
         cmd.contextPort.release := input.fire && memory && (!cmd.contextPort.hit || cmd.fifoEmpty)
 
         when(cmd.contextPort.release && selfStop){
-          cmd.context.counterClear := True
-          alignement := cmd.context.address.resized
+          cmd.context.reset := True
         }
       }
     }
@@ -612,15 +611,15 @@ object Dma{
         that.sdp.memory generate {
           bus.write(
             offset + p.mapping.channelConfigOffset,
-            p.mapping.channelSizeBit  -> that.size,
+//            p.mapping.channelSizeBit  -> that.size,
             p.mapping.channelBurstBit  -> that.burst
           )
-          bus.write(p.mapping.sharedRamOffset + idx*16 + (if(isDestination) 8 else 0), 0 -> that.alignement) //TODO can be optimized ?
+//          bus.write(p.mapping.sharedRamOffset + idx*16 + (if(isDestination) 8 else 0), 0 -> that.alignement) //TODO can be optimized ?
         }
 
         that.sdp.stream generate {
           bus.write(offset + p.mapping.channelAddressOffset, 0 -> that.streamId)
-          bus.write(offset + p.mapping.channelLengthOffset, 0 -> that.length)
+          bus.write(offset + p.mapping.channelStreamLengthOffset, 0 -> that.length)
           when(bus.isWriting(offset + p.mapping.channelCtrlOffset)) {
             that.counter := 0
           }
@@ -864,8 +863,8 @@ object DmaDebug extends App{
       )
     )
   )
-//  SimConfig.withWave.compile(new Dma.Dma(p)).doSim("test", 42){dut =>
-  SimConfig.allOptimisation.compile(new Dma.Dma(p)).doSim("test", 42){dut =>
+  SimConfig.withWave.compile(new Dma.Dma(p)).doSim("test", 42){dut =>
+//  SimConfig.allOptimisation.compile(new Dma.Dma(p)).doSim("test", 42){dut =>
     val config = Apb3Driver(dut.io.config, dut.clockDomain)
 
     def writeXConfig(offset : Int)(
@@ -876,13 +875,13 @@ object DmaDebug extends App{
       burst : Int,
       address : Int,
       length : Int): Unit ={
-      config.write(offset + p.mapping.channelLengthOffset, length)
+      config.write(offset + p.mapping.channelStreamLengthOffset, length)
       config.write(offset + p.mapping.channelAddressOffset, address)
       config.write(offset + p.mapping.channelConfigOffset,
         (if (increment) 1 << p.mapping.channelIncrementBit else 0) |
           (if (reload) 1 << p.mapping.channelReloadBit else 0) |
           (if (memory) 1 << p.mapping.channelMemoryBit else 0) |
-          (size << p.mapping.channelSizeBit) |
+          (size << p.mapping.channelMemorySizeBit) |
           (burst << p.mapping.channelBurstBit)
       )
     }
@@ -1193,17 +1192,21 @@ object DmaTester extends App {
       var address = 0
       var length = 0
       def write(offset : Int, apb3Driver: Apb3Driver): Unit ={
-        config.write(offset + p.mapping.channelLengthOffset, length)
+        config.write(offset + p.mapping.channelStreamLengthOffset, length)
         config.write(offset + p.mapping.channelAddressOffset, address)
         config.write(offset + p.mapping.channelConfigOffset,
           (if (increment) 1 << p.mapping.channelIncrementBit else 0) |
             (if (reload) 1 << p.mapping.channelReloadBit else 0) |
             (if (memory) 1 << p.mapping.channelMemoryBit else 0) |
-            (size << p.mapping.channelSizeBit) |
-            (burst << p.mapping.channelBurstBit)
+                (burst << p.mapping.channelBurstBit)
         )
         config.write(p.mapping.sharedRamOffset + 16*channelId + 0x00 + (if(isSource) 0 else 8), address)
-        config.write(p.mapping.sharedRamOffset + 16*channelId + 0x04 + (if(isSource) 0 else 8), length)
+        config.write(
+          address = p.mapping.sharedRamOffset + 16*channelId + 0x04 + (if(isSource) 0 else 8),
+          data = (length << p.mapping.channelMemoryLengthBit)
+               | ((address & 0x3) << p.mapping.channelMemoryAlignementBit)
+               | (0 << p.mapping.channelMemoryCounterBit)
+               | (size.toLong << p.mapping.channelMemorySizeBit))
       }
     }
 
