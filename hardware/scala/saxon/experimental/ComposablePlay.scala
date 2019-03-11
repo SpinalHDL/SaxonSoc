@@ -15,7 +15,7 @@ class KeyAPlugin(value : Int) extends Generator {
 
   val logic = add task {
     println(s"set Key A" + value)
-    Keys.A.set(value)
+    Keys.A.load(value)
   }
 }
 
@@ -29,7 +29,7 @@ class AdderPlugin(width : Int) extends Generator{
     val a, b = in UInt (width bits)
     val result = out UInt (width bits)
     result := a + b + Keys.A.get
-    Keys.B.set(42)
+    Keys.B.load(42)
   }
 }
 

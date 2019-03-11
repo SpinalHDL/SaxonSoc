@@ -67,9 +67,9 @@ case class ExternalClockDomain(clkFrequency : Handle[HertzNumber] = Unset, withD
     //Create all reset used later in the design
     val systemResetSet = False
     val systemReset = SB_GB(RegNext(resetUnbuffered || BufferCC(systemResetSet)))
-    doSystemReset.set(() => systemResetSet := True)
+    doSystemReset.load(() => systemResetSet := True)
 
-    systemClockDomain.set(ClockDomain(
+    systemClockDomain.load(ClockDomain(
       clock = io.clk,
       reset = systemReset,
       frequency = FixedFrequency(clkFrequency),
@@ -81,7 +81,7 @@ case class ExternalClockDomain(clkFrequency : Handle[HertzNumber] = Unset, withD
 
     val debug = withDebug.get generate new Area {
       val reset = SB_GB(RegNext(resetUnbuffered))
-      debugClockDomain set (ClockDomain(
+      debugClockDomain load (ClockDomain(
         clock = io.clk,
         reset = reset,
         frequency = FixedFrequency(clkFrequency),
@@ -93,10 +93,10 @@ case class ExternalClockDomain(clkFrequency : Handle[HertzNumber] = Unset, withD
   }
 
   def connectTo(s : SaxonSocBase): this.type ={
-    s on(this.systemClockDomain)
-    s.cpu.debugClockDomain.setFrom(this.debugClockDomain)
-    s.cpu.debugAskReset.setFrom(this.doSystemReset)
-    withDebug.setFrom(s.cpu.withJtag)
+    s.on(this.systemClockDomain)
+    s.cpu.debugClockDomain.merge(this.debugClockDomain)
+    s.cpu.debugAskReset.merge(this.doSystemReset)
+    withDebug.merge(s.cpu.withJtag)
     this
   }
 }
@@ -109,12 +109,12 @@ case class BlinkerPlugin() extends Generator{
 }
 
 class InstancePlugin[T](key : Handle[T], instance : => T) extends Generator{
-  val logic = add task key.set(instance)
+  val logic = add task key.load(instance)
 }
 
 class PipelinedMemoryBusInterconnectPlugin() extends Generator{
   val factory = Handle[PipelinedMemoryBusInterconnect]
-  val logic = add task factory.set(PipelinedMemoryBusInterconnect())
+  val logic = add task factory.load(PipelinedMemoryBusInterconnect())
 }
 
 class PipelinedMemoryBusToApbBridgePlugin(output : Handle[Apb3]) extends Generator{
@@ -129,7 +129,7 @@ class PipelinedMemoryBusToApbBridgePlugin(output : Handle[Apb3]) extends Generat
     )
 
     output << bridge.io.apb
-    input.set(bridge.io.pipelinedMemoryBus)
+    input.load(bridge.io.pipelinedMemoryBus)
   }
 }
 
@@ -140,7 +140,7 @@ class Apb3GpioPlugin(p : Gpio.Parameter) extends Generator{
     val ctrl = Apb3Gpio2(p)
     val gpio = master(TriStateArray(p.width))
     gpio <> ctrl.io.gpio
-    bus.set(ctrl.io.bus)
+    bus.load(ctrl.io.bus)
   }
 }
 
@@ -156,7 +156,7 @@ class Apb3DecoderPlugin(config : Handle[Apb3Config] = Unset) extends Generator {
       slaves = mapping
     )
 
-    input.set(inputBus)
+    input.load(inputBus)
   }
 }
 
@@ -166,7 +166,7 @@ class SpramPlugin() extends Generator{
   val bus = Handle[PipelinedMemoryBus]
   val logic = add task new Area{
     val ram = Spram()
-    bus.set(ram.io.bus)
+    bus.load(ram.io.bus)
   }
 }
 
@@ -180,7 +180,9 @@ class VexRiscvPlugin(val config : Handle[VexRiscvConfig] = Unset,
 
   dependencies ++= List(config)
   dependencies += Dependable(withJtag){
-    if(withJtag.value) dependencies ++= List(debugClockDomain, debugAskReset)
+    if(withJtag) {
+      dependencies ++= List(debugClockDomain, debugAskReset)
+    }
   }
 
   val jtag = add task (withJtag.get generate slave(Jtag()))
@@ -190,15 +192,15 @@ class VexRiscvPlugin(val config : Handle[VexRiscvConfig] = Unset,
     }
 
     val cpu = new VexRiscv(config)
-    iBus.set(PipelinedMemoryBus(32, 32))
-    dBus.set(PipelinedMemoryBus(32, 32))
+    iBus.load(PipelinedMemoryBus(32, 32))
+    dBus.load(PipelinedMemoryBus(32, 32))
 
     for (plugin <- cpu.plugins) plugin match {
       case plugin : IBusCachedPlugin => iBus << plugin.iBus.toPipelinedMemoryBus()
       case plugin : DBusSimplePlugin => dBus << plugin.dBus.toPipelinedMemoryBus()
       case plugin : CsrPlugin => {
-        externalInterrupt.set(plugin.externalInterrupt)
-        timerInterrupt.set(plugin.timerInterrupt)
+        externalInterrupt.load(plugin.externalInterrupt)
+        timerInterrupt.load(plugin.timerInterrupt)
       }
       case plugin : DebugPlugin         => plugin.debugClockDomain{
         when(RegNext(plugin.io.resetOut)) { debugAskReset.get() }
@@ -387,7 +389,7 @@ class SpiFlashXipPlugin(p : SpiXdrMasterCtrl.MemoryMappingParameters) extends Ge
   val logic = add task new Area {
     val ctrl = Apb3SpiXdrMasterCtrl(p)
     ctrl.io.spi <> flash
-    accessBus.set(ctrl.io.xip.fromPipelinedMemoryBus())
+    accessBus.load(ctrl.io.xip.fromPipelinedMemoryBus())
   }
 }
 
@@ -527,7 +529,7 @@ class SaxonSocBase extends Generator{
   def addDac() = this add new Generator {
     val channel = Handle[Stream[UInt]]
     val logic = add task new Area{
-      channel.set(Stream(UInt(8 bits)))
+      channel.load(Stream(UInt(8 bits)))
       channel.ready := False
     }
   }
@@ -535,7 +537,7 @@ class SaxonSocBase extends Generator{
   def addAdc() = this add new Generator {
     val channel = Handle[Stream[UInt]]
     val logic = add task new Area{
-      channel.set(Stream(UInt(8 bits)))
+      channel.load(Stream(UInt(8 bits)))
       channel.valid := False
       channel.payload := 0
     }
@@ -587,8 +589,8 @@ class SaxonSocBase extends Generator{
 
 class SaxonDocDefault extends Generator{
   val system = new SaxonSocBase()
-  system.cpu.config.set(CpuConfig.minimalWithCsr)
-  system.cpu.withJtag.set(true)
+  system.cpu.config.load(CpuConfig.minimalWithCsr)
+  system.cpu.withJtag.load(true)
 
   val clockCtrl = ExternalClockDomain(12 MHz).connectTo(system)
 
@@ -773,3 +775,4 @@ object CustomSocSim{
 
 //Large memory mapping changes ? => task disable
 //1 + 1 => 42 (dma + peripherals channels), mutual negotiation
+//Handle.setFrom  (externalClock)

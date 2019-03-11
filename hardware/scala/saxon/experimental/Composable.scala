@@ -31,7 +31,7 @@ trait Dependable{
 object Handle{
   def apply[T](value : T) : Handle[T] = {
     val h = Handle[T]
-    h.set(value)
+    h.load(value)
     h
   }
   def apply[T]() = new Handle[T]
@@ -40,42 +40,36 @@ object Handle{
   implicit def initImplicit[T](value : Unset) : Handle[T] = Handle[T]
 }
 
-class Handle[T] extends Nameable with Dependable{
-  var setOnce = false
+class HandleCore[T]{
+  var loaded = false
   var value = null.asInstanceOf[T]
-  def apply : T = get
-  def get: T = {
-    value
-  }
+
   def set(value : T): T = {
     this.value = value
-    setOnce = true
-    for(other <- propagations) other.set(value)
-    listeners.foreach(_())
+    loaded = true
     value
   }
+}
+
+class Handle[T] extends Nameable with Dependable{
+  private var core = new HandleCore[T]
+  def merge(that : Handle[T]): Unit ={
+    (this.core.loaded, that.core.loaded) match {
+      case (false, _) => this.core = that.core
+      case (true, false) => that.core = this.core
+    }
+  }
+
+  def apply : T = get
+  def get: T = {
+    core.value
+  }
+  def load(value : T): T = core.set(value)
 
   def init = {}
-  def isSet = setOnce
+  def isLoaded = core.loaded
 
-  val propagations = ArrayBuffer[Handle[T]]()
-  def propagateTo(that : Handle[T]) = {
-    propagations += that
-    if(isSet) that.set(this.get)
-  }
-  def setFrom(that : Handle[T]) = that.propagateTo(this)
-  def hasDependents(implicit c : Composable) : Boolean = {
-    def hit(p : Generator) : Boolean = p.dependencies.contains(this) || p.generators.exists(hit)
-    c.generators.exists(hit) || propagations.exists(_.hasDependents)
-  }
-
-  val listeners = ArrayBuffer[() => Unit]()
-  def onSet(body : => Unit) = {
-    listeners += (() => body)
-    if(isSet) body
-  }
-
-  override def isDone: Boolean = isSet
+  override def isDone: Boolean = isLoaded
 }
 
 object HandleInit{
@@ -84,7 +78,7 @@ object HandleInit{
 
 class HandleInit[T](initValue : => T) extends Handle[T]{
   override def init : Unit = {
-    set(initValue)
+    load(initValue)
   }
 }
 
@@ -150,7 +144,7 @@ class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends N
 //  }
 
   //User API
-  implicit def lambdaToGenerator[T](lambda : => T) = new Task(() => lambda)
+//  implicit def lambdaToGenerator[T](lambda : => T) = new Task(() => lambda)
   def add = new {
     def task[T](gen : => T) : Task[T] = {
       val task = new Task(() => gen)
