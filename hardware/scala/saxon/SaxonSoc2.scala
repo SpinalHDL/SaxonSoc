@@ -414,9 +414,7 @@ class SaxonSocBase extends Generator{
 
 
   def addGpio(apbOffset : Int, p : Gpio.Parameter) = this add new Generator{
-    locks += apbDecoder
-
-
+    apbDecoder.dependencies += this
 
     val logic = add task new Area {
       val ctrl = Apb3Gpio2(p)
@@ -430,7 +428,7 @@ class SaxonSocBase extends Generator{
   }
 
   def addUart(apbOffset : Int, p : UartCtrlMemoryMappedConfig) = this add new Generator {
-    locks += apbDecoder
+    apbDecoder.dependencies += this
 
     val logic = add task new Area {
       val ctrl = Apb3UartCtrl(p)
@@ -454,7 +452,7 @@ class SaxonSocBase extends Generator{
 
   def addMachineTimer() = this add new Generator{
     dependencies += cpu
-    locks        += apbDecoder
+    apbDecoder.dependencies += this
 
     val logic = add task new Area {
       val machineTimer = MachineTimer()
@@ -468,7 +466,7 @@ class SaxonSocBase extends Generator{
 
   def addSpiXip(p : SpiXdrMasterCtrl.MemoryMappingParameters) = this add new Generator{
     dependencies ++= List(cpu, mainBus)
-    locks += apbDecoder
+    apbDecoder.dependencies += this
 
     val logic = add task new Area {
       val flash = master(SpiXdrMaster(p.ctrl.spi))
@@ -489,7 +487,8 @@ class SaxonSocBase extends Generator{
 
   def addDma(p : Dma.Parameter) = this add new Generator {
     dependencies ++= List(mainBus, interconnect.factory)
-    locks ++= List(apbDecoder)
+    apbDecoder.dependencies += this
+
     val inputStreams = ArrayBuffer[Handle[Stream[_ <: Data]]]()
     val outputStreams = ArrayBuffer[Handle[Stream[_ <: Data]]]()
 
@@ -547,7 +546,7 @@ class SaxonSocBase extends Generator{
     val priorityWidth = 1
 
     dependencies ++= List(cpu, gateways)
-    locks += apbDecoder
+    apbDecoder.dependencies += this
 
     def addInterrupt[T <: Generator](sourcePlugin : T, id : Int)(sourceAccess : T => Bool) = {
       dependencies += sourcePlugin
