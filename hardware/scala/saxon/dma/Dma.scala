@@ -11,6 +11,7 @@ import spinal.lib.eda.icestorm.IcestormStdTargets
 import spinal.lib.sim.{FlowMonitor, ScoreboardInOrder, SimData, StreamMonitor}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 object Dma{
 
@@ -39,13 +40,13 @@ object Dma{
                               val channelBusyBit : Int = 2,
                               val channelResetBit : Int = 0)
 
-  case class Parameter( memConfig: PipelinedMemoryBusConfig,
-                        memoryLengthWidth : Int,
-                        singleMemoryPort : Boolean,
-                        inputs : Seq[InputParameter],
-                        outputs : Seq[OutputParameter],
-                        channels : Seq[ChannelParameter],
-                        mapping : MappingParameter = new MappingParameter){
+  case class Parameter(memConfig: PipelinedMemoryBusConfig,
+                       memoryLengthWidth : Int,
+                       singleMemoryPort : Boolean,
+                       channels : ArrayBuffer[ChannelParameter],
+                       inputs : ArrayBuffer[InputParameter] = ArrayBuffer[InputParameter](),
+                       outputs : ArrayBuffer[OutputParameter] = ArrayBuffer[OutputParameter](),
+                       mapping : MappingParameter = new MappingParameter){
     val sizeCount = log2Up(memConfig.dataWidth/8) + 1
     val sizeWidth = log2Up(sizeCount)
     val sizeType = HardType(UInt(sizeWidth bits))
@@ -55,7 +56,7 @@ object Dma{
   case class InputParameter(dataWidth : Int)
   case class OutputParameter(dataWidth : Int)
 
-  case class SDParameter(lengthWidth : Int,
+  case class SDParameter(streamLengthWidth : Int,
                          burstWidth : Int,
                          memory : Boolean = true,
                          stream : Boolean = true){
@@ -118,7 +119,7 @@ object Dma{
       val start, dontStop = False
 
        //Stream capable
-      val length, counter = sdp.stream generate Reg(UInt(sdp.lengthWidth bits))
+      val length, counter = sdp.stream generate Reg(UInt(sdp.streamLengthWidth bits))
       val streamId = sdp.stream generate Reg(UInt(streamIdWidth bits))
       val counterIncrement = sdp.stream generate False
       val counterMatch = sdp.stream generate counter === length
@@ -138,7 +139,7 @@ object Dma{
       start setWhen(done && reload && !userStop)
       busy clearWhen(done) setWhen(start)
       fifoPtr := fifoPtr + U(fifoPtrIncrement)
-      if(sdp.lengthWidth != 0 && sdp.stream) when(counterIncrement) {
+      if(sdp.streamLengthWidth != 0 && sdp.stream) when(counterIncrement) {
         counter := counter + 1
       }
 
@@ -737,6 +738,25 @@ object DmaBench extends App{
 //      )
 //    )
 //  )
+
+  val channels = ArrayBuffer.tabulate(4)( i =>
+    Dma.ChannelParameter(
+      fifoDepth = 32,
+      source = Dma.SDParameter(
+        streamLengthWidth = 12,
+        burstWidth = 4,
+        memory = true,
+        stream = i == 0
+      ),
+      destination = Dma.SDParameter(
+        streamLengthWidth = if(i == 0) 12 else 4,
+        burstWidth = 4,
+        memory = true,
+        stream = i == 0
+      )
+    )
+  )
+
 //
 //  val channels = List.tabulate(4)( i =>
 //    Dma.ChannelParameter(
@@ -756,23 +776,23 @@ object DmaBench extends App{
 //    )
 //  )
 
-    val channels = List.tabulate(4)( i =>
-      Dma.ChannelParameter(
-        fifoDepth = 32,
-        source = Dma.SDParameter(
-          lengthWidth = 12,
-          burstWidth = 4,
-          memory = true,
-          stream = true
-        ),
-        destination = Dma.SDParameter(
-          lengthWidth = 12,
-          burstWidth = 4,
-          memory = true,
-          stream = true
-        )
-      )
-    )
+//    val channels = List.tabulate(4)( i =>
+//      Dma.ChannelParameter(
+//        fifoDepth = 32,
+//        source = Dma.SDParameter(
+//          lengthWidth = 12,
+//          burstWidth = 4,
+//          memory = true,
+//          stream = true
+//        ),
+//        destination = Dma.SDParameter(
+//          lengthWidth = 12,
+//          burstWidth = 4,
+//          memory = true,
+//          stream = true
+//        )
+//      )
+//    )
   case class DmaRtl(channelCount : Int) extends  Rtl {
     override def getName(): String = "Dma" + channelCount
     override def getRtlPath(): String = "Dma" + channelCount + ".v"
@@ -782,11 +802,11 @@ object DmaBench extends App{
       memConfig = PipelinedMemoryBusConfig(32,32),
       memoryLengthWidth = 12,
       singleMemoryPort = true,
-      inputs = List(
+      inputs = ArrayBuffer(
         Dma.InputParameter(dataWidth = 8),
         Dma.InputParameter(dataWidth = 8)
       ),
-      outputs = List(
+      outputs = ArrayBuffer(
 //        Dma.OutputParameter(dataWidth = 8),
 //        Dma.OutputParameter(dataWidth = 8),
         Dma.OutputParameter(dataWidth = 8),
@@ -822,25 +842,25 @@ object DmaDebug extends App{
     memConfig = PipelinedMemoryBusConfig(30,32),
     memoryLengthWidth = 12,
     singleMemoryPort = false,
-    inputs = List(
+    inputs = ArrayBuffer(
       Dma.InputParameter(dataWidth = 32),
       Dma.InputParameter(dataWidth = 32)
     ),
-    outputs = List(
+    outputs = ArrayBuffer(
       Dma.OutputParameter(dataWidth = 32),
       Dma.OutputParameter(dataWidth = 32)
     ),
-    channels = List(
+    channels = ArrayBuffer(
       Dma.ChannelParameter(
         fifoDepth = 32,
         source = Dma.SDParameter(
-          lengthWidth = 12,
+          streamLengthWidth = 12,
           burstWidth = 4,
           memory = true,
           stream = true
         ),
         destination = Dma.SDParameter(
-          lengthWidth = 12,
+          streamLengthWidth = 12,
           burstWidth = 4,
           memory = true,
           stream = true
@@ -849,13 +869,13 @@ object DmaDebug extends App{
       Dma.ChannelParameter(
         fifoDepth = 16,
         source = Dma.SDParameter(
-          lengthWidth = 14,
+          streamLengthWidth = 14,
           burstWidth = 4,
           memory = true,
           stream = true
         ),
         destination = Dma.SDParameter(
-          lengthWidth = 10,
+          streamLengthWidth = 10,
           burstWidth = 4,
           memory = true,
           stream = true
@@ -995,36 +1015,36 @@ object DmaTester extends App {
     memConfig = PipelinedMemoryBusConfig(30, 32),
     memoryLengthWidth = 12,
     singleMemoryPort = true,
-    inputs = List.fill(10)(Dma.InputParameter(dataWidth = 8*(1 << Random.nextInt(3)))),
-    outputs = List.fill(10)(Dma.OutputParameter(dataWidth = 8*(1 << Random.nextInt(3)))),
+    inputs = ArrayBuffer.fill(10)(Dma.InputParameter(dataWidth = 8*(1 << Random.nextInt(3)))),
+    outputs = ArrayBuffer.fill(10)(Dma.OutputParameter(dataWidth = 8*(1 << Random.nextInt(3)))),
     channels = Dma.ChannelParameter(
       fifoDepth = 32,
       source = Dma.SDParameter(
-        lengthWidth = 7,
+        streamLengthWidth = 7,
         burstWidth = 4,
         memory = true,
         stream = true
       ),
       destination = Dma.SDParameter(
-        lengthWidth = 7,
+        streamLengthWidth = 7,
         burstWidth = 4,
         memory = true,
         stream = true
       )
-    ) :: List.tabulate(9){i => //TODO
+    ) +: ArrayBuffer.tabulate(9){i => //TODO
       val fifoDepth = Math.max(1, 1 << (Random.nextInt(3) + Random.nextInt(3)))
       val srcMemory = Random.nextBoolean() //TODO
       val dstMemory = Random.nextBoolean() //TODO
       Dma.ChannelParameter(
         fifoDepth = fifoDepth,
         source = Dma.SDParameter(
-          lengthWidth = Math.max(4, i),
+          streamLengthWidth = Math.max(4, i),
           burstWidth = Math.min(log2Up(fifoDepth), Random.nextInt(3) + Random.nextInt(2)),
           memory = srcMemory,
           stream = !srcMemory || Random.nextBoolean()
         ),
         destination = Dma.SDParameter(
-          lengthWidth = Math.max(4, i),
+          streamLengthWidth = Math.max(4, i),
           burstWidth = Math.min(log2Up(fifoDepth), Random.nextInt(3) + Random.nextInt(2)),
           memory = dstMemory,
           stream = !dstMemory || Random.nextBoolean()
@@ -1238,7 +1258,7 @@ object DmaTester extends App {
       if(!dst.memory) byteCountMax = Math.min(byteCountMax, p.outputs(outputId).dataWidth/8)
       val sizeMax = log2Up(byteCountMax)
       val size = Random.nextInt(sizeMax + 1)
-      val length =  Random.nextInt(1 << Math.min(if(src.memory) p.memoryLengthWidth >> size else cp.source.lengthWidth, if(dst.memory) p.memoryLengthWidth >> size else cp.destination.lengthWidth))
+      val length =  Random.nextInt(1 << Math.min(if(src.memory) p.memoryLengthWidth >> size else cp.source.streamLengthWidth, if(dst.memory) p.memoryLengthWidth >> size else cp.destination.streamLengthWidth))
 
       src.increment = true
       src.reload = false

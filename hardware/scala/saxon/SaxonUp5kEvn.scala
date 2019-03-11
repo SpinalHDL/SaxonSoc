@@ -136,32 +136,37 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
   ledDriver.RGB1 <> io.LED_GREEN
   ledDriver.RGB2 <> io.LED_RED
 
-  val xipIo = new ClockingArea(xip.implicitCd) {
-    RegNext(xip.logic.flash.ss.asBool) <> io.ICE_SS
 
-    val sclkIo = SB_IO_SCLK()
-    sclkIo.PACKAGE_PIN <> io.ICE_SCK
-    sclkIo.CLOCK_ENABLE := True
-
-    sclkIo.OUTPUT_CLK := ClockDomain.current.readClockWire
-    sclkIo.D_OUT_0 <> xip.logic.flash.sclk.write(0)
-    sclkIo.D_OUT_1 <> RegNext(xip.logic.flash.sclk.write(1))
-
-    val datas = for ((data, pin) <- (xip.logic.flash.data, List(io.ICE_MOSI, io.ICE_MISO).reverse).zipped) yield new Area {
-      val dataIo = SB_IO_DATA()
-      dataIo.PACKAGE_PIN := pin
-      dataIo.CLOCK_ENABLE := True
-
-      dataIo.OUTPUT_CLK := ClockDomain.current.readClockWire
-      dataIo.OUTPUT_ENABLE <> data.writeEnable
-      dataIo.D_OUT_0 <> data.write(0)
-      dataIo.D_OUT_1 <> RegNext(data.write(1))
-
-      dataIo.INPUT_CLK := ClockDomain.current.readClockWire
-      data.read(0) := dataIo.D_IN_0
-      data.read(1) := RegNext(dataIo.D_IN_1)
-    }
-  }
+  List(io.ICE_SS,
+    io.ICE_SCK,
+    io.ICE_MOSI,
+    io.ICE_MISO).flatMap(_.flatten).filter(_.isOutput).foreach(_.assignDontCare())
+//  val xipIo = new ClockingArea(xip.implicitCd) {
+//    RegNext(xip.logic.flash.ss.asBool) <> io.ICE_SS
+//
+//    val sclkIo = SB_IO_SCLK()
+//    sclkIo.PACKAGE_PIN <> io.ICE_SCK
+//    sclkIo.CLOCK_ENABLE := True
+//
+//    sclkIo.OUTPUT_CLK := ClockDomain.current.readClockWire
+//    sclkIo.D_OUT_0 <> xip.logic.flash.sclk.write(0)
+//    sclkIo.D_OUT_1 <> RegNext(xip.logic.flash.sclk.write(1))
+//
+//    val datas = for ((data, pin) <- (xip.logic.flash.data, List(io.ICE_MOSI, io.ICE_MISO).reverse).zipped) yield new Area {
+//      val dataIo = SB_IO_DATA()
+//      dataIo.PACKAGE_PIN := pin
+//      dataIo.CLOCK_ENABLE := True
+//
+//      dataIo.OUTPUT_CLK := ClockDomain.current.readClockWire
+//      dataIo.OUTPUT_ENABLE <> data.writeEnable
+//      dataIo.D_OUT_0 <> data.write(0)
+//      dataIo.D_OUT_1 <> RegNext(data.write(1))
+//
+//      dataIo.INPUT_CLK := ClockDomain.current.readClockWire
+//      data.read(0) := dataIo.D_IN_0
+//      data.read(1) := RegNext(dataIo.D_IN_1)
+//    }
+//  }
 }
 
 

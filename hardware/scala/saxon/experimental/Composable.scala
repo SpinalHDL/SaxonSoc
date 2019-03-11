@@ -92,9 +92,23 @@ object Task{
   implicit def generatorToValue[T](generator : Task[T]) : T = generator.value
 }
 
-class Task[T](gen : => T){
+class Task[T](var gen :() => T) extends Dependable {
   var value : T = null.asInstanceOf[T]
-  def build() : Unit = value = gen
+  var isDone = false
+  var enabled = true
+
+  def build() : Unit = {
+    if(enabled) value = gen()
+    isDone = true
+  }
+
+  def disable(): Unit ={
+    enabled = false
+  }
+
+  def patchWith(patch : => T): Unit ={
+    gen = () => patch
+  }
 }
 
 object Generator{
@@ -136,10 +150,10 @@ class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends N
 //  }
 
   //User API
-  implicit def lambdaToGenerator[T](lambda : => T) = new Task(lambda)
+  implicit def lambdaToGenerator[T](lambda : => T) = new Task(() => lambda)
   def add = new {
     def task[T](gen : => T) : Task[T] = {
-      val task = new Task(gen)
+      val task = new Task(() => gen)
       tasks += task
       task
     }

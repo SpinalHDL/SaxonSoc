@@ -190,8 +190,8 @@ class VexRiscvPlugin(val config : Handle[VexRiscvConfig] = Unset,
     }
 
     val cpu = new VexRiscv(config)
-    val iBus = VexRiscvPlugin.this.iBus.set(PipelinedMemoryBus(32, 32))
-    val dBus = VexRiscvPlugin.this.dBus.set(PipelinedMemoryBus(32, 32))
+    iBus.set(PipelinedMemoryBus(32, 32))
+    dBus.set(PipelinedMemoryBus(32, 32))
 
     for (plugin <- cpu.plugins) plugin match {
       case plugin : IBusCachedPlugin => iBus << plugin.iBus.toPipelinedMemoryBus()
@@ -235,7 +235,7 @@ class PluginComponent[T <: Generator](val generator : T) extends Component{
 object CpuConfig{
   val withMemoryStage = false
   val executeRf = true
-  val hardwareBreakpointsCount  = 2
+  val hardwareBreakpointsCount  = 0
   val bootloaderBin : String = null
 
   def minimal = VexRiscvConfig(
@@ -403,11 +403,11 @@ class SaxonSocBase extends Generator{
     dependencies ++= List(cpu, apbBridge)
     val logic = add task new Area {
       interconnect.factory.addSlave(mainBus, DefaultMapping)
-      interconnect.factory.addSlave( apbBridge.input, SizeMapping(0xF0000000l,  16 MiB))
+      interconnect.factory.addSlave(apbBridge.input, SizeMapping(0xF0000000l,  16 MiB))
       interconnect.factory.addMasters(
         (cpu.dBus, List(mainBus)),
         (cpu.iBus, List(mainBus)),
-        ( mainBus,    List(apbBridge.input))
+        ( mainBus, List(apbBridge.input))
       )
     }
   }
@@ -416,16 +416,20 @@ class SaxonSocBase extends Generator{
   def addGpio(apbOffset : Int, p : Gpio.Parameter) = this add new Generator{
     locks += apbDecoder
 
+
+
     val logic = add task new Area {
       val ctrl = Apb3Gpio2(p)
-      val gpio = master(TriStateArray(p.width))
-      gpio <> ctrl.io.gpio
-
       apbDecoder.mapping += (ctrl.io.bus -> (apbOffset, 4 KiB))
+    }
+
+    val io = add task new Area{
+      val gpio = master(TriStateArray(p.width))
+      gpio <> logic.ctrl.io.gpio
     }
   }
 
-  def addUart(apbOffset : Int, p : UartCtrlMemoryMappedConfig) = this add new Generator{
+  def addUart(apbOffset : Int, p : UartCtrlMemoryMappedConfig) = this add new Generator {
     locks += apbDecoder
 
     val logic = add task new Area {
@@ -439,7 +443,7 @@ class SaxonSocBase extends Generator{
 
 
   def addIce40Spram() = this add new Generator{
-    dependencies ++= List(SaxonSocBase.this, interconnect.factory)
+    dependencies ++= List(mainBus, interconnect.factory)
 
     val logic = add task new Area {
       val ram = Spram()
@@ -450,18 +454,20 @@ class SaxonSocBase extends Generator{
 
   def addMachineTimer() = this add new Generator{
     dependencies += cpu
-    locks += apbDecoder
+    locks        += apbDecoder
 
     val logic = add task new Area {
       val machineTimer = MachineTimer()
       apbDecoder.mapping += (machineTimer.io.bus -> (0x08000, 4 KiB))
       cpu.timerInterrupt := machineTimer.io.mTimeInterrupt
-      cpu.externalInterrupt default(False)
+      cpu.externalInterrupt default(False) //TODO ???
     }
   }
 
+
+
   def addSpiXip(p : SpiXdrMasterCtrl.MemoryMappingParameters) = this add new Generator{
-    dependencies ++= List(cpu, SaxonSocBase.this)
+    dependencies ++= List(cpu, mainBus)
     locks += apbDecoder
 
     val logic = add task new Area {
@@ -481,43 +487,58 @@ class SaxonSocBase extends Generator{
     }
   }
 
-  def addDma() = this add new Generator{
-    dependencies ++= List(SaxonSocBase.this, interconnect.factory)
+  def addDma(p : Dma.Parameter) = this add new Generator {
+    dependencies ++= List(mainBus, interconnect.factory)
     locks ++= List(apbDecoder)
+    val inputStreams = ArrayBuffer[Handle[Stream[_ <: Data]]]()
+    val outputStreams = ArrayBuffer[Handle[Stream[_ <: Data]]]()
 
     val logic = add task new Area{
-      val p = Dma.Parameter(
-        memConfig = PipelinedMemoryBusConfig(32,32),
-        memoryLengthWidth = 12,
-        singleMemoryPort = true,
-        inputs = Nil,
-        outputs = Nil,
-        channels = List(
-          Dma.ChannelParameter(
-            fifoDepth = 32,
-            source = Dma.SDParameter(
-              lengthWidth = 12,
-              burstWidth = 4,
-              memory = true,
-              stream = true
-            ),
-            destination = Dma.SDParameter(
-              lengthWidth = 12,
-              burstWidth = 4,
-              memory = true,
-              stream = true
-            )
-          )
-        )
-      )
+      //Add required Input/Output streams parameters
+      for(is <- inputStreams) p.inputs += new Dma.InputParameter(dataWidth = widthOf(is.payload))
+      for(os <- outputStreams) p.outputs += new Dma.OutputParameter(dataWidth = widthOf(os.payload))
 
       val ctrl = Dma(p)
       interconnect.factory.addMasters(
         (ctrl.io.mem, List(mainBus))
-//        (ctrl.io.memRead, List(mainBus)),
-//        (ctrl.io.memWrite, List(mainBus))
       )
       apbDecoder.mapping += (ctrl.io.config -> (0xE0000, 4 KiB))
+
+
+      for((s, m) <-(ctrl.io.inputs, inputStreams).zipped){
+        s.arbitrationFrom(m)
+        s.data := m.payload.asBits
+      }
+      for((m, s) <-(ctrl.io.outputs, outputStreams).zipped){
+        s.arbitrationFrom(m)
+        s.payload.assignFromBits(m.data)
+      }
+    }
+
+    def addInputChannel[T <: Data](stream : Handle[Stream[T]]): Unit ={
+      inputStreams += stream.asInstanceOf[Handle[Stream[_ <: Data]]]
+      dependencies += stream
+    }
+    def addOutputChannel[T <: Data](stream : Handle[Stream[T]]): Unit ={
+      outputStreams += stream.asInstanceOf[Handle[Stream[_ <: Data]]]
+      dependencies += stream
+    }
+  }
+
+  def addDac() = this add new Generator {
+    val channel = Handle[Stream[UInt]]
+    val logic = add task new Area{
+      channel.set(Stream(UInt(8 bits)))
+      channel.ready := False
+    }
+  }
+
+  def addAdc() = this add new Generator {
+    val channel = Handle[Stream[UInt]]
+    val logic = add task new Area{
+      channel.set(Stream(UInt(8 bits)))
+      channel.valid := False
+      channel.payload := 0
     }
   }
 
@@ -529,7 +550,7 @@ class SaxonSocBase extends Generator{
     locks += apbDecoder
 
     def addInterrupt[T <: Generator](sourcePlugin : T, id : Int)(sourceAccess : T => Bool) = {
-      sourcePlugin.locks += this
+      dependencies += sourcePlugin
       sourcePlugin.add task {
         gateways += PlicGatewayActiveHigh(
           source = sourceAccess(sourcePlugin),
@@ -612,8 +633,47 @@ class SaxonDocDefault extends Generator{
 
   val machineTimer = system.addMachineTimer()
 
-  val dma = system.addDma()
+  val dma = system.addDma(
+    p = Dma.Parameter(
+      memConfig = PipelinedMemoryBusConfig(32,32),
+      memoryLengthWidth = 12,
+      singleMemoryPort = true,
+      channels = ArrayBuffer(
+        Dma.ChannelParameter(
+          fifoDepth = 32,
+          source = Dma.SDParameter(
+            streamLengthWidth = 12,
+            burstWidth = 4,
+            memory = true,
+            stream = true
+          ),
+          destination = Dma.SDParameter(
+            streamLengthWidth = 12,
+            burstWidth = 4,
+            memory = true,
+            stream = true
+          )
+        )
+      )
+    )
+  )
+
+
+  val adc = system.addAdc()
+  dma.addInputChannel(adc.channel)
+
+  val dac = system.addDac()
+  dma.addOutputChannel(dac.channel)
 }
+
+
+//  system add new Generator{
+//    dependencies += system.cpu
+
+//    add task{
+//      system.cpu.timerInterrupt := RegNext(!  system.cpu.timerInterrupt)
+//    }
+//  }
 
 
 object SaxonDocDefault{
@@ -702,11 +762,15 @@ object CustomSocSim{
             }
           }
 
-          gpioA.logic.gpio.read #= (gpioA.logic.gpio.write.toLong & gpioA.logic.gpio.writeEnable.toLong) | (switchValue())
-          ledsValue = gpioA.logic.gpio.write.toLong
+          gpioA.io.gpio.read #= (gpioA.io.gpio.write.toLong & gpioA.io.gpio.writeEnable.toLong) | (switchValue())
+          ledsValue = gpioA.io.gpio.write.toLong
           ledsFrame.repaint()
         }
       }
     }
   }
 }
+
+
+//Large memory mapping changes ? => task disable
+//1 + 1 => 42 (dma + peripherals channels), mutual negotiation
