@@ -175,8 +175,8 @@ class VexRiscvPlugin(val config : Handle[VexRiscvConfig] = Unset,
                      val withJtag : Handle[Boolean] = Unset,
                      val debugClockDomain : Handle[ClockDomain] = Unset,
                      val debugAskReset : Handle[() => Unit] = Unset) extends Generator{
-  val iBus, dBus = Handle[PipelinedMemoryBus]
-  val externalInterrupt, timerInterrupt = Handle[Bool]
+  val iBus, dBus = Handle(PipelinedMemoryBus(32, 32))
+  val externalInterrupt, timerInterrupt = Handle(Bool)
 
   dependencies ++= List(config)
   dependencies += Dependable(withJtag){
@@ -192,15 +192,12 @@ class VexRiscvPlugin(val config : Handle[VexRiscvConfig] = Unset,
     }
 
     val cpu = new VexRiscv(config)
-    iBus.load(PipelinedMemoryBus(32, 32))
-    dBus.load(PipelinedMemoryBus(32, 32))
-
     for (plugin <- cpu.plugins) plugin match {
       case plugin : IBusCachedPlugin => iBus << plugin.iBus.toPipelinedMemoryBus()
       case plugin : DBusSimplePlugin => dBus << plugin.dBus.toPipelinedMemoryBus()
       case plugin : CsrPlugin => {
-        externalInterrupt.load(plugin.externalInterrupt)
-        timerInterrupt.load(plugin.timerInterrupt)
+        externalInterrupt <> (plugin.externalInterrupt)
+        timerInterrupt <> (plugin.timerInterrupt)
       }
       case plugin : DebugPlugin         => plugin.debugClockDomain{
         when(RegNext(plugin.io.resetOut)) { debugAskReset.get() }
@@ -415,6 +412,7 @@ class SaxonSocBase extends Generator{
   }
 
 
+
   def addGpio(apbOffset : Int, p : Gpio.Parameter) = this add new Generator{
     apbDecoder.dependencies += this
 
@@ -516,30 +514,30 @@ class SaxonSocBase extends Generator{
       }
     }
 
-    def addInputChannel[T <: Data](stream : Handle[Stream[T]]): Unit ={
+    def addInputStream[T <: Data](stream : Handle[Stream[T]]): Unit ={
       inputStreams += stream.asInstanceOf[Handle[Stream[_ <: Data]]]
       dependencies += stream
     }
-    def addOutputChannel[T <: Data](stream : Handle[Stream[T]]): Unit ={
+    def addOutputStream[T <: Data](stream : Handle[Stream[T]]): Unit ={
       outputStreams += stream.asInstanceOf[Handle[Stream[_ <: Data]]]
       dependencies += stream
     }
   }
 
   def addDac() = this add new Generator {
-    val channel = Handle[Stream[UInt]]
+    val stream = Handle[Stream[UInt]]
     val logic = add task new Area{
-      channel.load(Stream(UInt(8 bits)))
-      channel.ready := False
+      stream.load(Stream(UInt(8 bits)))
+      stream.ready := False
     }
   }
 
   def addAdc() = this add new Generator {
-    val channel = Handle[Stream[UInt]]
+    val stream = Handle[Stream[UInt]]
     val logic = add task new Area{
-      channel.load(Stream(UInt(8 bits)))
-      channel.valid := False
-      channel.payload := 0
+      stream.load(Stream(UInt(8 bits)))
+      stream.valid := False
+      stream.payload := 0
     }
   }
 
@@ -604,6 +602,7 @@ class SaxonDocDefault extends Generator{
     )
   )
 
+
   val uartA = system.addUart(
     apbOffset = 0x10000,
     UartCtrlMemoryMappedConfig(
@@ -661,10 +660,10 @@ class SaxonDocDefault extends Generator{
 
 
   val adc = system.addAdc()
-  dma.addInputChannel(adc.channel)
+  dma.addInputStream(adc.stream)
 
   val dac = system.addDac()
-  dma.addOutputChannel(dac.channel)
+  dma.addOutputStream(dac.stream)
 }
 
 

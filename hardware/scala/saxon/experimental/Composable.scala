@@ -29,9 +29,9 @@ trait Dependable{
 }
 
 object Handle{
-  def apply[T](value : T) : Handle[T] = {
+  def apply[T](value : =>  T) : Handle[T] = {
     val h = Handle[T]
-    h.load(value)
+    h.lazyDefaultGen = () => value
     h
   }
   def apply[T]() = new Handle[T]
@@ -40,47 +40,74 @@ object Handle{
   implicit def initImplicit[T](value : Unset) : Handle[T] = Handle[T]
 }
 
-class HandleCore[T]{
-  var loaded = false
-  var value = null.asInstanceOf[T]
+trait HandleCoreSubscriber[T]{
+  def changeCore(core : HandleCore[T]) : Unit
+  def lazyDefault (): T
+  def lazyDefaultAvailable : Boolean
+}
 
-  def set(value : T): T = {
+class HandleCore[T]{
+  private var loaded = false
+  private var value = null.asInstanceOf[T]
+
+  val subscribers = mutable.HashSet[HandleCoreSubscriber[T]]()
+
+  def get : T = {
+    if(!loaded){
+      subscribers.count(_.lazyDefaultAvailable) match {
+        case 0 =>
+        case 1 => load(subscribers.find(_.lazyDefaultAvailable).get.lazyDefault())
+        case _ => SpinalError("Multiple handle default values")
+      }
+    }
+    value
+  }
+  def load(value : T): T = {
     this.value = value
     loaded = true
     value
   }
-}
 
-class Handle[T] extends Nameable with Dependable{
-  private var core = new HandleCore[T]
-  def merge(that : Handle[T]): Unit ={
-    (this.core.loaded, that.core.loaded) match {
-      case (false, _) => this.core = that.core
-      case (true, false) => that.core = this.core
+  def merge(that : HandleCore[T]): Unit ={
+    (this.loaded, that.loaded) match {
+      case (false, _) => this.subscribers.foreach(_.changeCore(that))
+      case (true, false) => that.subscribers.foreach(_.changeCore(this))
     }
   }
 
-  def apply : T = get
-  def get: T = {
-    core.value
-  }
-  def load(value : T): T = core.set(value)
+  def isLoaded = loaded || subscribers.exists(_.lazyDefaultAvailable)
+}
 
-  def init = {}
-  def isLoaded = core.loaded
+class Handle[T] extends Nameable with Dependable with HandleCoreSubscriber[T]{
+  private var core = new HandleCore[T]
+  core.subscribers += this
+
+  override def changeCore(core: HandleCore[T]): Unit = this.core = core
+
+  def merge(that : Handle[T]): Unit = this.core.merge(that.core)
+
+  def apply : T = get
+  def get: T = core.get
+  def load(value : T): T = core.load(value)
+
+  def isLoaded = core.isLoaded
 
   override def isDone: Boolean = isLoaded
+
+  var lazyDefaultGen : () => T = null
+  override def lazyDefault() : T = lazyDefaultGen()
+  override def lazyDefaultAvailable: Boolean = lazyDefaultGen != null
 }
 
-object HandleInit{
-  def apply[T](init : => T)  = new HandleInit[T](init)
-}
-
-class HandleInit[T](initValue : => T) extends Handle[T]{
-  override def init : Unit = {
-    load(initValue)
-  }
-}
+//object HandleInit{
+//  def apply[T](init : => T)  = new HandleInit[T](init)
+//}
+//
+//class HandleInit[T](initValue : => T) extends Handle[T]{
+//  override def init : Unit = {
+//    load(initValue)
+//  }
+//}
 
 object Task{
   implicit def generatorToValue[T](generator : Task[T]) : T = generator.value
@@ -191,10 +218,10 @@ class Composable {
       val splitName = classNameOf(p).splitAt(1)
       if(p.isUnnamed) p.setWeakName(splitName._1.toLowerCase + splitName._2)
     }
-    generatorsAll.flatMap(_.dependencies).distinct.foreach{
-      case h : Handle[_] => h.init
-      case _ =>
-    }
+//    generatorsAll.flatMap(_.dependencies).distinct.foreach{
+//      case h : Handle[_] => h.init
+//      case _ =>
+//    }
     var step = 0
     while(generatorsAll.exists(!_.elaborated)){
       println(s"Step $step")

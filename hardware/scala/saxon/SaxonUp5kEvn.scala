@@ -105,14 +105,14 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
     bb.OUTPUT_ENABLE <> design.writeEnable
   }
 
-  ioSbComb(io.IOT_37A, gpioA.logic.gpio(0))
-  ioSbComb(io.IOT_36B, gpioA.logic.gpio(1))
-  ioSbComb(io.IOT_44B, gpioA.logic.gpio(2))
-  ioSbComb(io.IOT_49A, gpioA.logic.gpio(3))
-  ioSbComb(io.IOB_22A, gpioA.logic.gpio(4))
-  ioSbComb(io.IOB_23B, gpioA.logic.gpio(5))
-  ioSbComb(io.IOB_24A, gpioA.logic.gpio(6))
-  ioSbComb(io.IOB_25B, gpioA.logic.gpio(7))
+  ioSbComb(io.IOT_37A, gpioA.io.gpio(0))
+  ioSbComb(io.IOT_36B, gpioA.io.gpio(1))
+  ioSbComb(io.IOT_44B, gpioA.io.gpio(2))
+  ioSbComb(io.IOT_49A, gpioA.io.gpio(3))
+  ioSbComb(io.IOB_22A, gpioA.io.gpio(4))
+  ioSbComb(io.IOB_23B, gpioA.io.gpio(5))
+  ioSbComb(io.IOB_24A, gpioA.io.gpio(6))
+  ioSbComb(io.IOB_25B, gpioA.io.gpio(7))
 //  soc.io.gpioA.read := io.IOT_49A ## io.IOT_44B ## io.IOT_36B ## io.IOT_37A ## B"0000"
 
   if(p.withJtag) {
