@@ -128,9 +128,9 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
   val ledDriver = SB_RGBA_DRV()
   ledDriver.CURREN   := True
   ledDriver.RGBLEDEN := True
-  ledDriver.RGB0PWM  := gpioA.logic.gpio.write(0)
-  ledDriver.RGB1PWM  := gpioA.logic.gpio.write(1)
-  ledDriver.RGB2PWM  := gpioA.logic.gpio.write(2)
+  ledDriver.RGB0PWM  := gpioA.io.gpio.write(0)
+  ledDriver.RGB1PWM  := gpioA.io.gpio.write(1)
+  ledDriver.RGB2PWM  := gpioA.io.gpio.write(2)
 
   ledDriver.RGB0 <> io.LED_BLUE
   ledDriver.RGB1 <> io.LED_GREEN
@@ -141,32 +141,32 @@ case class SaxonUp5kEvn(p : SaxonSocParameters) extends Component{
     io.ICE_SCK,
     io.ICE_MOSI,
     io.ICE_MISO).flatMap(_.flatten).filter(_.isOutput).foreach(_.assignDontCare())
-//  val xipIo = new ClockingArea(xip.implicitCd) {
-//    RegNext(xip.logic.flash.ss.asBool) <> io.ICE_SS
-//
-//    val sclkIo = SB_IO_SCLK()
-//    sclkIo.PACKAGE_PIN <> io.ICE_SCK
-//    sclkIo.CLOCK_ENABLE := True
-//
-//    sclkIo.OUTPUT_CLK := ClockDomain.current.readClockWire
-//    sclkIo.D_OUT_0 <> xip.logic.flash.sclk.write(0)
-//    sclkIo.D_OUT_1 <> RegNext(xip.logic.flash.sclk.write(1))
-//
-//    val datas = for ((data, pin) <- (xip.logic.flash.data, List(io.ICE_MOSI, io.ICE_MISO).reverse).zipped) yield new Area {
-//      val dataIo = SB_IO_DATA()
-//      dataIo.PACKAGE_PIN := pin
-//      dataIo.CLOCK_ENABLE := True
-//
-//      dataIo.OUTPUT_CLK := ClockDomain.current.readClockWire
-//      dataIo.OUTPUT_ENABLE <> data.writeEnable
-//      dataIo.D_OUT_0 <> data.write(0)
-//      dataIo.D_OUT_1 <> RegNext(data.write(1))
-//
-//      dataIo.INPUT_CLK := ClockDomain.current.readClockWire
-//      data.read(0) := dataIo.D_IN_0
-//      data.read(1) := RegNext(dataIo.D_IN_1)
-//    }
-//  }
+  val xipIo = new ClockingArea(xip.implicitCd) {
+    RegNext(xip.logic.flash.ss.asBool) <> io.ICE_SS
+
+    val sclkIo = SB_IO_SCLK()
+    sclkIo.PACKAGE_PIN <> io.ICE_SCK
+    sclkIo.CLOCK_ENABLE := True
+
+    sclkIo.OUTPUT_CLK := ClockDomain.current.readClockWire
+    sclkIo.D_OUT_0 <> xip.logic.flash.sclk.write(0)
+    sclkIo.D_OUT_1 <> RegNext(xip.logic.flash.sclk.write(1))
+
+    val datas = for ((data, pin) <- (xip.logic.flash.data, List(io.ICE_MOSI, io.ICE_MISO).reverse).zipped) yield new Area {
+      val dataIo = SB_IO_DATA()
+      dataIo.PACKAGE_PIN := pin
+      dataIo.CLOCK_ENABLE := True
+
+      dataIo.OUTPUT_CLK := ClockDomain.current.readClockWire
+      dataIo.OUTPUT_ENABLE <> data.writeEnable
+      dataIo.D_OUT_0 <> data.write(0)
+      dataIo.D_OUT_1 <> RegNext(data.write(1))
+
+      dataIo.INPUT_CLK := ClockDomain.current.readClockWire
+      data.read(0) := dataIo.D_IN_0
+      data.read(1) := RegNext(dataIo.D_IN_1)
+    }
+  }
 }
 
 

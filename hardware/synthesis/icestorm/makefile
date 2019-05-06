@@ -60,8 +60,6 @@ time: ${TOPLEVEL}.rpt
 prog: $(TOPLEVEL).bin
 	iceprog $<
 
-
-
 sudo-prog: $(TOPLEVEL).bin
 	@echo 'Executing prog as root!!!'
 	sudo iceprog $<

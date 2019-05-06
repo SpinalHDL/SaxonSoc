@@ -228,20 +228,20 @@ class Composable {
       var progressed = false
       val locks = generatorsAll.filter(!_.elaborated).flatMap(_.locks).toSet
       val produced = generatorsAll.flatMap(_.dependencies).filter(_.isDone) -- locks
-      for(p <- generatorsAll if !p.elaborated && p.dependencies.forall(d => produced.contains(d)) && !locks.contains(p)){
-        println(s"Build " + p.getName)
-        if(p.implicitCd != null) p.implicitCd.push()
-        for(generator <- p.tasks){
-          generator.build()
-          generator.value match {
+      for(generator <- generatorsAll if !generator.elaborated && generator.dependencies.forall(d => produced.contains(d)) && !locks.contains(generator)){
+        println(s"Build " + generator.getName)
+        if(generator.implicitCd != null) generator.implicitCd.push()
+        for(task <- generator.tasks){
+          task.build()
+          task.value match {
             case n : Nameable => {
-              n.setCompositeName(p, true)
+              n.setCompositeName(generator, true)
             }
             case _ =>
           }
         }
-        if(p.implicitCd != null) p.implicitCd.pop()
-        p.elaborated = true
+        if(generator.implicitCd != null) generator.implicitCd.pop()
+        generator.elaborated = true
         progressed = true
       }
 //      val p = generatorsAll.find(p => !p.elaborated && p.dependencies.forall(d => produced.contains(d)) && !locks.contains(p))

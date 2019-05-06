@@ -253,7 +253,6 @@ object CpuConfig{
           memDataWidth = 32,
           catchIllegalAccess = false,
           catchAccessFault = false,
-          catchMemoryTranslationMiss = false,
           asyncTagMemory = false,
           twoCycleRam = false,
           twoCycleCache = false
