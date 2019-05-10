@@ -47,7 +47,7 @@ class KeyBPlugin extends Generator {
 
 class ComposablePlay(plugins : Seq[Generator]) extends Component{
   val c = new Composable()
-  c.generators ++= plugins
+  c.rootGenerators ++= plugins
   c.build()
 }
 

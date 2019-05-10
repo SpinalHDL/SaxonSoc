@@ -16,10 +16,12 @@ object Unset extends  Unset{
 
 object Dependable{
   def apply(d : Dependable*)(body : => Unit) = {
-    val p = new Generator()
-    p.dependencies ++= d
-    p.add task(body)
-    p
+    Generator.stack.head.add {
+      val p = new Generator()
+      p.dependencies ++= d
+      p.add task (body)
+      p
+    }
   }
 }
 
@@ -203,29 +205,28 @@ class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends N
 //}
 class Composable {
 //  Composable.stack.push(this)
-  val generators = ArrayBuffer[Generator]()
+  val rootGenerators = ArrayBuffer[Generator]()
   val database = mutable.LinkedHashMap[Any, Any]()
-  def add(that : Generator) = generators += that
+  def add(that : Generator) = rootGenerators += that
   def build(): Unit = {
     implicit val c = this
     println(s"Build start")
-    val generatorsAll = ArrayBuffer[Generator]()
-    def addPlugin(generator: Generator, clockDomain : Handle[ClockDomain]): Unit = {
-      if(generator.implicitCd == null && clockDomain != null) generator.on(clockDomain)
-      generatorsAll += generator
-      for(child <- generator.generators) addPlugin(child, generator.implicitCd)
+    val generatorsAll = mutable.LinkedHashSet[Generator]()
+    def scanGenerators(generator : Generator, clockDomain : Handle[ClockDomain]): Unit ={
+      if(!generatorsAll.contains(generator)){
+        if(generator.implicitCd == null && clockDomain != null) generator.on(clockDomain)
+        generatorsAll += generator
+        generator.reflectNames()
+        generator.c = this
+        val splitName = classNameOf(generator).splitAt(1)
+        if(generator.isUnnamed) generator.setWeakName(splitName._1.toLowerCase + splitName._2)
+      }
+      for(child <- generator.generators) scanGenerators(child, generator.implicitCd)
     }
-    for(generator <- generators) addPlugin(generator, null)
-    for(p <- generatorsAll) {
-      p.reflectNames()
-      p.c = this
-      val splitName = classNameOf(p).splitAt(1)
-      if(p.isUnnamed) p.setWeakName(splitName._1.toLowerCase + splitName._2)
-    }
-//    generatorsAll.flatMap(_.dependencies).distinct.foreach{
-//      case h : Handle[_] => h.init
-//      case _ =>
-//    }
+
+    def scanRoot() = for(generator <- rootGenerators) scanGenerators(generator, null)
+    scanRoot()
+
     var step = 0
     while(generatorsAll.exists(!_.elaborated)){
       println(s"Step $step")
@@ -235,43 +236,27 @@ class Composable {
       for(generator <- generatorsAll if !generator.elaborated && generator.dependencies.forall(d => produced.contains(d)) && !locks.contains(generator)){
         println(s"Build " + generator.getName)
         if(generator.implicitCd != null) generator.implicitCd.push()
-        for(task <- generator.tasks){
-          task.build()
-          task.value match {
-            case n : Nameable => {
-              n.setCompositeName(generator, true)
+
+        generator.apply {
+          for (task <- generator.tasks) {
+            task.build()
+            task.value match {
+              case n: Nameable => {
+                n.setCompositeName(generator, true)
+              }
+              case _ =>
             }
-            case _ =>
           }
         }
         if(generator.implicitCd != null) generator.implicitCd.pop()
         generator.elaborated = true
         progressed = true
       }
-//      val p = generatorsAll.find(p => !p.elaborated && p.dependencies.forall(d => produced.contains(d)) && !locks.contains(p))
-//      p match {
-//        case Some(p) => {
-//          println(s"Build " + p.getName)
-//          if (p.implicitCd != null) p.implicitCd.push()
-//          for (generator <- p.generators) {
-//            generator.build()
-//            generator.value match {
-//              case n: Nameable => {
-//                n.setCompositeName(p, true)
-//              }
-//              case _ =>
-//            }
-//          }
-//          if (p.implicitCd != null) p.implicitCd.pop()
-//          p.elaborated = true
-//          progressed = true
-//        }
-//        case _ =>
-//      }
       if(!progressed){
         SpinalError(s"Composable hang, remaings are :\n${generatorsAll.filter(!_.elaborated).map(p => s"- ${p} depend on ${p.dependencies.filter(d => !produced.contains(d)).mkString(", ")}").mkString("\n")}")
       }
       step += 1
+      scanRoot()
     }
 //    Composable.stack.pop()
   }
