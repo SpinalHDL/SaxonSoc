@@ -1,17 +1,18 @@
 package saxon.experimental
 
-import saxon.{PluginComponent, SaxonDocDefault, SpinalRtlConfig}
-import spinal.core.{Area, log2Up}
+import saxon.{SpinalRtlConfig}
+import spinal.core.{Area, dontName, log2Up}
 import spinal.lib.bus.bmb._
 import spinal.lib.bus.misc._
 import spinal.lib._
 
+import scala.annotation.meta.field
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class BmbInterconnectGenerator extends Generator{
-  case class MasterModel(requirements : Handle[BmbParameter],
-                         bus : Handle[Bmb]) extends Generator{
+case class BmbInterconnectGenerator() extends Generator{
+  case class MasterModel(@dontName bus : Handle[Bmb]) extends Generator{
+    var requirements = Handle[BmbParameter]
     var connector : (Bmb,Bmb) => Unit = defaultConnector
 
     dependencies += bus
@@ -27,10 +28,10 @@ class BmbInterconnectGenerator extends Generator{
     }
   }
 
-  case class SlaveModel(capabilities : Handle[BmbParameter],
-                        requirements : Handle[BmbParameter],
-                        bus : Handle[Bmb],
-                        mapping: Handle[AddressMapping]) extends Generator{
+  case class SlaveModel(@dontName bus : Handle[Bmb]) extends Generator{
+    val capabilities = Handle[BmbParameter]
+    val requirements = Handle[BmbParameter]
+    val mapping = Handle[AddressMapping]
     var connector: (Bmb, Bmb) => Unit = defaultConnector
 
     dependencies ++= List(bus, mapping)
@@ -65,9 +66,10 @@ class BmbInterconnectGenerator extends Generator{
     }
   }
 
-  case class ConnectionModel(m : Handle[Bmb], s : Handle[Bmb]) extends Generator{
+  class ConnectionModel(@dontName val m : Handle[Bmb],@dontName val s : Handle[Bmb]) extends Generator{
     var connector : (Bmb,Bmb) => Unit = defaultConnector
-    val decoder, arbiter = Handle[Bmb]()
+    @dontName val decoder, arbiter = Handle[Bmb]()
+
     dependencies ++= List(decoder, arbiter)
     val logic = add task new Area{
       connector(decoder, arbiter)
@@ -76,9 +78,12 @@ class BmbInterconnectGenerator extends Generator{
 
   def defaultConnector(m : Bmb, s : Bmb) : Unit = s << m
 
-  val masters = mutable.LinkedHashMap[Handle[Bmb], MasterModel]()
-  val slaves = mutable.LinkedHashMap[Handle[Bmb], SlaveModel]()
-  val connections = ArrayBuffer[ConnectionModel]()
+  @dontName val masters = mutable.LinkedHashMap[Handle[Bmb], MasterModel]()
+  @dontName val slaves = mutable.LinkedHashMap[Handle[Bmb], SlaveModel]()
+  @dontName val connections = ArrayBuffer[ConnectionModel]()
+
+  def getMaster(key : Handle[Bmb]) = masters.getOrElseUpdate(key, new MasterModel(key))
+  def getSlave(key : Handle[Bmb]) = slaves.getOrElseUpdate(key, new SlaveModel(key))
 
   def setConnector(bus : Handle[Bmb])( connector : (Bmb,Bmb) => Unit): Unit = (masters.get(bus), slaves.get(bus)) match {
     case (Some(m), _) =>    m.connector = connector
@@ -95,34 +100,31 @@ class BmbInterconnectGenerator extends Generator{
                requirements : Handle[BmbParameter],
                bus : Handle[Bmb],
                mapping: Handle[AddressMapping]) : Unit = {
-    slaves(bus) = SlaveModel(capabilities, requirements, bus, mapping)
+    val model = getSlave(bus)
+    model.capabilities.merge(capabilities)
+    model.requirements.merge(requirements)
+    model.mapping.merge(mapping)
   }
 
-//  def addSlaves(orders : (Bmb,AddressMapping)*) : this.type = {
-//    orders.foreach(order => addSlave(order._1,order._2))
-//    this
-//  }
 
-    def addMaster(requirements : Handle[BmbParameter], bus : Handle[Bmb]) : Unit = {
-      val model = new MasterModel(requirements, bus)
-      masters(bus) = model
-    }
+  def addMaster(requirements : Handle[BmbParameter], bus : Handle[Bmb]) : Unit = {
+    val model = getMaster(bus)
+    model.requirements = requirements
+  }
 
-//  def addMaster(bus : Handle[Bmb], accesses : Seq[Bmb] = Nil) : this.type = {
-//    masters(bus) = MasterModel()
-//    for(s <- accesses) connections += ConnectionModel(bus, s)
-//    this
-//  }
-//
-//  def addMasters(specs : (Bmb,Seq[Bmb])*) : this.type = {
-//    specs.foreach(spec => addMaster(spec._1,spec._2))
-//    this
-//  }
-//
   def addConnection(m : Handle[Bmb], s : Handle[Bmb]) : this.type = {
-    connections += ConnectionModel(m, s)
-    masters(m).dependencies += slaves(s).mapping
-    slaves(s).requirementsGenerator.dependencies += masters(m).requirements
+    connections += new ConnectionModel(m, s)
+    getMaster(m).dependencies += getSlave(s).mapping
+    getSlave(s).requirementsGenerator.dependencies += getMaster(m).requirements
+    this
+  }
+
+  def addConnection(m : Handle[Bmb], s : Seq[Handle[Bmb]]) : this.type = {
+    for(e <- s) addConnection(m, e)
+    this
+  }
+  def addConnection(l : (Handle[Bmb], Seq[Handle[Bmb]])*) : this.type = {
+    for((m, s) <- l) addConnection(m, s)
     this
   }
 }
@@ -201,8 +203,8 @@ class BmpTopLevel extends Generator{
   interconnect.addConnection(cpu1.bus, ram1.bus)
 }
 
-object BmpTopLevel{
-  def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(new PluginComponent(new BmpTopLevel))
-  }
-}
+//object BmpTopLevel{
+//  def main(args: Array[String]): Unit = {
+//    SpinalRtlConfig.generateVerilog(new PluginComponent(new BmpTopLevel))
+//  }
+//}

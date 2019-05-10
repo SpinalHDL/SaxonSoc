@@ -72,6 +72,7 @@ class HandleCore[T]{
     (this.loaded, that.loaded) match {
       case (false, _) => this.subscribers.foreach(_.changeCore(that))
       case (true, false) => that.subscribers.foreach(_.changeCore(this))
+      case _ => ???
     }
   }
 
@@ -82,7 +83,10 @@ class Handle[T] extends Nameable with Dependable with HandleCoreSubscriber[T]{
   private var core = new HandleCore[T]
   core.subscribers += this
 
-  override def changeCore(core: HandleCore[T]): Unit = this.core = core
+  override def changeCore(core: HandleCore[T]): Unit = {
+    this.core = core
+    core.subscribers += this
+  }
 
   def merge(that : Handle[T]): Unit = this.core.merge(that.core)
 
