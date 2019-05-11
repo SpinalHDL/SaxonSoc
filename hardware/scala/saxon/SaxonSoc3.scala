@@ -549,7 +549,6 @@ class SaxonSoc extends Generator{
       )
     )
     plic.dependencies += Dependable(gpioA){
-      println("ASD")
       plic.addInterrupt(gpioA.logic.ctrl.io.interrupt(0), 4)
       plic.addInterrupt(gpioA.logic.ctrl.io.interrupt(1), 5)
     }
