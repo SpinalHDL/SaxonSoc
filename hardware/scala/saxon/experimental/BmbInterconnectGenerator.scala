@@ -106,6 +106,18 @@ case class BmbInterconnectGenerator() extends Generator{
     model.mapping.merge(mapping)
   }
 
+  def addSlave(capabilities : Handle[BmbParameter],
+               requirements : Handle[BmbParameter],
+               bus : Handle[Bmb],
+               address: BigInt) : Unit = {
+    val model = getSlave(bus)
+    model.capabilities.merge(capabilities)
+    model.requirements.merge(requirements)
+    Dependable(capabilities){
+      model.mapping.load(SizeMapping(address, BigInt(1) << capabilities.addressWidth))
+    }
+  }
+
 
   def addMaster(requirements : Handle[BmbParameter], bus : Handle[Bmb]) : Unit = {
     val model = getMaster(bus)

@@ -84,7 +84,7 @@ case class ExternalClockDomain(clkFrequency : Handle[HertzNumber] = Unset,
 
 
 
-class PluginComponent[T <: Generator](val generator : T) extends Component{
+class GeneratorComponent[T <: Generator](val generator : T) extends Component{
   val c = new Composable()
   c.rootGenerators += generator
   c.build()
@@ -591,7 +591,7 @@ class SaxonSoc extends Generator{
 
 object SaxonSocDefault{
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(new PluginComponent(new SaxonSoc))
+    SpinalRtlConfig.generateVerilog(new GeneratorComponent(new SaxonSoc))
   }
 }
 
