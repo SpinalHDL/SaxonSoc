@@ -16,6 +16,8 @@ import scala.util.Random
 import saxon.wrap
 import spinal.lib.bus.misc.SizeMapping
 
+//TODO out of order read completion
+
 class BmbMemorySim(val memorySize : Long) {
   val memory = new Array[Byte](memorySize.toInt)
   Random.nextBytes(memory)
@@ -29,11 +31,11 @@ class BmbMemorySim(val memorySize : Long) {
 
     StreamReadyRandomizer(bus.cmd, clockDomain)
 
-    val rspTask = mutable.Queue[() => Unit]()
-    def addRsp(body : => Unit) = rspTask += (() => body)
+    val rspQueue = mutable.Queue[() => Unit]()
+    def addRsp(body : => Unit) = rspQueue += (() => body)
     StreamDriver(bus.rsp, clockDomain){ _ =>
-      if(rspTask.nonEmpty){
-        rspTask.dequeue()()
+      if(rspQueue.nonEmpty){
+        rspQueue.dequeue()()
         true
       } else {
         false
@@ -49,7 +51,7 @@ class BmbMemorySim(val memorySize : Long) {
         opcode match {
           case Bmb.Cmd.Opcode.READ => {
             val length = bus.cmd.length.toLong
-            val address = bus.cmd.address.toLong
+            val address = bus.cmd.address.toLong + busAddress
             val startByte = (address & (bus.p.byteCount - 1))
             val endByte = startByte + length + 1
             val rspBeatCount = ((endByte + bus.p.byteCount - 1) / bus.p.byteCount).toInt
@@ -72,7 +74,7 @@ class BmbMemorySim(val memorySize : Long) {
           }
           case Bmb.Cmd.Opcode.WRITE => {
             val mask = bus.cmd.mask.toInt
-            val address = bus.cmd.address.toLong
+            val address = bus.cmd.address.toLong + busAddress
             val data = bus.cmd.data.toBigInt
             val beatAddress = (address & ~(bus.p.byteCount - 1)) + cmdBeat * bus.p.byteCount
             for (byteId <- 0 until bus.p.byteCount) if ((mask & (1 << byteId)) != 0) {
@@ -105,8 +107,9 @@ abstract class BmbMasterAgent(bus : Bmb, clockDomain: ClockDomain){
 
   StreamReadyRandomizer(bus.rsp, clockDomain)
 
-  def allocateRegion(sizeMax : Int) : SizeMapping
-  def freeRegion(region : SizeMapping) : Unit
+  def regionAllocate(sizeMax : Int) : SizeMapping
+  def regionFree(region : SizeMapping) : Unit
+  def regionIsMapped(region : SizeMapping) : Boolean
 
   def onRspRead(address : BigInt, data : Seq[Byte]) : Unit = {}
   def onCmdWrite(address : BigInt, data : Byte) : Unit = {}
@@ -114,7 +117,7 @@ abstract class BmbMasterAgent(bus : Bmb, clockDomain: ClockDomain){
   def getCmd(): () => Unit ={
     //Generate a new CMD if none is pending
     if(cmdQueue.isEmpty) {
-      val region = allocateRegion(1 << bus.p.lengthWidth)
+      val region = regionAllocate(1 << bus.p.lengthWidth)
       val length = region.size.toInt-1
       val context = bus.cmd.context.randomizedInt
       val source = bus.cmd.source.randomizedInt
@@ -123,6 +126,7 @@ abstract class BmbMasterAgent(bus : Bmb, clockDomain: ClockDomain){
       val startAddress = address
       val endAddress = address + length + 1
       val beatCount = ((((endAddress + bus.p.wordMask) & ~bus.p.wordMask) - (startAddress & ~bus.p.wordMask)) / bus.p.byteCount).toInt
+      val mapped = regionIsMapped(region)
 
       if(!write) {
         //READ CMD
@@ -140,7 +144,7 @@ abstract class BmbMasterAgent(bus : Bmb, clockDomain: ClockDomain){
         for(beat <- 0 until beatCount) rspQueue(source).enqueue{ () =>
           val beatAddress = (startAddress & ~(bus.p.byteCount-1)) + beat*bus.p.byteCount
           assert(bus.rsp.context.toInt == context)
-          assert(bus.rsp.opcode.toInt == Bmb.Rsp.Opcode.SUCCESS)
+          assert(bus.rsp.opcode.toInt == (if(mapped) Bmb.Rsp.Opcode.SUCCESS else Bmb.Rsp.Opcode.ERROR))
           val data = bus.rsp.data.toBigInt
           for(byteId <- 0 until bus.p.byteCount; byteAddress = beatAddress + byteId) if(byteAddress >= startAddress && byteAddress < endAddress){
             rspReadData((byteAddress-startAddress).toInt) = (data >> byteId*8).toByte
@@ -148,8 +152,8 @@ abstract class BmbMasterAgent(bus : Bmb, clockDomain: ClockDomain){
 
           if(beat == beatCount-1){
             assert(bus.rsp.last.toBoolean)
-            onRspRead(address, rspReadData)
-            freeRegion(region)
+            if(mapped) onRspRead(address, rspReadData)
+            regionFree(region)
           } else {
             assert(!bus.rsp.last.toBoolean)
           }
@@ -170,7 +174,7 @@ abstract class BmbMasterAgent(bus : Bmb, clockDomain: ClockDomain){
           for(byteId <- 0 until bus.p.byteCount; byteAddress = beatAddress + byteId) if(byteAddress >= startAddress && byteAddress < endAddress){
             if(Random.nextBoolean()) {
               mask |= 1 << byteId
-              onCmdWrite(byteAddress, (data >> byteId*8).toByte)
+              if(mapped) onCmdWrite(byteAddress, (data >> byteId*8).toByte)
             }
 
           }
@@ -180,7 +184,7 @@ abstract class BmbMasterAgent(bus : Bmb, clockDomain: ClockDomain){
         //WRITE RSP
         rspQueue(source).enqueue { () =>
           assert(bus.rsp.context.toInt == context)
-          assert(bus.rsp.opcode.toInt == Bmb.Rsp.Opcode.SUCCESS)
+          assert(bus.rsp.opcode.toInt == (if(mapped) Bmb.Rsp.Opcode.SUCCESS else Bmb.Rsp.Opcode.ERROR))
         }
       }
 
@@ -197,11 +201,9 @@ abstract class BmbMasterAgent(bus : Bmb, clockDomain: ClockDomain){
   val rspMonitor = StreamMonitor(bus.rsp, clockDomain){_ =>
     rspQueue(bus.rsp.source.toInt).dequeue()()
   }
-
-
 }
 
-
+//TODO handle generation when a master has no slave
 class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
 
   test("test1"){
@@ -239,23 +241,84 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = 4,
         canRead = true,
         canWrite = true,
-        allowUnalignedBurst = true,
+        allowUnalignedWordBurst = true,
+        allowUnalignedByteBurst = true,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
-      val sA = addSlave(0x00000000, BmbParameter(
+      val mB = addMaster(BmbParameter(
         addressWidth = 20,
+        dataWidth = 32,
+        lengthWidth = 8,
+        sourceWidth = 4,
+        contextWidth = 4,
+        canRead = true,
+        canWrite = true,
+        allowUnalignedWordBurst = true,
+        allowUnalignedByteBurst = false,
+        maximumPendingTransactionPerId = Int.MaxValue
+      ))
+
+      val mC = addMaster(BmbParameter(
+        addressWidth = 20,
+        dataWidth = 32,
+        lengthWidth = 6,
+        sourceWidth = 0,
+        contextWidth = 5,
+        canRead = true,
+        canWrite = true,
+        allowUnalignedWordBurst = false,
+        allowUnalignedByteBurst = false,
+        maximumPendingTransactionPerId = Int.MaxValue
+      ))
+
+
+      val mD = addMaster(BmbParameter(
+        addressWidth = 20,
+        dataWidth = 32,
+        lengthWidth = 2,
+        sourceWidth = 4,
+        contextWidth = 3,
+        canRead = true,
+        canWrite = true,
+        allowUnalignedWordBurst = false,
+        allowUnalignedByteBurst = false,
+        maximumPendingTransactionPerId = Int.MaxValue
+      ))
+
+      val sA = addSlave(0x00000, BmbParameter(
+        addressWidth = 19, //TODO
         dataWidth = 32,
         lengthWidth = Int.MaxValue,
         sourceWidth = Int.MaxValue,
         contextWidth = Int.MaxValue,
         canRead = true,
         canWrite = true,
-        allowUnalignedBurst = true,
+        allowUnalignedWordBurst = true,
+        allowUnalignedByteBurst = true,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
-      interconnect.addConnection(mA.busHandle, List(sA.busHandle))
+      val sB = addSlave(0x80000, BmbParameter(
+        addressWidth = 18,
+        dataWidth = 32,
+        lengthWidth = Int.MaxValue,
+        sourceWidth = Int.MaxValue,
+        contextWidth = Int.MaxValue,
+        canRead = true,
+        canWrite = true,
+        allowUnalignedWordBurst = true,
+        allowUnalignedByteBurst = true,
+        maximumPendingTransactionPerId = Int.MaxValue
+      ))
+
+
+      def fullAccess(bus : Handle[Bmb]) = interconnect.slaves.keys.foreach(s => interconnect.addConnection(bus, s))
+      fullAccess(mA.busHandle)
+      fullAccess(mB.busHandle)
+      fullAccess(mC.busHandle)
+      fullAccess(mD.busHandle)
+//      interconnect.addConnection(mA.busHandle, List(sA.busHandle))
 //      interconnect.addConnection(mB, List(sA))
     })).doSimUntilVoid("test1", 42){dut => //TODO remove seed
 
@@ -303,10 +366,16 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
               allowedWrites(addressLong) = data
             }
 
-            override def allocateRegion(sizeMax : Int): SizeMapping = {
+            override def regionAllocate(sizeMax : Int): SizeMapping = {
               while(true){
-                val address = Random.nextInt(memorySize)
-                val size = Math.min(Bmb.boundarySize - (address & (Bmb.boundarySize-1)), Random.nextInt(sizeMax))
+                var address = Random.nextInt(memorySize)
+                var size = Math.min(Bmb.boundarySize - (address & (Bmb.boundarySize-1)), Random.nextInt(sizeMax) + 1)
+                if(!bus.get.p.allowUnalignedByteBurst) {
+                  address &= ~bus.get.p.wordMask
+                  if(size > bus.get.p.byteCount){
+                    size = (size + bus.get.p.byteCount - 1) & ~bus.get.p.wordMask
+                  }
+                }
                 val region = SizeMapping(address, size)
                 if(regions.forall(r => r.base > region.end || r.end < region.base)) {
                   regions += region
@@ -316,7 +385,8 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
               return null
             }
 
-            override def freeRegion(region: SizeMapping): Unit = regions.remove(region)
+            override def regionFree(region: SizeMapping): Unit = regions.remove(region)
+            override def regionIsMapped(region: SizeMapping): Boolean = dut.generator.interconnect.slaves.values.exists(model => model.mapping.get.lowerBound <= region.end && model.mapping.get.asInstanceOf[SizeMapping].end >= region.base)
           }
           agent.rspMonitor.addCallback{_ =>
             if(bus.get.rsp.last.toBoolean){

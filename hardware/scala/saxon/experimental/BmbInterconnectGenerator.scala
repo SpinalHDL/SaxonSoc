@@ -10,10 +10,23 @@ import scala.annotation.meta.field
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
+object BmbInterconnectGenerator{
+  class ArbitrationKind
+  val ROUND_ROBIN = new ArbitrationKind
+  val STATIC_PRIORITY = new ArbitrationKind
+}
+
 case class BmbInterconnectGenerator() extends Generator{
+  var defaultArbitration : BmbInterconnectGenerator.ArbitrationKind = BmbInterconnectGenerator.ROUND_ROBIN
+  def setDefaultArbitration(kind : BmbInterconnectGenerator.ArbitrationKind): Unit ={
+    defaultArbitration = kind
+  }
+  def setPriority(m : Handle[Bmb], priority : Int) = getMaster(m).priority = priority
+
   case class MasterModel(@dontName bus : Handle[Bmb]) extends Generator{
     var requirements = Handle[BmbParameter]
     var connector : (Bmb,Bmb) => Unit = defaultConnector
+    var priority = 0
 
     dependencies += bus
     val logic = add task new Area{
@@ -36,9 +49,8 @@ case class BmbInterconnectGenerator() extends Generator{
 
     dependencies ++= List(bus, mapping)
     val logic = add task new Area{
-      val busConnections = connections.filter(_.s == bus)
-      val busMasters = busConnections.map(c => masters(c.m))
-      val arbiter = new BmbArbiter(bus.p, busMasters.size, 3)
+      val busConnections = connections.filter(_.s == bus).sortBy(connection => getMaster(connection.m).priority).reverse
+      val arbiter = new BmbArbiter(bus.p, busConnections.size, 3, lowerFirstPriority = defaultArbitration == BmbInterconnectGenerator.STATIC_PRIORITY)
       arbiter.setCompositeName(bus, "arbiter")
       connector(arbiter.io.output, bus)
       for((connection, arbiterInput) <- (busConnections, arbiter.io.inputs).zipped) {
@@ -119,9 +131,10 @@ case class BmbInterconnectGenerator() extends Generator{
   }
 
 
-  def addMaster(requirements : Handle[BmbParameter], bus : Handle[Bmb]) : Unit = {
+  def addMaster(requirements : Handle[BmbParameter], bus : Handle[Bmb], priority : Int = 0) : Unit = {
     val model = getMaster(bus)
     model.requirements = requirements
+    model.priority = priority
   }
 
   def addConnection(m : Handle[Bmb], s : Handle[Bmb]) : this.type = {
@@ -154,7 +167,8 @@ class BmpTopLevel extends Generator{
       contextWidth  = Int.MaxValue,
       canRead       = true,
       canWrite      = true,
-      allowUnalignedBurst = false,
+      allowUnalignedWordBurst = false,
+      allowUnalignedByteBurst = false,
       maximumPendingTransactionPerId = Int.MaxValue
     )
 
@@ -184,7 +198,8 @@ class BmpTopLevel extends Generator{
       contextWidth  = 0,
       canRead       = true,
       canWrite      = true,
-      allowUnalignedBurst = false,
+      allowUnalignedWordBurst = false,
+      allowUnalignedByteBurst = false,
       maximumPendingTransactionPerId = Int.MaxValue
     )
 

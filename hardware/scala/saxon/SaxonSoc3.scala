@@ -135,7 +135,8 @@ object BmbOnChipRam{
     contextWidth  = Int.MaxValue,
     canRead       = true,
     canWrite      = true,
-    allowUnalignedBurst = false,
+    allowUnalignedWordBurst = false,
+    allowUnalignedByteBurst = false,
     maximumPendingTransactionPerId = Int.MaxValue
   )
 }
@@ -522,12 +523,16 @@ class SaxonSoc extends Generator{
     import BmbInterconnectStdGenerators._
     import Apb3DecoderStdGenerators._
 
+    interconnect.setDefaultArbitration(BmbInterconnectGenerator.STATIC_PRIORITY)
+
     implicit val cpu = VexRiscvBmbGenerator(
       withJtag = clockCtrl.withDebug,
       debugClockDomain = clockCtrl.debugClockDomain,
       debugAskReset = clockCtrl.doSystemReset,
       config = CpuConfig.minimalWithCsr
     )
+    interconnect.setPriority(cpu.iBus, 1)
+    interconnect.setPriority(cpu.dBus, 2)
 
     val plic = addPlic(0xF0000)
     cpu.setExternalInterrupt(plic.interrupt)
@@ -578,6 +583,7 @@ class SaxonSoc extends Generator{
     plic.addInterrupt(uartA.interrupt, 1)
 
     val peripheralBridge = bmbToApb3Decoder(address = 0xF0000000L)
+
 
     interconnect.addConnection(
       cpu.dBus -> List(ramA.bus, peripheralBridge.input),
