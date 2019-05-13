@@ -16,7 +16,7 @@ import scala.util.Random
 import saxon.wrap
 import spinal.lib.bus.misc.SizeMapping
 
-//TODO out of order read completion
+import scala.collection.mutable.ArrayBuffer
 
 class BmbMemorySim(val memorySize : Long) {
   val memory = new Array[Byte](memorySize.toInt)
@@ -31,11 +31,17 @@ class BmbMemorySim(val memorySize : Long) {
 
     StreamReadyRandomizer(bus.cmd, clockDomain)
 
-    val rspQueue = mutable.Queue[() => Unit]()
-    def addRsp(body : => Unit) = rspQueue += (() => body)
+    val rspQueue =  Array.fill(1 << bus.p.sourceWidth)(mutable.Queue[() => Unit]())
+    val rspQueueNonEmpty = mutable.ArrayBuffer[mutable.Queue[() => Unit]]()
+    def addRsp(source : Int)(body : => Unit) = {
+      if(rspQueue(source).isEmpty) rspQueueNonEmpty += rspQueue(source)
+      rspQueue(source) += (() => body)
+    }
     StreamDriver(bus.rsp, clockDomain){ _ =>
-      if(rspQueue.nonEmpty){
-        rspQueue.dequeue()()
+      if(rspQueueNonEmpty.nonEmpty){
+        val queue = rspQueueNonEmpty(Random.nextInt(rspQueueNonEmpty.length))
+        queue.dequeue()()
+        if(queue.isEmpty) rspQueueNonEmpty -= queue
         true
       } else {
         false
@@ -56,7 +62,7 @@ class BmbMemorySim(val memorySize : Long) {
             val endByte = startByte + length + 1
             val rspBeatCount = ((endByte + bus.p.byteCount - 1) / bus.p.byteCount).toInt
             for (rspBeat <- 0 until rspBeatCount) {
-              addRsp {
+              addRsp(source) {
                 val beatAddress = (address & ~(bus.p.byteCount - 1)) + rspBeat * bus.p.byteCount
                 bus.rsp.last #= rspBeat == rspBeatCount - 1
                 bus.rsp.opcode #= Bmb.Rsp.Opcode.SUCCESS
@@ -81,7 +87,7 @@ class BmbMemorySim(val memorySize : Long) {
               setByte(beatAddress + byteId, (data >> byteId * 8).toByte)
             }
             if (last) {
-              addRsp {
+              addRsp(source) {
                 bus.rsp.last #= true
                 bus.rsp.opcode #= Bmb.Rsp.Opcode.SUCCESS
                 bus.rsp.source  #= source
