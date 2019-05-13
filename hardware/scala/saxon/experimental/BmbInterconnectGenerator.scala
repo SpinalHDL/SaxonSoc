@@ -32,7 +32,7 @@ case class BmbInterconnectGenerator() extends Generator{
     val logic = add task new Area{
       val busConnections = connections.filter(_.m == bus)
       val busSlaves = busConnections.map(c => slaves(c.s))
-      val decoder = new BmbDecoder(bus.p, busSlaves.map(_.mapping.get))
+      val decoder = new BmbDecoder(bus.p, busSlaves.map(_.mapping.get), busSlaves.map(_.capabilities.get))
       decoder.setCompositeName(bus, "decoder")
       connector(bus, decoder.io.input)
       for((connection, decoderOutput) <- (busConnections, decoder.io.outputs).zipped) {
@@ -140,6 +140,7 @@ case class BmbInterconnectGenerator() extends Generator{
   def addConnection(m : Handle[Bmb], s : Handle[Bmb]) : this.type = {
     connections += new ConnectionModel(m, s)
     getMaster(m).dependencies += getSlave(s).mapping
+    getMaster(m).dependencies += getSlave(s).capabilities
     getSlave(s).requirementsGenerator.dependencies += getMaster(m).requirements
     this
   }
