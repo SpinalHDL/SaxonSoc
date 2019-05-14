@@ -328,8 +328,8 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = Int.MaxValue,
         canRead = true,
         canWrite = true,
-        allowUnalignedWordBurst = true,
-        allowUnalignedByteBurst = true,
+        allowUnalignedWordBurst = false,
+        allowUnalignedByteBurst = false,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 

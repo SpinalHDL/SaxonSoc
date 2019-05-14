@@ -78,6 +78,8 @@ case class BmbInterconnectGenerator() extends Generator{
         val inputSourceWidth = busMasters.map(_.requirements.sourceWidth).max
         val inputContextWidth = busMasters.map(_.requirements.contextWidth).max
         val inputLengthWidth = busMasters.map(_.requirements.lengthWidth).max
+        val inputAllowUnalignedByteBurst = busMasters.exists(_.requirements.allowUnalignedByteBurst)
+        val inputAllowUnalignedWordBurst = busMasters.exists(_.requirements.allowUnalignedWordBurst)
         val outputLengthWidth = Math.min(capabilities.lengthWidth, inputLengthWidth)
         val outputSourceWidth = inputSourceWidth + routerBitCount
 
@@ -87,7 +89,7 @@ case class BmbInterconnectGenerator() extends Generator{
 
         val requireBurstSpliting = outputLengthWidth != inputLengthWidth
         if(requireBurstSpliting){
-          assert(outputLengthWidth == log2Up(capabilities.get.byteCount))
+          assert(outputLengthWidth == log2Up(capabilities.get.byteCount) && !capabilities.allowUnalignedByteBurst)
           requireUnburstify = true
         }
 
@@ -99,7 +101,9 @@ case class BmbInterconnectGenerator() extends Generator{
         arbiterRequirements.load(capabilities.copy(
           sourceWidth = outputSourceWidth,
           lengthWidth = inputLengthWidth,
-          contextWidth = inputContextWidth
+          contextWidth = inputContextWidth,
+          allowUnalignedByteBurst = inputAllowUnalignedByteBurst,
+          allowUnalignedWordBurst = inputAllowUnalignedWordBurst
         ))
       }
     }
