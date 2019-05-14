@@ -119,7 +119,7 @@ abstract class BmbMasterAgent(bus : Bmb, clockDomain: ClockDomain){
   def onRspRead(address : BigInt, data : Seq[Byte]) : Unit = {}
   def onCmdWrite(address : BigInt, data : Byte) : Unit = {}
 
-  def getCmd(): () => Unit ={
+  def getCmd(): () => Unit = {
     //Generate a new CMD if none is pending
     if(cmdQueue.isEmpty) {
       val region = regionAllocate(1 << bus.p.lengthWidth)
@@ -215,7 +215,7 @@ abstract class BmbMasterAgent(bus : Bmb, clockDomain: ClockDomain){
 class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
 
   test("test1"){
-    SimConfig.compile(new GeneratorComponent(new Generator {
+    SimConfig.allOptimisation.compile(new GeneratorComponent(new Generator {
       val interconnect = BmbInterconnectGenerator()
 
 
@@ -308,10 +308,23 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
       ))
 
       val sB = addSlave(0x40000, BmbParameter(
-        addressWidth = 18,
+        addressWidth = 17,
         dataWidth = 32,
         lengthWidth = Int.MaxValue,
         sourceWidth = 8,
+        contextWidth = Int.MaxValue,
+        canRead = true,
+        canWrite = true,
+        allowUnalignedWordBurst = true,
+        allowUnalignedByteBurst = true,
+        maximumPendingTransactionPerId = Int.MaxValue
+      ))
+
+      val sB2 = addSlave(0x60000, BmbParameter(
+        addressWidth = 17,
+        dataWidth = 32,
+        lengthWidth = 2,
+        sourceWidth = Int.MaxValue,
         contextWidth = Int.MaxValue,
         canRead = true,
         canWrite = true,
@@ -385,7 +398,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
 //      Phase.flush.retainFor(3000*10) //Give 1000 cycle between the end of push stimulus and check phase to flush the hardware
 
 
-      Phase.setup{
+      Phase.setup {
         dut.clockDomain.forkStimulus(10)
         dut.clockDomain.forkSimSpeedPrinter()
 
@@ -410,7 +423,6 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
 
         val regions = mutable.HashSet[SizeMapping]()
         for((bus, model) <- dut.generator.interconnect.masters){
-          val retainers = List.fill(1 << bus.get.p.sourceWidth)(Phase.stimulus.retainer(100)) //TODO
           val agent = new BmbMasterAgent(bus.get, dut.clockDomain){
             override def onRspRead(address: BigInt, data: Seq[Byte]): Unit = {
               val ref = (0 until data.length).map(i => memory.getByte(address.toLong + i))
@@ -419,6 +431,8 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
               }
             }
 
+
+            override def getCmd(): () => Unit = if(Phase.stimulus.isActive || cmdQueue.nonEmpty) super.getCmd() else null
 
             override def onCmdWrite(address: BigInt, data: Byte): Unit = {
               val addressLong = address.toLong
@@ -458,6 +472,19 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
               }
             }
           }
+
+          //Retain the flush phase until all Bmb rsp are received
+          Phase.flush.retain()
+          Phase.flush(fork{
+            while(agent.rspQueue.exists(_.nonEmpty)) {
+              dut.clockDomain.waitSampling(1000)
+            }
+            dut.clockDomain.waitSampling(1000)
+            Phase.flush.release()
+          })
+
+          //Retain the stimulus phase until at least 300 transaction completed on each Bmb source id
+          val retainers = List.fill(1 << bus.get.p.sourceWidth)(Phase.stimulus.retainer(300)) //TODO
           agent.rspMonitor.addCallback{_ =>
             if(bus.get.rsp.last.toBoolean){
               retainers(bus.get.rsp.source.toInt).release()

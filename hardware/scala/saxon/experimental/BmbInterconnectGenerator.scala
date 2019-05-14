@@ -44,15 +44,25 @@ case class BmbInterconnectGenerator() extends Generator{
   case class SlaveModel(@dontName bus : Handle[Bmb]) extends Generator{
     val capabilities = Handle[BmbParameter]
     val requirements = Handle[BmbParameter]
+    var arbiterRequirements = Handle[BmbParameter]
     val mapping = Handle[AddressMapping]
     var connector: (Bmb, Bmb) => Unit = defaultConnector
+    var requireUnburstify = false
 
     dependencies ++= List(bus, mapping)
     val logic = add task new Area{
       val busConnections = connections.filter(_.s == bus).sortBy(connection => getMaster(connection.m).priority).reverse
-      val arbiter = new BmbArbiter(bus.p, busConnections.size, 3, lowerFirstPriority = defaultArbitration == BmbInterconnectGenerator.STATIC_PRIORITY)
+      val arbiter = new BmbArbiter(arbiterRequirements, busConnections.size, 3, lowerFirstPriority = defaultArbitration == BmbInterconnectGenerator.STATIC_PRIORITY)
       arbiter.setCompositeName(bus, "arbiter")
-      connector(arbiter.io.output, bus)
+      val requireBurstSpliting = arbiterRequirements.lengthWidth != requirements.lengthWidth
+      @dontName var busPtr = arbiter.io.output
+      val burstSpliter = if(requireUnburstify){
+        val c = BmbUnburstify(arbiterRequirements.get).setCompositeName(bus, "burstUnburstifier")
+        c.io.input << busPtr
+        busPtr = c.io.output
+        c
+      }
+      connector(busPtr, bus)
       for((connection, arbiterInput) <- (busConnections, arbiter.io.inputs).zipped) {
         connection.arbiter.load(arbiterInput)
       }
@@ -66,10 +76,27 @@ case class BmbInterconnectGenerator() extends Generator{
         val busMasters = busConnections.map(c => masters(c.m))
         val routerBitCount = log2Up(busConnections.size)
         val inputSourceWidth = busMasters.map(_.requirements.sourceWidth).max
-        val inputLengthWidth = busMasters.map(_.requirements.lengthWidth).max
         val inputContextWidth = busMasters.map(_.requirements.contextWidth).max
+        val inputLengthWidth = busMasters.map(_.requirements.lengthWidth).max
+        val outputLengthWidth = Math.min(capabilities.lengthWidth, inputLengthWidth)
         val outputSourceWidth = inputSourceWidth + routerBitCount
+
+        assert(outputSourceWidth <= capabilities.sourceWidth)
+        assert(inputContextWidth <= capabilities.contextWidth)
+
+
+        val requireBurstSpliting = outputLengthWidth != inputLengthWidth
+        if(requireBurstSpliting){
+          assert(outputLengthWidth == log2Up(capabilities.get.byteCount))
+          requireUnburstify = true
+        }
+
         requirements.load(capabilities.copy(
+          sourceWidth = outputSourceWidth,
+          lengthWidth = outputLengthWidth,
+          contextWidth = inputContextWidth + (if(requireUnburstify) 2 else 0)
+        ))
+        arbiterRequirements.load(capabilities.copy(
           sourceWidth = outputSourceWidth,
           lengthWidth = inputLengthWidth,
           contextWidth = inputContextWidth
