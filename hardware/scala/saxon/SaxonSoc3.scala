@@ -126,51 +126,6 @@ class GeneratorComponent[T <: Generator](val generator : T) extends Component{
 //  }
 //}
 
-object BmbOnChipRam{
-  def busCapabilities(size : BigInt, dataWidth : Int) = BmbParameter(
-    addressWidth  = log2Up(size),
-    dataWidth     = dataWidth,
-    lengthWidth   = log2Up(dataWidth/8),
-    sourceWidth   = Int.MaxValue,
-    contextWidth  = Int.MaxValue,
-    canRead       = true,
-    canWrite      = true,
-    allowUnalignedWordBurst = false,
-    allowUnalignedByteBurst = false,
-    maximumPendingTransactionPerId = Int.MaxValue
-  )
-}
-
-case class BmbOnChipRam(bmbParameter: BmbParameter,
-                        address : BigInt,
-                        size : BigInt,
-                        hexInit : String) extends Component {
-  val io = new Bundle {
-    val bus = slave(Bmb(bmbParameter))
-  }
-
-  val ram = Mem(Bits(32 bits), size / 4)
-  val rspValid = RegInit(False) clearWhen(io.bus.rsp.ready) setWhen(io.bus.cmd.fire)
-  val rspSource  = RegNextWhen(io.bus.cmd.source,  io.bus.cmd.ready)
-  val rspContext = RegNextWhen(io.bus.cmd.context, io.bus.cmd.ready)
-  io.bus.cmd.ready := io.bus.rsp.ready || !rspValid
-  io.bus.rsp.valid := rspValid
-  io.bus.rsp.source  := RegNextWhen(io.bus.cmd.source,  io.bus.cmd.ready)
-  io.bus.rsp.context := RegNextWhen(io.bus.cmd.context, io.bus.cmd.ready)
-  io.bus.rsp.data := ram.readWriteSync(
-    address = (io.bus.cmd.address >> 2).resized,
-    data  = io.bus.cmd.data,
-    enable  = io.bus.cmd.fire,
-    write  = io.bus.cmd.isWrite,
-    mask  = io.bus.cmd.mask
-  )
-  io.bus.rsp.setSuccess()
-  io.bus.rsp.last := True
-
-  if(hexInit != null){
-    HexTools.initRam(ram, hexInit, 0x80000000l)
-  }
-}
 
 
 case class VexRiscvBmbGenerator(val config : Handle[VexRiscvConfig] = Unset,
@@ -329,6 +284,7 @@ object BmbInterconnectStdGenerators {
   def bmbOnChipRam(address: BigInt,
                    size: BigInt,
                    dataWidth: Int,
+                   hexOffset : BigInt = null,
                    hexInit: String = null)
                   (implicit interconnect: BmbInterconnectGenerator) = wrap(new Generator {
     val requirements = Handle[BmbParameter]()
@@ -344,9 +300,9 @@ object BmbInterconnectStdGenerators {
     dependencies += requirements
     val logic = add task new Area {
       val ram = BmbOnChipRam(
-        bmbParameter = requirements,
-        address = address,
+        p = requirements,
         size = size,
+        hexOffset = hexOffset,
         hexInit = hexInit
       )
       bus.load(ram.io.bus)
