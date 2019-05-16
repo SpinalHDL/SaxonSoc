@@ -1,31 +1,17 @@
-
+OBJDIR ?= build
 
 LDFLAGS += -lc
 
 CFLAGS += -I${STANDALONE}/include
-
-
-
-
-ifeq ($(DEBUG),yes)
-	CFLAGS += -g3 -Og
-endif
-
-ifeq ($(DEBUG),no)
-	CFLAGS += -O3
-endif
-
-
 LDFLAGS +=  -nostdlib -lgcc -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME).map,--print-memory-usage
 
+DOT:= .
 
-
-OBJDIR ?= build
 OBJS := $(SRCS)
 OBJS := $(OBJS:.c=.o)
 OBJS := $(OBJS:.cpp=.o)
 OBJS := $(OBJS:.S=.o)
-OBJS := $(OBJS:..=miaou)
+#OBJS := $(subst $(DOT)$(DOT),parent,$(OBJS))
 OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
 
 
@@ -63,12 +49,6 @@ $(OBJDIR):
 	mkdir -p $@
 
 clean:
-	rm -f $(OBJDIR)/$(PROJ_NAME).elf
-	rm -f $(OBJDIR)/$(PROJ_NAME).hex
-	rm -f $(OBJDIR)/$(PROJ_NAME).map
-	rm -f $(OBJDIR)/$(PROJ_NAME).v
-	rm -f $(OBJDIR)/$(PROJ_NAME).bin
-	rm -f $(OBJDIR)/$(PROJ_NAME).asm
-	find $(OBJDIR) -type f -name '*.o' -print0 | xargs -0 -r rm
+	rm -rf $(OBJDIR)
 
 .SECONDARY: $(OBJS)

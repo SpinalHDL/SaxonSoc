@@ -87,7 +87,7 @@ case class BmbInterconnectGenerator() extends Generator{
         assert(inputContextWidth <= capabilities.contextWidth)
 
 
-        val requireBurstSpliting = outputLengthWidth != inputLengthWidth
+        val requireBurstSpliting = outputLengthWidth != inputLengthWidth //TODO manage allowXXXburst flags
         if(requireBurstSpliting){
           assert(outputLengthWidth == log2Up(capabilities.get.byteCount) && !capabilities.allowUnalignedByteBurst)
           requireUnburstify = true

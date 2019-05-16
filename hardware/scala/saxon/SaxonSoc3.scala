@@ -284,7 +284,6 @@ object BmbInterconnectStdGenerators {
   def bmbOnChipRam(address: BigInt,
                    size: BigInt,
                    dataWidth: Int,
-                   hexOffset : BigInt = null,
                    hexInit: String = null)
                   (implicit interconnect: BmbInterconnectGenerator) = wrap(new Generator {
     val requirements = Handle[BmbParameter]()
@@ -302,7 +301,7 @@ object BmbInterconnectStdGenerators {
       val ram = BmbOnChipRam(
         p = requirements,
         size = size,
-        hexOffset = hexOffset,
+        hexOffset = address,
         hexInit = hexInit
       )
       bus.load(ram.io.bus)
@@ -385,11 +384,12 @@ object Apb3DecoderStdGenerators {
               (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator {
     decoder.dependencies += this
     val interrupt = Handle[Bool]
+    val uart = Handle[Uart]
 
     val logic = add task new Area {
       val ctrl = Apb3UartCtrl(p)
-      val uart = master(Uart())
-      uart <> ctrl.io.uart
+      uart.load(master(Uart()))
+      uart.get <> ctrl.io.uart
       interrupt.load(ctrl.io.interrupt)
       decoder.addSlave(ctrl.io.apb, apbOffset)
     }
@@ -498,8 +498,9 @@ class SaxonSoc extends Generator{
 
     val ramA = bmbOnChipRam(
       address = 0x80000000l,
-      size = 4 KiB,
-      dataWidth = 32
+      size = 32 KiB,
+      dataWidth = 32,
+      hexInit = "software/standalone/dhrystone/build/dhrystone.hex"
     )
 
     val gpioA = addGpio(
