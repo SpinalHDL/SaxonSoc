@@ -11,7 +11,6 @@ object Keys{
 
 
 class KeyAPlugin(value : Int) extends Generator {
-  locks ++= Seq(Keys.A)
 
   val logic = add task {
     println(s"set Key A" + value)
@@ -21,8 +20,6 @@ class KeyAPlugin(value : Int) extends Generator {
 
 class AdderPlugin(width : Int) extends Generator{
   dependencies ++= Seq(Keys.A)
-  locks ++= Seq(Keys.B)
-
 
   val logic = add task new Area{
     println(s"Build " + width)

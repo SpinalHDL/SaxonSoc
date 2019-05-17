@@ -152,7 +152,6 @@ class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends N
   @dontName implicit var c : Composable = null
 //  @dontName implicit val p : Plugin = this
   @dontName val dependencies = ArrayBuffer[Dependable]()
-  @dontName val locks = ArrayBuffer[Dependable]()
   @dontName val tasks = ArrayBuffer[Task[_]]()
   @dontName val generators = ArrayBuffer[Generator]()
 
@@ -231,9 +230,7 @@ class Composable {
     while(generatorsAll.exists(!_.elaborated)){
       println(s"Step $step")
       var progressed = false
-      val locks = generatorsAll.filter(!_.elaborated).flatMap(_.locks).toSet
-      val produced = generatorsAll.flatMap(_.dependencies).filter(_.isDone) -- locks
-      for(generator <- generatorsAll if !generator.elaborated && generator.dependencies.forall(d => produced.contains(d)) && !locks.contains(generator)){
+      for(generator <- generatorsAll if !generator.elaborated && generator.dependencies.forall(_.isDone)){
         println(s"Build " + generator.getName)
         if(generator.implicitCd != null) generator.implicitCd.push()
 
@@ -253,7 +250,7 @@ class Composable {
         progressed = true
       }
       if(!progressed){
-        SpinalError(s"Composable hang, remaings are :\n${generatorsAll.filter(!_.elaborated).map(p => s"- ${p} depend on ${p.dependencies.filter(d => !produced.contains(d)).mkString(", ")}").mkString("\n")}")
+        SpinalError(s"Composable hang, remaings are :\n${generatorsAll.filter(!_.elaborated).map(p => s"- ${p} depend on ${p.dependencies.filter(d => !d.isDone).mkString(", ")}").mkString("\n")}")
       }
       step += 1
       scanRoot()
