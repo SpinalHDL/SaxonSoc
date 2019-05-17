@@ -95,6 +95,7 @@ class Handle[T] extends Nameable with Dependable with HandleCoreSubscriber[T]{
   def apply : T = get
   def get: T = core.get
   def load(value : T): T = core.load(value)
+  def loadAny(value : Any): Unit = core.load(value.asInstanceOf[T])
 
   def isLoaded = core.isLoaded
 
@@ -155,6 +156,29 @@ class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends N
   @dontName val tasks = ArrayBuffer[Task[_]]()
   @dontName val generators = ArrayBuffer[Generator]()
 
+  case class Product[T](src :() => T, handle : Handle[T])
+  @dontName val products = ArrayBuffer[Product[_]]()
+
+  def produce[T](src : => T, handle : Handle[T]) : Unit = products += Product(() => src, handle)
+  def produce[T](handle : Handle[T])(src : => T) : Unit = products += Product(() => src, handle)
+  def productOf[T](src : => T) : Handle[T] = {
+    val handle = Handle[T]()
+    produce(src, handle)
+    handle
+  }
+
+  def productIoOf[T <: Data](src : => T) : Handle[T] = {
+    val handle = Handle[T]()
+    produce(handle){
+      val subIo = src
+      val topIo = cloneOf(subIo).setPartialName(handle, "", true)
+      topIo.copyDirectionOf(subIo)
+      topIo <> subIo
+      topIo
+    }
+    handle
+  }
+
   var implicitCd : Handle[ClockDomain] = null
   if(constructionCd != null) on(constructionCd)
 
@@ -189,6 +213,27 @@ class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends N
     apply(generator)
   }
 
+  def generateIt(): Unit ={
+    if(implicitCd != null) implicitCd.push()
+
+    apply {
+      for (task <- tasks) {
+        task.build()
+        task.value match {
+          case n: Nameable => {
+            n.setCompositeName(this, true)
+          }
+          case _ =>
+        }
+      }
+      for(product <- products) {
+        product.handle.loadAny(product.src())
+      }
+    }
+    if(implicitCd != null) implicitCd.pop()
+    elaborated = true
+  }
+  
   override def isDone: Boolean = elaborated
 
 
@@ -232,21 +277,7 @@ class Composable {
       var progressed = false
       for(generator <- generatorsAll if !generator.elaborated && generator.dependencies.forall(_.isDone)){
         println(s"Build " + generator.getName)
-        if(generator.implicitCd != null) generator.implicitCd.push()
-
-        generator.apply {
-          for (task <- generator.tasks) {
-            task.build()
-            task.value match {
-              case n: Nameable => {
-                n.setCompositeName(generator, true)
-              }
-              case _ =>
-            }
-          }
-        }
-        if(generator.implicitCd != null) generator.implicitCd.pop()
-        generator.elaborated = true
+        generator.generateIt()
         progressed = true
       }
       if(!progressed){

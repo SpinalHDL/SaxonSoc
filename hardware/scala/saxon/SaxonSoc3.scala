@@ -381,42 +381,33 @@ object Apb3DecoderStdGenerators {
 
   def apbUart(apbOffset : BigInt,
               p : UartCtrlMemoryMappedConfig)
-              (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator {
-    decoder.dependencies += this
-    val interrupt = Handle[Bool]
-    val uart = Handle[Uart]
+             (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator {
+    val interrupt = productOf(logic.io.interrupt)
+    val uart = productIoOf(logic.io.uart)
+    val apb = productOf(logic.io.apb)
+    val logic = add task Apb3UartCtrl(p)
 
-    val logic = add task new Area {
-      val ctrl = Apb3UartCtrl(p)
-      uart.load(master(Uart()))
-      uart.get <> ctrl.io.uart
-      interrupt.load(ctrl.io.interrupt)
-      decoder.addSlave(ctrl.io.apb, apbOffset)
-    }
+    decoder.addSlave(apb, apbOffset)
   })
+
 
   def addGpio(apbOffset : BigInt,
               p : spinal.lib.io.Gpio.Parameter)
              (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator{
-    decoder.dependencies += this
 
-    val logic = add task new Area {
-      val ctrl = Apb3Gpio2(p)
-      decoder.addSlave(ctrl.io.bus, apbOffset)
-    }
+    val gpio = productIoOf(logic.io.gpio)
+    val apb = productOf(logic.io.bus)
+    val logic = add task Apb3Gpio2(p)
 
-    val io = add task new Area{
-      val gpio = master(TriStateArray(p.width))
-      gpio <> logic.ctrl.io.gpio
-    }
+    decoder.addSlave(apb, apbOffset)
   })
 
   def addPlic(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator {
     val gateways = ArrayBuffer[Handle[PlicGateway]]()
-    val interrupt = Handle(Bool)
-    val priorityWidth = 1
+    val interrupt = productOf(logic.targets(0).iep)
+    val apb = productOf(logic.apb)
 
-    decoder.dependencies += this
+    val priorityWidth = 1
 
     def addInterrupt[T <: Generator](interrupt : Handle[Bool], id : Int) = {
       this.dependencies += wrap(new Generator {
@@ -450,28 +441,25 @@ object Apb3DecoderStdGenerators {
         gateways = gateways.map(_.get),
         targets = targets
       )
-      decoder.addSlave(apb, apbOffset)
-      interrupt := targets(0).iep
     }
+
+
+    decoder.addSlave(apb, apbOffset)
   })
 
   def addMachineTimer(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator{
-    val interrupt = Handle(Bool) //TODO fix error report when this one isn't drived
-    decoder.dependencies += this
+    val interrupt = productOf(logic.io.mTimeInterrupt) //TODO fix error report when this one isn't drived
+    val apb = productOf(logic.io.bus)
+    val logic = add task MachineTimer()
 
-    val logic = add task new Area {
-      val machineTimer = MachineTimer()
-      decoder.addSlave(machineTimer.io.bus, apbOffset)
-      interrupt := machineTimer.io.mTimeInterrupt
-    }
+    decoder.addSlave(apb, apbOffset)
   })
 }
 
+
+//class SaxonSocParameter(mainClkFrequency : HertzNumber)
 class SaxonSoc extends Generator{
-  val clockCtrl = ExternalClockDomain(
-    clkFrequency = 12 MHz,
-    withDebug = true
-  )
+  val clockCtrl = ExternalClockDomain()
 
   val core = new Generator(clockCtrl.systemClockDomain){
     implicit val interconnect = BmbInterconnectGenerator()
@@ -484,8 +472,7 @@ class SaxonSoc extends Generator{
     implicit val cpu = VexRiscvBmbGenerator(
       withJtag = clockCtrl.withDebug,
       debugClockDomain = clockCtrl.debugClockDomain,
-      debugAskReset = clockCtrl.doSystemReset,
-      config = CpuConfig.minimalWithCsr
+      debugAskReset = clockCtrl.doSystemReset
     )
     interconnect.setPriority(cpu.iBus, 1)
     interconnect.setPriority(cpu.dBus, 2)
@@ -511,8 +498,8 @@ class SaxonSoc extends Generator{
       )
     )
     plic.dependencies += Dependable(gpioA){
-      plic.addInterrupt(gpioA.logic.ctrl.io.interrupt(0), 4)
-      plic.addInterrupt(gpioA.logic.ctrl.io.interrupt(1), 5)
+      plic.addInterrupt(gpioA.logic.io.interrupt(0), 4)
+      plic.addInterrupt(gpioA.logic.io.interrupt(1), 5)
     }
 
     val uartA = apbUart(
@@ -547,6 +534,13 @@ class SaxonSoc extends Generator{
       cpu.iBus -> List(ramA.bus)
     )
   }
+
+  def defaultSetting() : this.type = {
+    clockCtrl.withDebug.load(true)
+    clockCtrl.clkFrequency.load(12 MHz)
+    core.cpu.config.load(CpuConfig.minimalWithCsr)
+    this
+  }
 }
 
 
@@ -554,7 +548,7 @@ class SaxonSoc extends Generator{
 
 object SaxonSocDefault{
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(new GeneratorComponent(new SaxonSoc))
+    SpinalRtlConfig.generateVerilog(new GeneratorComponent(new SaxonSoc().defaultSetting()))
   }
 }
 

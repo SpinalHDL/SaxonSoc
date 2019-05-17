@@ -29,7 +29,7 @@ object SaxonSim {
 //    val flashBin = "../zephyr/zephyrSpinalHdl/samples/philosophers/build/zephyr/zephyr.bin"
 //    val ramBin = "software/standalone/dhrystone/build/dhrystone.hex"
 
-    SimConfig.compile(new GeneratorComponent(new SaxonSoc)).doSimUntilVoid("test", 42){dut =>
+    SimConfig.compile(new GeneratorComponent(new SaxonSoc().defaultSetting())).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.generator.clockCtrl.clkFrequency.get.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 115200
