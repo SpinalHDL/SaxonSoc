@@ -82,7 +82,8 @@ class HandleCore[T]{
 }
 
 class Handle[T] extends Nameable with Dependable with HandleCoreSubscriber[T]{
-  private var core = new HandleCore[T]
+  val generator = Generator.stack.headOption.getOrElse(null)
+  var core = new HandleCore[T]
   core.subscribers += this
 
   override def changeCore(core: HandleCore[T]): Unit = {
@@ -104,6 +105,8 @@ class Handle[T] extends Nameable with Dependable with HandleCoreSubscriber[T]{
   var lazyDefaultGen : () => T = null
   override def lazyDefault() : T = lazyDefaultGen()
   override def lazyDefaultAvailable: Boolean = lazyDefaultGen != null
+
+  override def toString: String = (if(generator != null) generator.toString + "/" else "") + super.toString
 }
 
 //object HandleInit{
@@ -143,6 +146,9 @@ object Generator{
   def stack = GlobalData.get.userDatabase.getOrElseUpdate(Generator, new Stack[Generator]).asInstanceOf[Stack[Generator]]
 }
 
+
+
+case class Product[T](src :() => T, handle : Handle[T])
 class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends Nameable  with Dependable with DelayedInit {
   if(Generator.stack.nonEmpty && Generator.stack.head != null){
     Generator.stack.head.generators += this
@@ -156,11 +162,20 @@ class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends N
   @dontName val tasks = ArrayBuffer[Task[_]]()
   @dontName val generators = ArrayBuffer[Generator]()
 
-  case class Product[T](src :() => T, handle : Handle[T])
-  @dontName val products = ArrayBuffer[Product[_]]()
+  @dontName val products = ArrayBuffer[Handle[_]]()
+  val generateItListeners = ArrayBuffer[() => Unit]()
 
-  def produce[T](src : => T, handle : Handle[T]) : Unit = products += Product(() => src, handle)
-  def produce[T](handle : Handle[T])(src : => T) : Unit = products += Product(() => src, handle)
+  def product[T] : Handle[T] = {
+    val handle = Handle[T]()
+    products += handle
+    handle
+  }
+  def produce[T](src : => T, handle : Handle[T]) : Unit = produce(handle)(src)
+  def produce[T](handle : Handle[T])(src : => T) : Unit = {
+    generateItListeners += {() => handle.load(src)}
+    products += handle
+
+  }
   def productOf[T](src : => T) : Handle[T] = {
     val handle = Handle[T]()
     produce(src, handle)
@@ -226,14 +241,12 @@ class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends N
           case _ =>
         }
       }
-      for(product <- products) {
-        product.handle.loadAny(product.src())
-      }
+      for(listener <- generateItListeners) listener()
     }
     if(implicitCd != null) implicitCd.pop()
     elaborated = true
   }
-  
+
   override def isDone: Boolean = elaborated
 
 
@@ -281,7 +294,18 @@ class Composable {
         progressed = true
       }
       if(!progressed){
-        SpinalError(s"Composable hang, remaings are :\n${generatorsAll.filter(!_.elaborated).map(p => s"- ${p} depend on ${p.dependencies.filter(d => !d.isDone).mkString(", ")}").mkString("\n")}")
+        val unelaborateds = generatorsAll.filter(!_.elaborated)
+        val missingDepedancies = unelaborateds.flatMap(_.dependencies).toSet.filter(!_.isDone)
+        val missingHandle = missingDepedancies.filter(_.isInstanceOf[Handle[_]]).map(_.asInstanceOf[Handle[Any]])
+        val producatable = unelaborateds.flatMap(_.products).map(_.core).toSet
+        SpinalError(
+          s"Composable hang, remaings generators are :\n" +
+          s"${unelaborateds.map(p => s"- ${p} depend on ${p.dependencies.filter(d => !d.isDone).mkString(", ")}\n").reduce(_ + _)}" +
+          s"\nDependable not completed :\n" +
+          s"${missingDepedancies.map(d => "- " + d + "\n").reduce(_ + _)}" +
+          s"\nHandles without potential sources :\n" +
+          s"${missingHandle.filter(e => !producatable.contains(e.core)).map(d => "- " + d + "\n").reduce(_ + _)}"
+        )
       }
       step += 1
       scanRoot()

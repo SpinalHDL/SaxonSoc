@@ -132,8 +132,8 @@ case class VexRiscvBmbGenerator(val config : Handle[VexRiscvConfig] = Unset,
                                 val withJtag : Handle[Boolean] = Unset,
                                 val debugClockDomain : Handle[ClockDomain] = Unset,
                                 val debugAskReset : Handle[() => Unit] = Unset)(implicit interconnect: BmbInterconnectGenerator = null) extends Generator{
-  val iBus, dBus = Handle[Bmb]
-  val externalInterrupt, timerInterrupt = Handle[Bool]
+  val iBus, dBus = product[Bmb]
+  val externalInterrupt, timerInterrupt = product[Bool]
 
   def setExternalInterrupt(that : Handle[Bool]) = externalInterrupt.merge(that)
   def setTimerInterrupt(that : Handle[Bool]) = timerInterrupt.merge(that)
@@ -287,7 +287,9 @@ object BmbInterconnectStdGenerators {
                    hexInit: String = null)
                   (implicit interconnect: BmbInterconnectGenerator) = wrap(new Generator {
     val requirements = Handle[BmbParameter]()
-    val bus = Handle[Bmb]()
+    val bus = productOf(logic.io.bus)
+
+    dependencies += requirements
 
     interconnect.addSlave(
       capabilities = BmbOnChipRam.busCapabilities(size, dataWidth),
@@ -296,22 +298,18 @@ object BmbInterconnectStdGenerators {
       mapping = SizeMapping(address, BigInt(1) << log2Up(size))
     )
 
-    dependencies += requirements
-    val logic = add task new Area {
-      val ram = BmbOnChipRam(
-        p = requirements,
-        size = size,
-        hexOffset = address,
-        hexInit = hexInit
-      )
-      bus.load(ram.io.bus)
-    }
+    val logic = add task BmbOnChipRam(
+      p = requirements,
+      size = size,
+      hexOffset = address,
+      hexInit = hexInit
+    )
   })
 
 
   def bmbToApb3Decoder(address : BigInt)
                       (implicit interconnect: BmbInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) = wrap(new Generator {
-    val input = Handle[Bmb]
+    val input = productOf(logic.bridge.io.input)
     val requirements = Handle[BmbParameter]()
 
     val requirementsGenerator = Dependable(apbDecoder.inputConfig){
@@ -326,10 +324,9 @@ object BmbInterconnectStdGenerators {
       )
     }
 
-
-
     dependencies += requirements
     dependencies += apbDecoder
+
     val logic = add task new Area {
       val bridge = BmbToApb3Bridge(
         apb3Config = apbDecoder.inputConfig,
@@ -337,7 +334,6 @@ object BmbInterconnectStdGenerators {
         pipelineBridge = false
       )
       apbDecoder.input << bridge.io.output
-      input.load(bridge.io.input)
     }
 
     //    dependencies += output
@@ -350,8 +346,8 @@ case class Apb3DecoderGenerator() extends Generator {
     def mapping = SizeMapping(address, (BigInt(1)) << slave.config.addressWidth)
   }
   val models = ArrayBuffer[SlaveModel]()
-  val inputConfig = Handle[Apb3Config]
-  val input = Handle[Apb3]
+  val input = productOf(logic.inputBus)
+  val inputConfig = productOf(logic.inputBus.config)
 
   def addSlave(slave : Handle[Apb3], address : BigInt): Unit ={
     dependencies += slave
@@ -359,20 +355,15 @@ case class Apb3DecoderGenerator() extends Generator {
   }
 
   val logic = add task new Area {
-    inputConfig.load(
-      Apb3Config(
-        addressWidth = log2Up(models.map(m => m.mapping.end + 1).max),
-        dataWidth =  models.head.slave.config.dataWidth
-      )
+    val inputBus = Apb3(
+      addressWidth = log2Up(models.map(m => m.mapping.end + 1).max),
+      dataWidth =  models.head.slave.config.dataWidth
     )
-    for(m <- models) assert(m.slave.config.dataWidth == inputConfig.dataWidth)
-    val inputBus = Apb3(inputConfig)
+    for(m <- models) assert(m.slave.config.dataWidth == inputBus.config.dataWidth)
     val decoder = Apb3Decoder(
       master = inputBus,
       slaves = models.map(m => (m.slave.get, m.mapping))
     )
-
-    input.load(inputBus)
   }
 }
 
@@ -389,7 +380,6 @@ object Apb3DecoderStdGenerators {
 
     decoder.addSlave(apb, apbOffset)
   })
-
 
   def addGpio(apbOffset : BigInt,
               p : spinal.lib.io.Gpio.Parameter)

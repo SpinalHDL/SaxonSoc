@@ -70,6 +70,7 @@ case class BmbInterconnectGenerator() extends Generator{
 
     val requirementsGenerator = this add new Generator{
       dependencies += capabilities
+      products += requirements
 
       add task {
         val busConnections = connections.filter(_.s == bus)
