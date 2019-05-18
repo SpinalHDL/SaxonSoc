@@ -4,11 +4,25 @@ RISCV_OBJCOPY=${RISCV_BIN}objcopy
 RISCV_OBJDUMP=${RISCV_BIN}objdump
 
 MARCH := rv32i
+BENCH ?= no
+
 ifeq ($(MULDIV),yes)
-	MARCH := $(MARCH)M
+	MARCH := $(MARCH)m
 endif
 ifeq ($(COMPRESSED),yes)
-	MARCH := $(MARCH)AC
+	MARCH := $(MARCH)ac
+endif
+
+ifeq ($(DEBUG),yes)
+	CFLAGS += -g3 -Og
+endif
+
+ifeq ($(DEBUG),no)
+ifeq ($(BENCH),no)
+	CFLAGS += -Os
+else
+	CFLAGS += -O3
+endif
 endif
 
 CFLAGS += -march=$(MARCH) -mabi=ilp32 -DUSE_GP

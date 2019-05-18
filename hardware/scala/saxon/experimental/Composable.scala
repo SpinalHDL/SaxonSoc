@@ -38,6 +38,7 @@ object Handle{
   }
   def apply[T]() = new Handle[T]
   implicit def keyImplicit[T](key : Handle[T])(implicit c : Composable) : T = key.get
+  implicit def keyImplicit[T](key : Seq[Handle[T]])(implicit c : Composable) : Seq[T] = key.map(_.get)
   implicit def initImplicit[T](value : T) : Handle[T] = Handle(value)
   implicit def initImplicit[T](value : Unset) : Handle[T] = Handle[T]
 }

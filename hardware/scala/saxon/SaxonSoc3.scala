@@ -93,45 +93,28 @@ class GeneratorComponent[T <: Generator](val generator : T) extends Component{
 }
 
 
+object VexRiscvBmbGenerator{
+  def apply(withJtag : Handle[Boolean] ,
+            debugClockDomain : Handle[ClockDomain],
+            debugAskReset : Handle[() => Unit])
+           (implicit interconnect: BmbInterconnectGenerator) : VexRiscvBmbGenerator = {
+    val g = VexRiscvBmbGenerator()
+    g.withJtag.merge(withJtag)
+    g.debugClockDomain.merge(debugClockDomain)
+    g.debugAskReset.merge(debugAskReset)
+    g
+  }
+}
 
-//
-//class SaxonSocBase extends Generator{
-////  val cpu = new VexRiscvPlugin()
-//  val interconnect = new BmbInterconnectGenerator()
-////  val apbDecoder = new Apb3DecoderPlugin(Apb3Config(20,32))
-////  val apbBridge = new PipelinedMemoryBusToApbBridgePlugin(apbDecoder.input)
-////  val mainBus = add task PipelinedMemoryBus(addressWidth = 32, dataWidth = 32)
-//
-//  val mapper = new Generator{
-//    dependencies ++= List(cpu, apbBridge)
-//    val logic = add task new Area {
-//      interconnect.factory.addSlave(mainBus, DefaultMapping)
-//      interconnect.factory.addSlave(apbBridge.input, SizeMapping(0xF0000000l,  16 MiB))
-//      interconnect.factory.addMasters(
-//        (cpu.dBus, List(mainBus)),
-//        (cpu.iBus, List(mainBus)),
-//        ( mainBus, List(apbBridge.input))
-//      )
-//    }
-//  }
-//
-//  def addOneChipRam() = this add new Generator{
-//    dependencies ++= List(mainBus, interconnect.factory)
-//
-//    val logic = add task new Area {
-//      val ram = Spram()
-//      interconnect.factory.addSlave(ram.io.bus, SizeMapping(0x80000000l,  64 KiB))
-//      interconnect.factory.addConnection(mainBus, ram.io.bus)
-//    }
-//  }
-//}
+case class VexRiscvBmbGenerator(/*debugAskReset : Handle[() => Unit] = Unset,
+                                withJtag : Handle[Boolean] = Unset,
+                                debugClockDomain : Handle[ClockDomain] = Unset*/)(implicit interconnect: BmbInterconnectGenerator = null) extends Generator{
+  val config = Handle[VexRiscvConfig]
+  val withJtag = Handle[Boolean]
+  val debugClockDomain = Handle[ClockDomain]
+  val debugAskReset = Handle[() => Unit]
 
 
-
-case class VexRiscvBmbGenerator(val config : Handle[VexRiscvConfig] = Unset,
-                                val withJtag : Handle[Boolean] = Unset,
-                                val debugClockDomain : Handle[ClockDomain] = Unset,
-                                val debugAskReset : Handle[() => Unit] = Unset)(implicit interconnect: BmbInterconnectGenerator = null) extends Generator{
   val iBus, dBus = product[Bmb]
   val externalInterrupt, timerInterrupt = product[Bool]
 
@@ -183,6 +166,79 @@ object CpuConfig{
   val executeRf = true
   val hardwareBreakpointsCount  = 0
   val bootloaderBin : String = null
+
+  def regular = VexRiscvConfig(
+    withMemoryStage = true,
+    withWriteBackStage = true,
+    List(
+      new IBusSimplePlugin(
+        resetVector = 0x80000000l,
+        cmdForkOnSecondStage = false,
+        cmdForkPersistence = true
+      ),
+      new DBusSimplePlugin(
+        catchAddressMisaligned = false,
+        catchAccessFault = false
+      ),
+      new DecoderSimplePlugin(
+        catchIllegalInstruction = false
+      ),
+      new RegFilePlugin(
+        regFileReadyKind = plugin.SYNC,
+        zeroBoot = true,
+        x0Init = false,
+        readInExecute = false,
+        syncUpdateOnStall = true
+      ),
+      new IntAluPlugin,
+      new SrcPlugin(
+        separatedAddSub = false,
+        executeInsertion = false,
+        decodeAddSub = false
+      ),
+//      new LightShifterPlugin(),
+      new FullBarrelShifterPlugin(earlyInjection = false),
+      new BranchPlugin(
+        earlyBranch = false,
+        catchAddressMisaligned = false,
+        fenceiGenAsAJump = true
+      ),
+      new HazardSimplePlugin(
+        bypassExecute = true,
+        bypassMemory = true,
+        bypassWriteBack = true,
+        bypassWriteBackBuffer = true
+      ),
+      new MulPlugin,
+      new MulDivIterativePlugin(
+        genMul = false
+      ),
+      new CsrPlugin(new CsrPluginConfig(
+        catchIllegalAccess = false,
+        mvendorid = null,
+        marchid = null,
+        mimpid = null,
+        mhartid = null,
+        misaExtensionsInit = 0,
+        misaAccess = CsrAccess.NONE,
+        mtvecAccess = CsrAccess.WRITE_ONLY,
+        mtvecInit = null,
+        mepcAccess = CsrAccess.READ_WRITE,
+        mscratchGen = false,
+        mcauseAccess = CsrAccess.READ_ONLY,
+        mbadaddrAccess = CsrAccess.NONE,
+        mcycleAccess = CsrAccess.NONE,
+        minstretAccess = CsrAccess.NONE,
+        ecallGen = true,
+        ebreakGen = false,
+        wfiGenAsWait = false,
+        wfiGenAsNop = true,
+        ucycleAccess = CsrAccess.NONE
+      )),
+      new YamlPlugin("cpu0.yaml")
+    )
+  )
+
 
   def minimal = VexRiscvConfig(
     withMemoryStage = withMemoryStage,
@@ -300,6 +356,32 @@ object BmbInterconnectStdGenerators {
 
     val logic = add task BmbOnChipRam(
       p = requirements,
+      size = size,
+      hexOffset = address,
+      hexInit = hexInit
+    )
+  })
+
+  def bmbOnChipRamMultiPort( portCount : Int,
+                             address: BigInt,
+                             size: BigInt,
+                             dataWidth: Int,
+                             hexInit: String = null)
+                            (implicit interconnect: BmbInterconnectGenerator) = wrap(new Generator {
+    val requirements = List.fill(portCount)(Handle[BmbParameter]())
+    val busses = List.tabulate(portCount)(id => productOf(logic.io.buses(id)))
+
+    dependencies ++= requirements
+
+    for(portId <- 0 until portCount) interconnect.addSlave(
+      capabilities = BmbOnChipRam.busCapabilities(size, dataWidth),
+      requirements = requirements(portId),
+      bus = busses(portId),
+      mapping = SizeMapping(address, BigInt(1) << log2Up(size))
+    )
+
+    val logic = add task BmbOnChipRamMultiPort(
+      portsParameter = requirements,
       size = size,
       hexOffset = address,
       hexInit = hexInit
@@ -473,7 +555,15 @@ class SaxonSoc extends Generator{
     val machineTimer = addMachineTimer(0x08000)
     cpu.setTimerInterrupt(machineTimer.interrupt)
 
-    val ramA = bmbOnChipRam(
+//    val ramA = bmbOnChipRam(
+//      address = 0x80000000l,
+//      size = 32 KiB,
+//      dataWidth = 32,
+//      hexInit = "software/standalone/dhrystone/build/dhrystone.hex"
+//    )
+
+    val ramA = bmbOnChipRamMultiPort(
+      portCount = 2,
       address = 0x80000000l,
       size = 32 KiB,
       dataWidth = 32,
@@ -520,15 +610,15 @@ class SaxonSoc extends Generator{
 
 
     interconnect.addConnection(
-      cpu.dBus -> List(ramA.bus, peripheralBridge.input),
-      cpu.iBus -> List(ramA.bus)
+      cpu.dBus -> List(ramA.busses(0), peripheralBridge.input),
+      cpu.iBus -> List(ramA.busses(1))
     )
   }
 
   def defaultSetting() : this.type = {
     clockCtrl.withDebug.load(true)
     clockCtrl.clkFrequency.load(12 MHz)
-    core.cpu.config.load(CpuConfig.minimalWithCsr)
+    core.cpu.config.load(CpuConfig.regular)
     this
   }
 }
