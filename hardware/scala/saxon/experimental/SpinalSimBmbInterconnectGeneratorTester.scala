@@ -55,8 +55,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = 4,
         canRead = true,
         canWrite = true,
-        allowUnalignedWordBurst = true,
-        allowUnalignedByteBurst = true,
+        alignment     = BmbParameter.BurstAlignement.BYTE,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
@@ -68,8 +67,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = 4,
         canRead = true,
         canWrite = true,
-        allowUnalignedWordBurst = true,
-        allowUnalignedByteBurst = false,
+        alignment     = BmbParameter.BurstAlignement.WORD,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
@@ -81,8 +79,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = 5,
         canRead = true,
         canWrite = true,
-        allowUnalignedWordBurst = false,
-        allowUnalignedByteBurst = false,
+        alignment     = BmbParameter.BurstAlignement.LENGTH,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
@@ -95,8 +92,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = 3,
         canRead = true,
         canWrite = true,
-        allowUnalignedWordBurst = false,
-        allowUnalignedByteBurst = false,
+        alignment     = BmbParameter.BurstAlignement.LENGTH,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
@@ -108,8 +104,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = Int.MaxValue,
         canRead = true,
         canWrite = true,
-        allowUnalignedWordBurst = true,
-        allowUnalignedByteBurst = true,
+        alignment     = BmbParameter.BurstAlignement.BYTE,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
@@ -121,8 +116,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = Int.MaxValue,
         canRead = true,
         canWrite = true,
-        allowUnalignedWordBurst = true,
-        allowUnalignedByteBurst = true,
+        alignment     = BmbParameter.BurstAlignement.BYTE,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
@@ -134,8 +128,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = Int.MaxValue,
         canRead = true,
         canWrite = true,
-        allowUnalignedWordBurst = false,
-        allowUnalignedByteBurst = false,
+        alignment     = BmbParameter.BurstAlignement.LENGTH,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
@@ -147,8 +140,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = 9,
         canRead = false,
         canWrite = true,
-        allowUnalignedWordBurst = true,
-        allowUnalignedByteBurst = true,
+        alignment     = BmbParameter.BurstAlignement.BYTE,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
@@ -160,8 +152,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = Int.MaxValue,
         canRead = true,
         canWrite = false,
-        allowUnalignedWordBurst = true,
-        allowUnalignedByteBurst = true,
+        alignment     = BmbParameter.BurstAlignement.BYTE,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
@@ -173,8 +164,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = Int.MaxValue,
         canRead = false,
         canWrite = true,
-        allowUnalignedWordBurst = true,
-        allowUnalignedByteBurst = true,
+        alignment     = BmbParameter.BurstAlignement.BYTE,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
@@ -186,8 +176,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         contextWidth = Int.MaxValue,
         canRead = true,
         canWrite = false,
-        allowUnalignedWordBurst = true,
-        allowUnalignedByteBurst = true,
+        alignment     = BmbParameter.BurstAlignement.BYTE,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 

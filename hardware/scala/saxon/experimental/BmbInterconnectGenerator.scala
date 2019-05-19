@@ -79,8 +79,9 @@ case class BmbInterconnectGenerator() extends Generator{
         val inputSourceWidth = busMasters.map(_.requirements.sourceWidth).max
         val inputContextWidth = busMasters.map(_.requirements.contextWidth).max
         val inputLengthWidth = busMasters.map(_.requirements.lengthWidth).max
-        val inputAllowUnalignedByteBurst = busMasters.exists(_.requirements.allowUnalignedByteBurst)
-        val inputAllowUnalignedWordBurst = busMasters.exists(_.requirements.allowUnalignedWordBurst)
+        var inputAlignement : BmbParameter.BurstAlignement.Kind = BmbParameter.BurstAlignement.LENGTH
+        if(busMasters.exists(_.requirements.alignment.allowWord)) inputAlignement = BmbParameter.BurstAlignement.WORD
+        if(busMasters.exists(_.requirements.alignment.allowByte)) inputAlignement = BmbParameter.BurstAlignement.BYTE
         val outputLengthWidth = Math.min(capabilities.lengthWidth, inputLengthWidth)
         val outputSourceWidth = inputSourceWidth + routerBitCount
 
@@ -90,7 +91,7 @@ case class BmbInterconnectGenerator() extends Generator{
 
         val requireBurstSpliting = outputLengthWidth != inputLengthWidth //TODO manage allowXXXburst flags
         if(requireBurstSpliting){
-          assert(outputLengthWidth == log2Up(capabilities.get.byteCount) && !capabilities.allowUnalignedByteBurst)
+          assert(outputLengthWidth == log2Up(capabilities.get.byteCount) && !capabilities.alignment.allowByte)
           requireUnburstify = true
         }
 
@@ -103,8 +104,7 @@ case class BmbInterconnectGenerator() extends Generator{
           sourceWidth = outputSourceWidth,
           lengthWidth = inputLengthWidth,
           contextWidth = inputContextWidth,
-          allowUnalignedByteBurst = inputAllowUnalignedByteBurst,
-          allowUnalignedWordBurst = inputAllowUnalignedWordBurst
+          alignment = inputAlignement
         ))
       }
     }
@@ -200,8 +200,7 @@ class BmpTopLevel extends Generator{
       contextWidth  = Int.MaxValue,
       canRead       = true,
       canWrite      = true,
-      allowUnalignedWordBurst = false,
-      allowUnalignedByteBurst = false,
+      alignment     = BmbParameter.BurstAlignement.LENGTH,
       maximumPendingTransactionPerId = Int.MaxValue
     )
 
@@ -231,8 +230,7 @@ class BmpTopLevel extends Generator{
       contextWidth  = 0,
       canRead       = true,
       canWrite      = true,
-      allowUnalignedWordBurst = false,
-      allowUnalignedByteBurst = false,
+      alignment     = BmbParameter.BurstAlignement.LENGTH,
       maximumPendingTransactionPerId = Int.MaxValue
     )
 
