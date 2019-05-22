@@ -30,6 +30,13 @@ trait Dependable{
   def isDone : Boolean
 }
 
+case class Lock() extends Dependable{
+  var retains = 0
+  def retain() : Unit = retains += 1
+  def release() : Unit = retains -= 1
+  override def isDone: Boolean = retains == 0
+}
+
 object Handle{
   def apply[T](value : =>  T) : Handle[T] = {
     val h = Handle[T]
