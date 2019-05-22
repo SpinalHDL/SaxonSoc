@@ -759,7 +759,7 @@ class SaxonSoc extends Generator{
   def defaultSetting() : this.type = {
     clockCtrl.withDebug.load(true)
     clockCtrl.clkFrequency.load(50 MHz)
-    core.cpu.config.load(CpuConfig.cacheLessRegular)
+    core.cpu.config.load(CpuConfig.linux)
     this
   }
 }
