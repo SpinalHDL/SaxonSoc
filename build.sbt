@@ -16,6 +16,6 @@ lazy val root = (project in file(".")).
     scalaSource in Test    := baseDirectory.value / "test" / "scala"
   ).dependsOn(vexRiscv)
 
-lazy val vexRiscv = RootProject(file("../../VexRiscv"))
+lazy val vexRiscv = RootProject(file("ext/VexRiscv"))
 
 fork := true
