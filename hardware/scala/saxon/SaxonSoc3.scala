@@ -150,7 +150,7 @@ case class VexRiscvBmbGenerator(/*debugAskReset : Handle[() => Unit] = Unset,
       case plugin : CsrPlugin => {
         externalInterrupt <> (plugin.externalInterrupt)
         timerInterrupt <> (plugin.timerInterrupt)
-        plugin.externalInterruptS := False
+        if(plugin.config.supervisorGen) plugin.externalInterruptS := False
       }
       case plugin : DebugPlugin         => plugin.debugClockDomain{
         when(RegNext(plugin.io.resetOut)) { debugAskReset.get() }
@@ -717,6 +717,7 @@ class SaxonSoc extends Generator{
         interrupt = List(0,1)
       )
     )
+
     plic.dependencies += Dependable(gpioA){
       plic.addInterrupt(source = gpioA.logic.io.interrupt(0), id = 4)
       plic.addInterrupt(source = gpioA.logic.io.interrupt(1), id = 5)
@@ -758,7 +759,7 @@ class SaxonSoc extends Generator{
   def defaultSetting() : this.type = {
     clockCtrl.withDebug.load(true)
     clockCtrl.clkFrequency.load(50 MHz)
-    core.cpu.config.load(CpuConfig.linux)
+    core.cpu.config.load(CpuConfig.cacheLessRegular)
     this
   }
 }
