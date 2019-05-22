@@ -132,8 +132,9 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
+      // write only
       val sC = addSlave(0x80000, BmbParameter(
-        addressWidth = 17,
+        addressWidth = 16,
         dataWidth = 32,
         lengthWidth = Int.MaxValue,
         sourceWidth = Int.MaxValue,
@@ -144,8 +145,9 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
-      val sD = addSlave(0xA0000, BmbParameter(
-        addressWidth = 17,
+      //read only
+      val sD = addSlave(0x90000, BmbParameter(
+        addressWidth = 16,
         dataWidth = 32,
         lengthWidth = Int.MaxValue,
         sourceWidth = Int.MaxValue,
@@ -156,7 +158,8 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
-      val sE = addSlave(0xC0000, BmbParameter(
+      //Read only and write only mapped at the same address
+      val sE = addSlave(0xA0000, BmbParameter(
         addressWidth = 17,
         dataWidth = 32,
         lengthWidth = Int.MaxValue,
@@ -168,7 +171,7 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 
-      val sF = addSlave(0xC0000, BmbParameter(
+      val sE2 = addSlave(0xA0000, BmbParameter(
         addressWidth = 17,
         dataWidth = 32,
         lengthWidth = Int.MaxValue,
@@ -177,6 +180,19 @@ class SpinalSimBmbInterconnectGeneratorTester  extends FunSuite{
         canRead = true,
         canWrite = false,
         alignment     = BmbParameter.BurstAlignement.BYTE,
+        maximumPendingTransactionPerId = Int.MaxValue
+      ))
+
+      // down sizer
+      val sF = addSlave(0xC0000, BmbParameter(
+        addressWidth = 17,
+        dataWidth = 16,
+        lengthWidth = Int.MaxValue,
+        sourceWidth = Int.MaxValue,
+        contextWidth = Int.MaxValue,
+        canRead = true,
+        canWrite = true,
+        alignment = BmbParameter.BurstAlignement.LENGTH,
         maximumPendingTransactionPerId = Int.MaxValue
       ))
 

@@ -17,18 +17,20 @@ object BmbInterconnectGenerator{
 }
 
 case class BmbInterconnectGenerator() extends Generator{
+  val lock = Lock()
   var defaultArbitration : BmbInterconnectGenerator.ArbitrationKind = BmbInterconnectGenerator.ROUND_ROBIN
   def setDefaultArbitration(kind : BmbInterconnectGenerator.ArbitrationKind): Unit ={
     defaultArbitration = kind
   }
   def setPriority(m : Handle[Bmb], priority : Int) = getMaster(m).priority = priority
 
-  case class MasterModel(@dontName bus : Handle[Bmb]) extends Generator{
-    var requirements = Handle[BmbParameter]
+  case class MasterModel(@dontName bus : Handle[Bmb], lock : Lock) extends Generator{
+    val requirements = Handle[BmbParameter]
     var connector : (Bmb,Bmb) => Unit = defaultConnector
     var priority = 0
 
     dependencies += bus
+    dependencies += lock
     val logic = add task new Area{
       val busConnections = connections.filter(_.m == bus)
       val busSlaves = busConnections.map(c => slaves(c.s))
@@ -41,27 +43,42 @@ case class BmbInterconnectGenerator() extends Generator{
     }
   }
 
-  case class SlaveModel(@dontName bus : Handle[Bmb]) extends Generator{
+  case class SlaveModel(@dontName bus : Handle[Bmb], lock : Lock) extends Generator{
     val capabilities = Handle[BmbParameter]
     val requirements = Handle[BmbParameter]
     var arbiterRequirements = Handle[BmbParameter]
     val mapping = Handle[AddressMapping]
     var connector: (Bmb, Bmb) => Unit = defaultConnector
-    var requireUnburstify = false
+    var requireUnburstify, requireDownSizer = false
 
     dependencies ++= List(bus, mapping)
+    dependencies += lock
     val logic = add task new Area{
       val busConnections = connections.filter(_.s == bus).sortBy(connection => getMaster(connection.m).priority).reverse
       val arbiter = new BmbArbiter(arbiterRequirements, busConnections.size, 3, lowerFirstPriority = defaultArbitration == BmbInterconnectGenerator.STATIC_PRIORITY)
       arbiter.setCompositeName(bus, "arbiter")
       val requireBurstSpliting = arbiterRequirements.lengthWidth != requirements.lengthWidth
       @dontName var busPtr = arbiter.io.output
-      val burstSpliter = if(requireUnburstify){
-        val c = BmbUnburstify(arbiterRequirements.get).setCompositeName(bus, "burstUnburstifier")
+
+      val downSizer = if(requireDownSizer){
+        val c = BmbDownSizerBridge(
+          inputParameter = busPtr.p,
+          outputParameter = BmbDownSizerBridge.outputParameterFrom(
+            inputParameter = busPtr.p,
+            outputDataWidth = requirements.get.dataWidth
+          )
+        ).setCompositeName(bus, "downSizer")
         c.io.input << busPtr
         busPtr = c.io.output
         c
       }
+      val burstSpliter = if(requireUnburstify){
+        val c = BmbUnburstify(busPtr.p).setCompositeName(bus, "burstUnburstifier")
+        c.io.input << busPtr
+        busPtr = c.io.output
+        c
+      }
+
       connector(busPtr, bus)
       for((connection, arbiterInput) <- (busConnections, arbiter.io.inputs).zipped) {
         connection.arbiter.load(arbiterInput)
@@ -70,6 +87,7 @@ case class BmbInterconnectGenerator() extends Generator{
 
     val requirementsGenerator = this add new Generator{
       dependencies += capabilities
+      dependencies += lock
       products += requirements
 
       add task {
@@ -80,32 +98,42 @@ case class BmbInterconnectGenerator() extends Generator{
         val inputContextWidth = busMasters.map(_.requirements.contextWidth).max
         val inputLengthWidth = busMasters.map(_.requirements.lengthWidth).max
         var inputAlignement : BmbParameter.BurstAlignement.Kind = BmbParameter.BurstAlignement.LENGTH
+        val inputDataWidth = busMasters.map(_.requirements.dataWidth).max
         if(busMasters.exists(_.requirements.alignment.allowWord)) inputAlignement = BmbParameter.BurstAlignement.WORD
         if(busMasters.exists(_.requirements.alignment.allowByte)) inputAlignement = BmbParameter.BurstAlignement.BYTE
-        val outputLengthWidth = Math.min(capabilities.lengthWidth, inputLengthWidth)
-        val outputSourceWidth = inputSourceWidth + routerBitCount
-
-        assert(outputSourceWidth <= capabilities.sourceWidth)
-        assert(inputContextWidth <= capabilities.contextWidth)
 
 
-        val requireBurstSpliting = outputLengthWidth != inputLengthWidth //TODO manage allowXXXburst flags
-        if(requireBurstSpliting){
-          assert(outputLengthWidth == log2Up(capabilities.get.byteCount) && !capabilities.alignment.allowByte)
-          requireUnburstify = true
-        }
 
-        requirements.load(capabilities.copy(
-          sourceWidth = outputSourceWidth,
-          lengthWidth = outputLengthWidth,
-          contextWidth = inputContextWidth + (if(requireUnburstify) 2 else 0)
-        ))
+
         arbiterRequirements.load(capabilities.copy(
-          sourceWidth = outputSourceWidth,
+          dataWidth = inputDataWidth,
+          sourceWidth = inputSourceWidth + routerBitCount,
           lengthWidth = inputLengthWidth,
           contextWidth = inputContextWidth,
           alignment = inputAlignement
         ))
+
+        requirements.load(arbiterRequirements)
+
+        //require down
+        requireDownSizer = requirements.dataWidth > capabilities.dataWidth
+        if(requireDownSizer){
+          requirements.load(BmbDownSizerBridge.outputParameterFrom(
+            inputParameter   = requirements,
+            outputDataWidth  = capabilities.dataWidth
+          ))
+        }
+
+
+        requireUnburstify = capabilities.lengthWidth < requirements.lengthWidth
+        if(requireUnburstify){  //TODO manage allowXXXburst flags
+          assert(capabilities.lengthWidth == log2Up(capabilities.get.byteCount) && !capabilities.alignment.allowByte)
+          requirements.load(BmbUnburstify.outputParameter(
+            inputParameter = requirements
+          ))
+        }
+
+        assert(requirements.sourceWidth <= capabilities.sourceWidth)
       }
     }
   }
@@ -126,8 +154,8 @@ case class BmbInterconnectGenerator() extends Generator{
   @dontName val slaves = mutable.LinkedHashMap[Handle[Bmb], SlaveModel]()
   @dontName val connections = ArrayBuffer[ConnectionModel]()
 
-  def getMaster(key : Handle[Bmb]) = masters.getOrElseUpdate(key, new MasterModel(key))
-  def getSlave(key : Handle[Bmb]) = slaves.getOrElseUpdate(key, new SlaveModel(key))
+  def getMaster(key : Handle[Bmb]) = masters.getOrElseUpdate(key, new MasterModel(key, lock))
+  def getSlave(key : Handle[Bmb]) = slaves.getOrElseUpdate(key, new SlaveModel(key, lock))
 
   def setConnector(bus : Handle[Bmb])( connector : (Bmb,Bmb) => Unit): Unit = (masters.get(bus), slaves.get(bus)) match {
     case (Some(m), _) =>    m.connector = connector
@@ -165,7 +193,7 @@ case class BmbInterconnectGenerator() extends Generator{
 
   def addMaster(requirements : Handle[BmbParameter], bus : Handle[Bmb], priority : Int = 0) : Unit = {
     val model = getMaster(bus)
-    model.requirements = requirements
+    model.requirements.merge(requirements)
     model.priority = priority
   }
 
