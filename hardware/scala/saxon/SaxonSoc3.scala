@@ -601,6 +601,31 @@ object Apb3DecoderStdGenerators {
     decoder.addSlave(apb, apbOffset)
   })
 
+  def addBasicUart(apbOffset : BigInt,
+              baudrate : Int)
+             (implicit decoder: Apb3DecoderGenerator) = apbUart(
+    apbOffset = apbOffset,
+    UartCtrlMemoryMappedConfig(
+      uartCtrlConfig = UartCtrlGenerics(
+        dataWidthMax      = 8,
+        clockDividerWidth = 12,
+        preSamplingSize   = 1,
+        samplingSize      = 3,
+        postSamplingSize  = 1
+      ),
+      initConfig = UartCtrlInitConfig(
+        baudrate = baudrate,
+        dataLength = 7,  //7 => 8 bits
+        parity = UartParityType.NONE,
+        stop = UartStopType.ONE
+      ),
+      busCanWriteClockDividerConfig = false,
+      busCanWriteFrameConfig = false,
+      txFifoDepth = 1,
+      rxFifoDepth = 1
+    )
+  )
+
   def addGpio(apbOffset : BigInt,
               p : spinal.lib.io.Gpio.Parameter)
              (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator{
@@ -722,27 +747,9 @@ class SaxonSoc extends Generator{
       plic.addInterrupt(source = gpioA.logic.io.interrupt(1), id = 5)
     }
 
-    val uartA = apbUart(
+    val uartA = addBasicUart(
       apbOffset = 0x10000,
-      UartCtrlMemoryMappedConfig(
-        uartCtrlConfig = UartCtrlGenerics(
-          dataWidthMax      = 8,
-          clockDividerWidth = 12,
-          preSamplingSize   = 1,
-          samplingSize      = 3,
-          postSamplingSize  = 1
-        ),
-        initConfig = UartCtrlInitConfig(
-          baudrate = 115200,
-          dataLength = 7,  //7 => 8 bits
-          parity = UartParityType.NONE,
-          stop = UartStopType.ONE
-        ),
-        busCanWriteClockDividerConfig = false,
-        busCanWriteFrameConfig = false,
-        txFifoDepth = 1,
-        rxFifoDepth = 1
-      )
+      baudrate = 115200
     )
     plic.addInterrupt(source = uartA.interrupt, id = 1)
 
