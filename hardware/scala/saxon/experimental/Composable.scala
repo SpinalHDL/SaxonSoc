@@ -190,7 +190,7 @@ class Generator(@dontName constructionCd : Handle[ClockDomain] = null) extends N
     handle
   }
 
-  def productIoOf[T <: Data](src : => T) : Handle[T] = {
+  def ioProductOf[T <: Data](src : => T) : Handle[T] = {
     val handle = Handle[T]()
     produce(handle){
       val subIo = src

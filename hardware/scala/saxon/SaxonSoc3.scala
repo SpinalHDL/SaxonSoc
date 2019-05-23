@@ -9,6 +9,7 @@ import spinal.lib.bus.bmb._
 import spinal.lib.bus.misc.{BusSlaveFactory, SizeMapping}
 import spinal.lib.com.jtag.Jtag
 import spinal.lib.com.uart._
+import spinal.lib.eda.bench.{AlteraStdTargets, Bench, Rtl, XilinxStdTargets}
 import spinal.lib.io.{Apb3Gpio2, Gpio, TriStateArray}
 import spinal.lib.memory.sdram.{BmbSdramCtrl, IS42x320D, SdramLayout, SdramTimings}
 import spinal.lib.misc.HexTools
@@ -506,8 +507,8 @@ object BmbInterconnectStdGenerators {
                       timings: SdramTimings)
                      (implicit interconnect: BmbInterconnectGenerator) = wrap(new Generator {
     val requirements = Handle[BmbParameter]()
-    val bmb = productOf(logic.ctrl.io.bmb)
-    val sdram = productIoOf(logic.ctrl.io.sdram)
+    val bmb   =   productOf(logic.io.bmb)
+    val sdram = ioProductOf(logic.io.sdram)
 
     dependencies += requirements
 
@@ -518,14 +519,12 @@ object BmbInterconnectStdGenerators {
       mapping = SizeMapping(address, layout.capacity)
     )
 
-    val logic = add task new Area{
-      val ctrl = BmbSdramCtrl(
-        bmbParameter = requirements,
-        layout = layout,
-        timing = timings,
-        CAS = 3
-      )
-    }
+    val logic = add task BmbSdramCtrl(
+      bmbParameter = requirements,
+      layout = layout,
+      timing = timings,
+      CAS = 3
+    )
   })
 
   def bmbToApb3Decoder(address : BigInt)
@@ -595,7 +594,7 @@ object Apb3DecoderStdGenerators {
               p : UartCtrlMemoryMappedConfig)
              (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator {
     val interrupt = productOf(logic.io.interrupt)
-    val uart = productIoOf(logic.io.uart)
+    val uart = ioProductOf(logic.io.uart)
     val apb = productOf(logic.io.apb)
     val logic = add task Apb3UartCtrl(p)
 
@@ -606,7 +605,7 @@ object Apb3DecoderStdGenerators {
               p : spinal.lib.io.Gpio.Parameter)
              (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator{
 
-    val gpio = productIoOf(logic.io.gpio)
+    val gpio = ioProductOf(logic.io.gpio)
     val apb = productOf(logic.io.bus)
     val logic = add task Apb3Gpio2(p)
 
@@ -696,16 +695,16 @@ class SaxonSoc extends Generator{
     val machineTimer = addMachineTimer(0x08000)
     cpu.setTimerInterrupt(machineTimer.interrupt)
 
-    val ramA = bmbOnChipRamMultiPort(
-      portCount = 2,
-      address = 0x80000000l,
-      size = 32 KiB,
-      dataWidth = 32,
-      hexInit = "software/standalone/dhrystone/build/dhrystone.hex"
-    )
+//    val ramA = bmbOnChipRamMultiPort(
+//      portCount = 2,
+//      address = 0x80000000l,
+//      size = 32 KiB,
+//      dataWidth = 32,
+//      hexInit = "software/standalone/dhrystone/build/dhrystone.hex"
+//    )
 
     val sdramA = addSdramSdrCtrl(
-      address = 0xC0000000l,
+      address = 0x80000000l,
       layout  = IS42x320D.layout,
       timings = IS42x320D.timingGrade7
     )
@@ -751,8 +750,8 @@ class SaxonSoc extends Generator{
 
 
     interconnect.addConnection(
-      cpu.dBus -> List(ramA.busses(0), sdramA.bmb, peripheralBridge.input),
-      cpu.iBus -> List(ramA.busses(1), sdramA.bmb)
+      cpu.dBus -> List(sdramA.bmb, peripheralBridge.input),
+      cpu.iBus -> List(sdramA.bmb)
     )
   }
 
@@ -773,3 +772,34 @@ object SaxonSocDefault{
   }
 }
 
+
+
+
+
+object SaxonSynthesisBench {
+  def main(args: Array[String]) {
+    val briey = new Rtl {
+      override def getName(): String = "SaxonSoc"
+
+      override def getRtlPath(): String = "SaxonSoc.v"
+
+      SpinalVerilog({
+        val soc = new GeneratorComponent(new SaxonSoc().defaultSetting()).setDefinitionName(getRtlPath().split("\\.").head)
+        soc.generator.clockCtrl.io.clk.setName("clk")
+        soc
+      })
+    }
+
+
+    val rtls = List(briey)
+
+    val targets = XilinxStdTargets(
+      vivadoArtix7Path = "/media/miaou/HD/linux/Xilinx/Vivado/2018.3/bin"
+    ) /*++ AlteraStdTargets(
+      quartusCycloneIVPath = "/media/miaou/HD/linux/intelFPGA_lite/18.1/quartus/bin",
+      quartusCycloneVPath = "/media/miaou/HD/linux/intelFPGA_lite/18.1/quartus/bin"
+    )*/
+
+    Bench(rtls, targets, "/media/miaou/HD/linux/tmp")
+  }
+}
