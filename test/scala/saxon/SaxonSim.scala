@@ -7,6 +7,7 @@ import java.nio.file.{Files, Paths}
 import spinal.sim._
 import spinal.core._
 import spinal.core.sim._
+import spinal.lib.generator._
 import javax.swing._
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}

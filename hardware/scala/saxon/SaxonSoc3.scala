@@ -2,7 +2,6 @@ package saxon
 
 import spinal.core._
 import spinal.lib._
-import saxon.experimental._
 import spinal.core.internals.classNameOf
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3Decoder, Apb3SlaveFactory}
 import spinal.lib.bus.bmb._
@@ -13,6 +12,7 @@ import spinal.lib.eda.bench.{AlteraStdTargets, Bench, Rtl, XilinxStdTargets}
 import spinal.lib.io.{Apb3Gpio2, Gpio, TriStateArray}
 import spinal.lib.memory.sdram.{BmbSdramCtrl, IS42x320D, SdramLayout, SdramTimings}
 import spinal.lib.misc.HexTools
+import spinal.lib.generator.{BmbInterconnectGenerator, Composable, Dependable, Generator, GeneratorComponent, Handle, Unset}
 import spinal.lib.misc.plic.{PlicGateway, PlicGatewayActiveHigh, PlicMapper, PlicMapping, PlicTarget}
 import vexriscv.plugin._
 import vexriscv._
@@ -87,14 +87,6 @@ case class ExternalClockDomain(clkFrequency : Handle[HertzNumber] = Unset,
 }
 
 
-
-class GeneratorComponent[T <: Generator](val generator : T) extends Component{
-  val c = new Composable()
-  c.rootGenerators += generator
-  c.build()
-  generator.setName("")
-  this.setDefinitionName(classNameOf(generator))
-}
 
 
 object VexRiscvBmbGenerator{
