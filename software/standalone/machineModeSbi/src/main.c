@@ -161,6 +161,9 @@ void trap(){
 #ifdef SIM
 			uint32_t instruction = csr_read(mbadaddr);
 #endif
+#ifdef HARD
+			uint32_t instruction = csr_read(mbadaddr);
+#endif
 #ifdef QEMU
 			uint32_t instruction = 0;
 			uint32_t i;
