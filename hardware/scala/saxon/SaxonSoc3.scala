@@ -594,8 +594,10 @@ object Apb3DecoderStdGenerators {
   })
 
   def addBasicUart(apbOffset : BigInt,
-              baudrate : Int)
-             (implicit decoder: Apb3DecoderGenerator) = apbUart(
+                   baudrate : Int,
+                   txFifoDepth : Int,
+                   rxFifoDepth : Int)
+                   (implicit decoder: Apb3DecoderGenerator) = apbUart(
     apbOffset = apbOffset,
     UartCtrlMemoryMappedConfig(
       uartCtrlConfig = UartCtrlGenerics(
@@ -613,8 +615,8 @@ object Apb3DecoderStdGenerators {
       ),
       busCanWriteClockDividerConfig = false,
       busCanWriteFrameConfig = false,
-      txFifoDepth = 1,
-      rxFifoDepth = 1
+      txFifoDepth = txFifoDepth,
+      rxFifoDepth = rxFifoDepth
     )
   )
 
@@ -712,17 +714,16 @@ class SaxonSoc extends Generator{
     val machineTimer = addMachineTimer(0x08000)
     cpu.setTimerInterrupt(machineTimer.interrupt)
 
-//    val ramA = bmbOnChipRamMultiPort(
-//      portCount = 2,
-//      address = 0x80000000l,
-//      size = 32 KiB,
-//      dataWidth = 32,
-//      hexInit = "software/standalone/dhrystone/build/dhrystone.hex"
-//    )
+    val ramA = bmbOnChipRam(
+      address = 0x80000000l,
+      size = 32 KiB,
+      dataWidth = 32,
+      hexInit = "software/standalone/machineModeSbi/build/machineModeSbi.hex"
+    )
 
     val sdramA = addSdramSdrCtrl(
-      address = 0x80000000l,
-      layout  = IS42x320D.layout,
+      address = 0xC0000000l,
+      layout  = IS42x320D.layout.copy(dataWidth = 16, rowWidth = 14), //TODO
       timings = IS42x320D.timingGrade7
     )
 
@@ -741,7 +742,9 @@ class SaxonSoc extends Generator{
 
     val uartA = addBasicUart(
       apbOffset = 0x10000,
-      baudrate = 115200
+      baudrate = 1000000,
+      txFifoDepth = 128,
+      rxFifoDepth = 128
     )
     plic.addInterrupt(source = uartA.interrupt, id = 1)
 
@@ -749,8 +752,8 @@ class SaxonSoc extends Generator{
 
 
     interconnect.addConnection(
-      cpu.dBus -> List(sdramA.bmb, peripheralBridge.input),
-      cpu.iBus -> List(sdramA.bmb)
+      cpu.dBus -> List(sdramA.bmb, ramA.bus, peripheralBridge.input),
+      cpu.iBus -> List(sdramA.bmb, ramA.bus)
     )
   }
 

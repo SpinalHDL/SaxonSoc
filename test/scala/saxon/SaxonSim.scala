@@ -24,15 +24,35 @@ object SaxonSim {
   def main(args: Array[String]): Unit = {
     val simSlowDown = false
 
-    SimConfig.allOptimisation.compile(new GeneratorComponent(new SaxonSoc().defaultSetting())).doSimUntilVoid("test", 42){dut =>
+    val simConfig = SimConfig
+    simConfig.allOptimisation
+    simConfig.withWave
+    simConfig.compile(new GeneratorComponent(new SaxonSoc().defaultSetting())).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.generator.clockCtrl.clkFrequency.get.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
-      val uartBaudRate = 115200
+      val uartBaudRate = 1000000
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
 
       val clockDomain = ClockDomain(dut.generator.clockCtrl.io.clk, dut.generator.clockCtrl.io.reset)
       clockDomain.forkStimulus(systemClkPeriod)
 //      clockDomain.forkSimSpeedPrinter(4)
+
+      fork{
+        while(true){
+          sleep(systemClkPeriod*1000000*10)
+          println("\nsimTime : " + simTime())
+        }
+      }
+      fork{
+        disableSimWave()
+//        sleep(180000000000l)
+//        enableSimWave()
+//        sleep(systemClkPeriod*1000000)
+//        simFailure()
+      }
+
+
+
 
       val tcpJtag = JtagTcp(
         jtag = dut.generator.core.cpu.jtag,
@@ -54,7 +74,13 @@ object SaxonSim {
         layout = dut.generator.core.sdramA.logic.layout,
         clockDomain = clockDomain
       )
-      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
+//      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
+
+      val binPath = "ext/VexRiscv/src/test/resources/VexRiscvRegressionData/sim/linux/rv32ima/"
+      sdram.loadBin(0x00000000, binPath + "Image")
+      sdram.loadBin(0x02000000, binPath + "rootfs.cpio")
+      sdram.loadBin(0x03000000, binPath + "rv32.dtb")
     }
   }
+
 }
