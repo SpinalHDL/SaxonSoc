@@ -6,7 +6,8 @@
 #ifdef HARD
 
 #include "uart.h"
-#define UART_A ((Uart_Reg*)(0xF0010000))
+#define UART_A ((Uart_Reg*)(0x10010000))
+#define MACHINE_TIMER ((volatile uint32_t*)(0x10008000))
 
 void stopSim(){
     uart_writeStr(UART_A, "\nmachineModeSbi exception\n");
@@ -24,18 +25,17 @@ int32_t getC(){
 }
 
 uint32_t rdtime(){
-	return *((volatile uint32_t*) 0xF0008000);
+	return MACHINE_TIMER[0];
 }
 
 uint32_t rdtimeh(){
-	return *((volatile uint32_t*) 0xF0008004);
+	return MACHINE_TIMER[1];
 }
 
 void setMachineTimerCmp(uint32_t low, uint32_t high){
-	volatile uint32_t* base = (volatile uint32_t*) 0xF0008008;
-	base[1] = 0xffffffff;
-	base[0] = low;
-	base[1] = high;
+	MACHINE_TIMER[3] = 0xffffffff;
+	MACHINE_TIMER[2] = low;
+	MACHINE_TIMER[3] = high;
 }
 
 

@@ -26,7 +26,7 @@ object SaxonSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-//    simConfig.withWave
+    simConfig.withWave
     simConfig.compile(new GeneratorComponent(new SaxonSoc().defaultSetting())).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.generator.clockCtrl.clkFrequency.get.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
@@ -44,11 +44,18 @@ object SaxonSim {
 //        }
 //      }
       fork{
-        disableSimWave()
-//        sleep(180000000000l)
+//        disableSimWave()
+//        sleep(600e9.toLong)
 //        enableSimWave()
 //        sleep(systemClkPeriod*1000000)
 //        simFailure()
+
+        while(true){
+          disableSimWave()
+          sleep(systemClkPeriod*500000)
+          enableSimWave()
+          sleep(systemClkPeriod*100)
+        }
       }
 
 
@@ -76,11 +83,11 @@ object SaxonSim {
       )
 //      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
 
-      val binPath = "ext/VexRiscv/src/test/resources/VexRiscvRegressionData/sim/linux/rv32ima/"
+      val linuxPath = "ext/VexRiscv/src/test/resources/VexRiscvRegressionData/sim/linux/rv32ima/"
       sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      sdram.loadBin(0x00400000, binPath + "Image")
+      sdram.loadBin(0x00400000, linuxPath + "Image")
       sdram.loadBin(0x00BF0000, "rv32.dtb")
-      sdram.loadBin(0x00C00000, binPath + "rootfs.cpio")
+      sdram.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
     }
   }
 
