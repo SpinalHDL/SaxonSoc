@@ -714,16 +714,16 @@ class SaxonSoc extends Generator{
     val machineTimer = addMachineTimer(0x08000)
     cpu.setTimerInterrupt(machineTimer.interrupt)
 
-    val ramA = bmbOnChipRam(
-      address = 0x80000000l,
-      size = 32 KiB,
-      dataWidth = 32,
-      hexInit = "software/standalone/machineModeSbi/build/machineModeSbi.hex"
-    )
+//    val ramA = bmbOnChipRam(
+//      address = 0x80000000l,
+//      size = 32 KiB,
+//      dataWidth = 32,
+//      hexInit = "software/standalone/machineModeSbi/build/machineModeSbi.hex"
+//    )
 
     val sdramA = addSdramSdrCtrl(
-      address = 0xC0000000l,
-      layout  = IS42x320D.layout.copy(dataWidth = 16, rowWidth = 14), //TODO
+      address = 0x80000000l,
+      layout  = IS42x320D.layout,//.copy(dataWidth = 32, rowWidth = 13), //TODO
       timings = IS42x320D.timingGrade7
     )
 
@@ -752,8 +752,8 @@ class SaxonSoc extends Generator{
 
 
     interconnect.addConnection(
-      cpu.dBus -> List(sdramA.bmb, ramA.bus, peripheralBridge.input),
-      cpu.iBus -> List(sdramA.bmb, ramA.bus)
+      cpu.dBus -> List(sdramA.bmb, peripheralBridge.input),
+      cpu.iBus -> List(sdramA.bmb)
     )
   }
 

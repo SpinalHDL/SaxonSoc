@@ -1,5 +1,5 @@
 PROJ_NAME=machineModeSbi
-DEBUG=yes
+DEBUG=no
 MULDIV=yes
 BENCH=no
 COMPRESSED=no

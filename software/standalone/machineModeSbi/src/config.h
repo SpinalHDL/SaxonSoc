@@ -4,7 +4,7 @@
 //#define QEMU
 //#define SIM
 #define HARD
-#define OS_CALL 0xC0000000
-#define DTB 0xC3000000
+#define OS_CALL 0x80400000
+#define DTB     0x80BF0000
 
 #endif
