@@ -9,22 +9,9 @@ import vexriscv.{VexRiscv, VexRiscvConfig}
 import vexriscv.plugin.{CsrPlugin, DBusCachedPlugin, DBusSimpleBus, DBusSimplePlugin, DebugPlugin, IBusCachedPlugin, IBusSimpleBus, IBusSimplePlugin}
 
 
-object VexRiscvBmbGenerator {
-  def apply(withJtag: Handle[Boolean],
-            debugClockDomain: Handle[ClockDomain],
-            debugAskReset: Handle[() => Unit])
-           (implicit interconnect: BmbInterconnectGenerator): VexRiscvBmbGenerator = {
-    val g = VexRiscvBmbGenerator()
-    g.withJtag.merge(withJtag)
-    g.debugClockDomain.merge(debugClockDomain)
-    g.debugAskReset.merge(debugAskReset)
-    g
-  }
-}
 
-case class VexRiscvBmbGenerator(/*debugAskReset : Handle[() => Unit] = Unset,
-                                withJtag : Handle[Boolean] = Unset,
-                                debugClockDomain : Handle[ClockDomain] = Unset*/)(implicit interconnect: BmbInterconnectGenerator = null) extends Generator {
+
+case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerator = null) extends Generator {
   val config = Handle[VexRiscvConfig]
   val withJtag = Handle[Boolean]
   val debugClockDomain = Handle[ClockDomain]
@@ -36,6 +23,12 @@ case class VexRiscvBmbGenerator(/*debugAskReset : Handle[() => Unit] = Unset,
   def setExternalInterrupt(that: Handle[Bool]) = externalInterrupt.merge(that)
 
   def setTimerInterrupt(that: Handle[Bool]) = timerInterrupt.merge(that)
+
+  def enableJtag(implicit clockCtrl: ClockDomainGenerator) : Unit = {
+    this.debugClockDomain.merge(clockCtrl.controlClockDomain())
+    debugAskReset.merge(clockCtrl.doSystemReset)
+    withJtag.load(true)
+  }
 
   dependencies ++= List(config)
   dependencies += Dependable(withJtag) {

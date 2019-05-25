@@ -20,45 +20,22 @@ import scala.collection.mutable
 
 
 
-object SaxonSim {
+object SaxonSocOnChipRamSim {
   def main(args: Array[String]): Unit = {
     val simSlowDown = false
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-    simConfig.withWave
-    simConfig.compile(new GeneratorComponent(new SaxonSoc().defaultSetting())).doSimUntilVoid("test", 42){dut =>
+
+    simConfig.compile(new GeneratorComponent(new SaxonSocOnChipRam().defaultSetting())).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.generator.clockCtrl.clkFrequency.get.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 1000000
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
 
-      val clockDomain = ClockDomain(dut.generator.clockCtrl.io.clk, dut.generator.clockCtrl.io.reset)
+      val clockDomain = ClockDomain(dut.generator.clockCtrl.clock.get, dut.generator.clockCtrl.reset.get)
       clockDomain.forkStimulus(systemClkPeriod)
 //      clockDomain.forkSimSpeedPrinter(4)
-
-//      fork{
-//        while(true){
-//          sleep(systemClkPeriod*1000000)
-//          println("\nsimTime : " + simTime())
-//        }
-//      }
-      fork{
-//        disableSimWave()
-//        sleep(600e9.toLong)
-//        enableSimWave()
-//        sleep(systemClkPeriod*1000000)
-//        simFailure()
-
-        while(true){
-          disableSimWave()
-          sleep(systemClkPeriod*500000)
-          enableSimWave()
-          sleep(systemClkPeriod*100)
-        }
-      }
-
-
 
 
       val tcpJtag = JtagTcp(
@@ -75,19 +52,6 @@ object SaxonSim {
         uartPin = dut.generator.core.uartA.uart.get.rxd,
         baudPeriod = uartBaudPeriod
       )
-
-      val sdram = SdramModel(
-        io = dut.generator.core.sdramA.sdram.get,
-        layout = dut.generator.core.sdramA.logic.layout,
-        clockDomain = clockDomain
-      )
-//      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
-
-      val linuxPath = "ext/VexRiscv/src/test/resources/VexRiscvRegressionData/sim/linux/rv32ima/"
-      sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      sdram.loadBin(0x00400000, linuxPath + "Image")
-      sdram.loadBin(0x00BF0000, "rv32.dtb")
-      sdram.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
     }
   }
 
