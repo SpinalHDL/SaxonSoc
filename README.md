@@ -23,3 +23,12 @@ cd build
 
 cmake -DBOARD=vexriscv_saxon_up5k_evn ..
 make -j${nproc}
+
+
+
+git clone http://github.com/buildroot/buildroot
+cd buildroot
+cp -r ../SaxonSoc.git/software/buildroot/* ./
+make saxon_default_defconfig
+make -j$(nproc)
+output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
