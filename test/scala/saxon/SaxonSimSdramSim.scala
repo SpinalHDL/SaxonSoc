@@ -7,7 +7,9 @@ import java.nio.file.{Files, Paths}
 import spinal.sim._
 import spinal.core._
 import spinal.core.sim._
+import spinal.lib._
 import spinal.lib.generator._
+import spinal.lib.generator.Handle._
 import javax.swing._
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
@@ -27,13 +29,13 @@ object SaxonSimSdramSim {
     val simConfig = SimConfig
     simConfig.allOptimisation
     simConfig.withWave
-    simConfig.compile(new GeneratorComponent(new SaxonSocSdram().defaultSetting())).doSimUntilVoid("test", 42){dut =>
-      val systemClkPeriod = (1e12/dut.generator.clockCtrl.clkFrequency.get.toDouble).toLong
+    simConfig.compile(new SaxonSocSdram(){defaultSetting()}.toComponent()).doSimUntilVoid("test", 42){dut =>
+      val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.get.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 1000000
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
 
-      val clockDomain = ClockDomain(dut.generator.clockCtrl.clock.get, dut.generator.clockCtrl.reset.get)
+      val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset.get)
       clockDomain.forkStimulus(systemClkPeriod)
 //      clockDomain.forkSimSpeedPrinter(4)
 
@@ -62,23 +64,23 @@ object SaxonSimSdramSim {
 
 
       val tcpJtag = JtagTcp(
-        jtag = dut.generator.core.cpu.jtag,
+        jtag = dut.system.cpu.jtag,
         jtagClkPeriod = jtagClkPeriod
       )
 
       val uartTx = UartDecoder(
-        uartPin =  dut.generator.core.uartA.uart.get.txd,
+        uartPin =  dut.system.uartA.uart.get.txd,
         baudPeriod = uartBaudPeriod
       )
 
       val uartRx = UartEncoder(
-        uartPin = dut.generator.core.uartA.uart.get.rxd,
+        uartPin = dut.system.uartA.uart.get.rxd,
         baudPeriod = uartBaudPeriod
       )
 
       val sdram = SdramModel(
-        io = dut.generator.core.sdramA.sdram.get,
-        layout = dut.generator.core.sdramA.logic.layout,
+        io = dut.system.sdramA.sdram.get,
+        layout = dut.system.sdramA.logic.layout,
         clockDomain = clockDomain
       )
 //      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")

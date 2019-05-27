@@ -27,13 +27,13 @@ object SaxonSocOnChipRamSim {
     val simConfig = SimConfig
     simConfig.allOptimisation
 
-    simConfig.compile(new GeneratorComponent(new SaxonSocOnChipRam().defaultSetting())).doSimUntilVoid("test", 42){dut =>
-      val systemClkPeriod = (1e12/dut.generator.clockCtrl.clkFrequency.get.toDouble).toLong
+    simConfig.compile(new GeneratorComponent(new SaxonSocOnChipRam(){defaultSetting()})).doSimUntilVoid("test", 42){dut =>
+      val systemClkPeriod = (1e12/dut.generator.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 1000000
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
 
-      val clockDomain = ClockDomain(dut.generator.clockCtrl.clock.get, dut.generator.clockCtrl.reset.get)
+      val clockDomain = ClockDomain(dut.generator.clockCtrl.clock, dut.generator.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
 //      clockDomain.forkSimSpeedPrinter(4)
 
@@ -44,12 +44,12 @@ object SaxonSocOnChipRamSim {
       )
 
       val uartTx = UartDecoder(
-        uartPin =  dut.generator.core.uartA.uart.get.txd,
+        uartPin =  dut.generator.core.uartA.uart.txd,
         baudPeriod = uartBaudPeriod
       )
 
       val uartRx = UartEncoder(
-        uartPin = dut.generator.core.uartA.uart.get.rxd,
+        uartPin = dut.generator.core.uartA.uart.rxd,
         baudPeriod = uartBaudPeriod
       )
     }

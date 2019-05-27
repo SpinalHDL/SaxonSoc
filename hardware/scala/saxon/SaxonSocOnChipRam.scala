@@ -81,7 +81,7 @@ class SaxonSocOnChipRam extends Generator {
 
 object SaxonSocOnChipRam {
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(new GeneratorComponent(new SaxonSocOnChipRam().defaultSetting()))
+    SpinalRtlConfig.generateVerilog(new GeneratorComponent(new SaxonSocOnChipRam(){defaultSetting()}))
   }
 }
 
@@ -94,7 +94,7 @@ object SaxonSocOnChipRamSynthesisBench {
       override def getRtlPath(): String = "SaxonSoc.v"
 
       SpinalVerilog({
-        val soc = new GeneratorComponent(new SaxonSocOnChipRam().defaultSetting()).setDefinitionName(getRtlPath().split("\\.").head)
+        val soc = new GeneratorComponent(new SaxonSocOnChipRam(){defaultSetting()}).setDefinitionName(getRtlPath().split("\\.").head)
         soc.generator.clockCtrl.clock.get.setName("clk")
         soc
       })

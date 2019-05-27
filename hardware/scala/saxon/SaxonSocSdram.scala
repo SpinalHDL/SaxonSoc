@@ -2,6 +2,7 @@ package saxon
 
 import spinal.core._
 import spinal.lib.eda.bench.{Bench, Rtl, XilinxStdTargets}
+import spinal.lib.eda.icestorm.IcestormStdTargets
 import spinal.lib.generator._
 import spinal.lib.io.Gpio
 import spinal.lib.memory.sdram.IS42x320D
@@ -11,9 +12,9 @@ import spinal.lib.memory.sdram.IS42x320D
 
 
 class SaxonSocSdram extends Generator {
-  val clockCtrl = ClockDomainGenerator().makeExternal()
+  val clockCtrl = ClockDomainGenerator()
 
-  val core = new Generator(clockCtrl.clockDomain) {
+  val system = new Generator(clockCtrl.clockDomain) {
     implicit val interconnect = BmbInterconnectGenerator()
     implicit val apbDecoder = Apb3DecoderGenerator()
 
@@ -69,11 +70,12 @@ class SaxonSocSdram extends Generator {
   }
 
   def defaultSetting(): this.type = {
+    clockCtrl.makeExternal()
     clockCtrl.clkFrequency.load(50 MHz)
     clockCtrl.powerOnReset.load(true)
 
-    core.cpu.config.load(VexRiscvConfigs.linux)
-    core.cpu.enableJtag(clockCtrl)
+    system.cpu.config.load(VexRiscvConfigs.linux)
+    system.cpu.enableJtag(clockCtrl)
 
     this
   }
@@ -83,7 +85,9 @@ class SaxonSocSdram extends Generator {
 
 object SaxonSocSdram {
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(new GeneratorComponent(new SaxonSocSdram().defaultSetting()))
+    SpinalRtlConfig.generateVerilog(new GeneratorComponent(new SaxonSocSdram(){
+      defaultSetting()
+    }))
   }
 }
 
@@ -96,8 +100,8 @@ object SaxonSocSdramSynthesisBench {
 
       override def getRtlPath(): String = "SaxonSoc.v"
 
-      SpinalVerilog({
-        val soc = new GeneratorComponent(new SaxonSocSdram().defaultSetting()).setDefinitionName(getRtlPath().split("\\.").head)
+      SpinalConfig(inlineRom = true).generateVerilog({
+        val soc = new GeneratorComponent(new SaxonSocSdram(){defaultSetting()}).setDefinitionName(getRtlPath().split("\\.").head)
         soc.generator.clockCtrl.clock.get.setName("clk")
         soc
       })
@@ -106,9 +110,9 @@ object SaxonSocSdramSynthesisBench {
 
     val rtls = List(briey)
 
-    val targets = XilinxStdTargets(
+    val targets = IcestormStdTargets().take(1)/*XilinxStdTargets(
       vivadoArtix7Path = "/media/miaou/HD/linux/Xilinx/Vivado/2018.3/bin"
-    ) /*++ AlteraStdTargets(
+    ) *//*++ AlteraStdTargets(
       quartusCycloneIVPath = "/media/miaou/HD/linux/intelFPGA_lite/18.1/quartus/bin",
       quartusCycloneVPath = "/media/miaou/HD/linux/intelFPGA_lite/18.1/quartus/bin"
     )*/

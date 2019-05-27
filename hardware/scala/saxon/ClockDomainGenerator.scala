@@ -4,68 +4,6 @@ import spinal.core._
 import spinal.lib.BufferCC
 import spinal.lib.generator._
 
-case class SystemClockDomain(clkFrequency: Handle[HertzNumber] = Unset,
-                             withDebug: Handle[Boolean] = Unset) extends Generator {
-  val systemClockDomain = Handle[ClockDomain]
-  val debugClockDomain = Handle[ClockDomain]
-  val doSystemReset = productOf(() => logic.systemResetSet := True)
-
-  dependencies ++= List(clkFrequency, withDebug)
-
-  def clockTree(input: Bool): Bool = input
-
-  val io = add task new Bundle {
-    val clk, reset = in Bool()
-  }
-
-  val resetCtrlClockDomain = add task ClockDomain(
-    clock = io.clk,
-    config = ClockDomainConfig(
-      resetKind = BOOT
-    )
-  )
-
-
-  val logic = add task new ClockingArea(resetCtrlClockDomain) {
-    val resetUnbuffered = False
-
-    //Power on reset counter
-    val resetCounter = Reg(UInt(8 bits)) init (0)
-    when(!resetCounter.andR) {
-      resetCounter := resetCounter + 1
-      resetUnbuffered := True
-    }
-    when(BufferCC(io.reset)) {
-      resetCounter := 0
-    }
-
-    //Create all reset used later in the design
-    val systemResetSet = False
-    val systemReset = clockTree(RegNext(resetUnbuffered || BufferCC(systemResetSet)))
-
-    systemClockDomain.load(ClockDomain(
-      clock = io.clk,
-      reset = systemReset,
-      frequency = FixedFrequency(clkFrequency),
-      config = ClockDomainConfig(
-        resetKind = spinal.core.SYNC
-      )
-    ))
-
-
-    val debug = withDebug.get generate new Area {
-      val reset = clockTree(RegNext(resetUnbuffered))
-      debugClockDomain load (ClockDomain(
-        clock = io.clk,
-        reset = reset,
-        frequency = FixedFrequency(clkFrequency),
-        config = ClockDomainConfig(
-          resetKind = spinal.core.SYNC
-        )
-      ))
-    }
-  }
-}
 
 
 trait ResetSourceKind
