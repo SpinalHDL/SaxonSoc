@@ -27,7 +27,7 @@ object SaxonSocOnChipRamSim {
     val simConfig = SimConfig
     simConfig.allOptimisation
 
-    simConfig.compile(new GeneratorComponent(new SaxonSocOnChipRam().defaultSetting().toComponent())).doSimUntilVoid("test", 42){dut =>
+    simConfig.compile(new SaxonSocOnChipRam().defaultSetting().toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.generator.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 1000000

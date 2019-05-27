@@ -15,9 +15,9 @@ object Apb3DecoderStdGenerators {
   def apbUart(apbOffset : BigInt,
               p : UartCtrlMemoryMappedConfig)
              (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator {
-    val interrupt = productOf(logic.io.interrupt)
-    val uart = ioProductOf(logic.io.uart)
-    val apb = productOf(logic.io.apb)
+    val apb = produce(logic.io.apb)
+    val interrupt = produce(logic.io.interrupt)
+    val uart = produceIo(logic.io.uart)
     val logic = add task Apb3UartCtrl(p)
 
     decoder.addSlave(apb, apbOffset)
@@ -54,8 +54,8 @@ object Apb3DecoderStdGenerators {
               p : spinal.lib.io.Gpio.Parameter)
              (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator{
 
-    val gpio = ioProductOf(logic.io.gpio)
-    val apb = productOf(logic.io.bus)
+    val gpio = produceIo(logic.io.gpio)
+    val apb = produce(logic.io.bus)
     val logic = add task Apb3Gpio2(p)
 
     decoder.addSlave(apb, apbOffset)
@@ -63,8 +63,8 @@ object Apb3DecoderStdGenerators {
 
   def addPlic(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator {
     val gateways = ArrayBuffer[Handle[PlicGateway]]()
-    val interrupt = productOf(logic.targets(0).iep)
-    val apb = productOf(logic.apb)
+    val interrupt = produce(logic.targets(0).iep)
+    val apb = produce(logic.apb)
 
     val priorityWidth = 1
 
@@ -107,10 +107,124 @@ object Apb3DecoderStdGenerators {
   })
 
   def addMachineTimer(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) = wrap(new Generator{
-    val interrupt = productOf(logic.io.mTimeInterrupt) //TODO fix error report when this one isn't drived
-    val apb = productOf(logic.io.bus)
+    val interrupt = produce(logic.io.mTimeInterrupt) //TODO fix error report when this one isn't drived
+    val apb = produce(logic.io.bus)
     val logic = add task MachineTimer()
 
     decoder.addSlave(apb, apbOffset)
   })
+}
+
+
+
+
+
+
+
+
+
+
+
+case class Apb3UartGenerator(apbOffset : BigInt,
+                             p : UartCtrlMemoryMappedConfig)
+                            (implicit decoder: Apb3DecoderGenerator) extends Generator {
+  val interrupt = produce(logic.io.interrupt)
+  val uart = produceIo(logic.io.uart)
+  val apb = produce(logic.io.apb)
+  val logic = add task Apb3UartCtrl(p)
+
+  decoder.addSlave(apb, apbOffset)
+}
+
+object Apb3UartGenerator {
+  def apply(apbOffset: BigInt,
+            baudrate: Int,
+            txFifoDepth: Int,
+            rxFifoDepth: Int)
+           (implicit decoder: Apb3DecoderGenerator) : Apb3UartGenerator = Apb3UartGenerator(
+    apbOffset = apbOffset,
+    UartCtrlMemoryMappedConfig(
+      uartCtrlConfig = UartCtrlGenerics(
+        dataWidthMax = 8,
+        clockDividerWidth = 12,
+        preSamplingSize = 1,
+        samplingSize = 3,
+        postSamplingSize = 1
+      ),
+      initConfig = UartCtrlInitConfig(
+        baudrate = baudrate,
+        dataLength = 7, //7 => 8 bits
+        parity = UartParityType.NONE,
+        stop = UartStopType.ONE
+      ),
+      busCanWriteClockDividerConfig = false,
+      busCanWriteFrameConfig = false,
+      txFifoDepth = txFifoDepth,
+      rxFifoDepth = rxFifoDepth
+    )
+  )
+}
+
+case class  Apb3GpioGenerator(apbOffset : BigInt,
+                              p : spinal.lib.io.Gpio.Parameter)
+                             (implicit decoder: Apb3DecoderGenerator) extends Generator{
+
+  val gpio = produceIo(logic.io.gpio)
+  val apb = produce(logic.io.bus)
+  val logic = add task Apb3Gpio2(p)
+
+  decoder.addSlave(apb, apbOffset)
+}
+
+case class Apb3PlicGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator {
+  val gateways = ArrayBuffer[Handle[PlicGateway]]()
+  val interrupt = produce(logic.targets(0).iep)
+  val apb = produce(logic.apb)
+
+  val priorityWidth = 1
+
+  def addInterrupt[T <: Generator](source : Handle[Bool], id : Int) = {
+    this.dependencies += wrap(new Generator {
+      dependencies += source
+      add task new Area {
+        gateways += PlicGatewayActiveHigh(
+          source = source,
+          id = id,
+          priorityWidth = priorityWidth
+        )
+      }
+    })
+  }
+
+  val logic = add task new Area{
+    val apb = Apb3(addressWidth = 16, dataWidth = 32)
+    val bus = Apb3SlaveFactory(apb)
+
+    val targets = Seq(
+      PlicTarget(
+        gateways = gateways.map(_.get),
+        priorityWidth = priorityWidth
+      )
+    )
+
+    val plicMapping = PlicMapping.light
+    gateways.foreach(_.priority := 1)
+    targets.foreach(_.threshold := 0)
+    targets.foreach(_.ie.foreach(_ := True))
+    val mapping = PlicMapper(bus, plicMapping)(
+      gateways = gateways.map(_.get),
+      targets = targets
+    )
+  }
+
+
+  decoder.addSlave(apb, apbOffset)
+}
+
+case class Apb3MachineTimerGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator{
+  val interrupt = produce(logic.io.mTimeInterrupt) //TODO fix error report when this one isn't drived
+  val apb = produce(logic.io.bus)
+  val logic = add task MachineTimer()
+
+  decoder.addSlave(apb, apbOffset)
 }

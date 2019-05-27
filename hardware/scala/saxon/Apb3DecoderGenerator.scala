@@ -15,8 +15,8 @@ case class Apb3DecoderGenerator() extends Generator {
   }
 
   val models = ArrayBuffer[SlaveModel]()
-  val input = productOf(logic.inputBus)
-  val inputConfig = productOf(logic.inputBus.config)
+  val input = produce(logic.inputBus)
+  val inputConfig = produce(logic.inputBus.config)
 
   def addSlave(slave: Handle[Apb3], address: BigInt): Unit = {
     dependencies += slave

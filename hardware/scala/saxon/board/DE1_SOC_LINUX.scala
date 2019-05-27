@@ -4,6 +4,7 @@ import saxon.ResetSourceKind.EXTERNAL
 import saxon.{SaxonSocSdram, SpinalRtlConfig, VexRiscvConfigs}
 import spinal.core._
 import spinal.lib.io.InOutWrapper
+import spinal.lib.memory.sdram.IS42x320D
 
 
 case class DE1_SOC_LINUX_PLL() extends BlackBox{
@@ -21,11 +22,14 @@ case class DE1_SOC_LINUX_PLL() extends BlackBox{
 
 class DE1_SOC_LINUX extends SaxonSocSdram{
   clockCtrl.resetSourceKind.load(EXTERNAL)
-  clockCtrl.clkFrequency.load(50 MHz)
+  clockCtrl.clkFrequency.load(75 MHz)
   clockCtrl.powerOnReset.load(true)
 
   system.cpu.config.load(VexRiscvConfigs.linux)
   system.cpu.enableJtag(clockCtrl)
+
+  system.sdramA.layout load(IS42x320D.layout)
+  system.sdramA.timings load(IS42x320D.timingGrade7)
 
   val clocking = add task new Area{
     val CLOCK_50 = in Bool()

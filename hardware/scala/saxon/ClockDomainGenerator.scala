@@ -19,7 +19,7 @@ case class ClockDomainGenerator() extends Generator {
   val resetSourceKind = Handle[ResetSourceKind]
   val powerOnReset = Handle[Boolean]
 
-  val clockDomain = productOf(
+  val clockDomain = produce(
     ClockDomain(
       clock = clock,
       reset = logic.systemReset,
@@ -29,7 +29,7 @@ case class ClockDomainGenerator() extends Generator {
       )
     )
   )
-  val doSystemReset = productOf(() => logic.resetRequest := True)
+  val doSystemReset = produce(() => logic.resetRequest := True)
 
   dependencies ++= List(clkFrequency, clock, resetSourceKind, powerOnReset)
   dependencies += Dependable(config){
@@ -47,7 +47,7 @@ case class ClockDomainGenerator() extends Generator {
   }
   def clockTree(input: Bool): Bool = input
 
-  def controlClockDomain() = productOf(resetCtrlClockDomain(clockDomain.copy(clock = clockDomain.clock, reset = clockTree(RegNext(logic.resetUnbuffered)))))
+  def controlClockDomain() = produce(resetCtrlClockDomain(clockDomain.copy(clock = clockDomain.clock, reset = clockTree(RegNext(logic.resetUnbuffered)))))
 
 
   val resetCtrlClockDomain = add task ClockDomain(

@@ -41,3 +41,6 @@ make spinal_saxon_default_defconfig
 make -j$(nproc)
 output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
 dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts
+
+src/openocd -f tcl/interface/ftdi/ft2232h_breakout.cfg -c 'set BRIEY_CPU0_YAML ../SaxonSoc.git/cpu0.yaml' -f tcl/target/saxon.cfg
+cu -l /dev/ttyUSB0 -s 1000000
