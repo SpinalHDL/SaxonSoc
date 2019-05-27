@@ -10,7 +10,7 @@
 	chosen {
 		bootargs = "rootwait console=hvc0 root=/dev/ram0 init=/sbin/init swiotlb=32";
 		linux,initrd-start = <0x80C00000>;
-		linux,initrd-end =   <0x81000000>; // max 4MB ramdisk image
+		linux,initrd-end =   <0x81400000>; // max 8MB ramdisk image
 	};
 
 	cpus {

@@ -69,7 +69,7 @@ class SaxonSocSdram extends Generator {
     )
   }
 
-  def defaultSetting(): this.type = {
+  def defaultSetting(): this.type = this {
     clockCtrl.makeExternal()
     clockCtrl.clkFrequency.load(50 MHz)
     clockCtrl.powerOnReset.load(true)
@@ -85,9 +85,7 @@ class SaxonSocSdram extends Generator {
 
 object SaxonSocSdram {
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(new GeneratorComponent(new SaxonSocSdram(){
-      defaultSetting()
-    }))
+    SpinalRtlConfig.generateVerilog(new SaxonSocSdram().defaultSetting().toComponent())
   }
 }
 
@@ -101,7 +99,7 @@ object SaxonSocSdramSynthesisBench {
       override def getRtlPath(): String = "SaxonSoc.v"
 
       SpinalConfig(inlineRom = true).generateVerilog({
-        val soc = new GeneratorComponent(new SaxonSocSdram(){defaultSetting()}).setDefinitionName(getRtlPath().split("\\.").head)
+        val soc = new GeneratorComponent(new SaxonSocSdram().defaultSetting().toComponent()).setDefinitionName(getRtlPath().split("\\.").head)
         soc.generator.clockCtrl.clock.get.setName("clk")
         soc
       })

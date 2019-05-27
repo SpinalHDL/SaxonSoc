@@ -1,3 +1,11 @@
+## Description
+
+This repo experiment multiple things at once :
+- The BMB (Banana Memory Bus) which can cover both cached and cacheless SoC without compromises
+- A hardware description paradigm made of generators and depedancies which should be able to solve SoC toplevel hell
+- Linux on VexRiscv
+
+## Various commands
 
 openocd =>
 https://github.com/SpinalHDL/openocd_riscv.git
@@ -29,6 +37,7 @@ make -j${nproc}
 git clone http://github.com/buildroot/buildroot
 cd buildroot
 cp -r ../SaxonSoc.git/software/buildroot/* ./
-make saxon_default_defconfig
+make spinal_saxon_default_defconfig
 make -j$(nproc)
 output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
+dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts

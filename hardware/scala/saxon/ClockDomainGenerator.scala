@@ -68,7 +68,7 @@ case class ClockDomainGenerator() extends Generator {
       resetCounter := resetCounter + 1
       resetUnbuffered := True
     }
-    when(BufferCC(reset.get)) {
+    when(BufferCC(reset)) {
       resetCounter := 0
     }
 

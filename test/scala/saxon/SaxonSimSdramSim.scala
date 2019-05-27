@@ -29,13 +29,13 @@ object SaxonSimSdramSim {
     val simConfig = SimConfig
     simConfig.allOptimisation
     simConfig.withWave
-    simConfig.compile(new SaxonSocSdram(){defaultSetting()}.toComponent()).doSimUntilVoid("test", 42){dut =>
-      val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.get.toDouble).toLong
+    simConfig.compile(new SaxonSocSdram().defaultSetting().toComponent()).doSimUntilVoid("test", 42){dut =>
+      val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 1000000
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
 
-      val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset.get)
+      val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
 //      clockDomain.forkSimSpeedPrinter(4)
 
@@ -69,26 +69,27 @@ object SaxonSimSdramSim {
       )
 
       val uartTx = UartDecoder(
-        uartPin =  dut.system.uartA.uart.get.txd,
+        uartPin =  dut.system.uartA.uart.txd,
         baudPeriod = uartBaudPeriod
       )
 
       val uartRx = UartEncoder(
-        uartPin = dut.system.uartA.uart.get.rxd,
+        uartPin = dut.system.uartA.uart.rxd,
         baudPeriod = uartBaudPeriod
       )
 
       val sdram = SdramModel(
-        io = dut.system.sdramA.sdram.get,
+        io = dut.system.sdramA.sdram,
         layout = dut.system.sdramA.logic.layout,
         clockDomain = clockDomain
       )
 //      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
 
-      val linuxPath = "ext/VexRiscv/src/test/resources/VexRiscvRegressionData/sim/linux/rv32ima/"
+//      val linuxPath = "ext/VexRiscv/src/test/resources/VexRiscvRegressionData/sim/linux/rv32ima/"
+      val linuxPath = "../buildroot/output/images/"
       sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       sdram.loadBin(0x00400000, linuxPath + "Image")
-      sdram.loadBin(0x00BF0000, "rv32.dtb")
+      sdram.loadBin(0x00BF0000, linuxPath + "dtb")
       sdram.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
     }
   }
