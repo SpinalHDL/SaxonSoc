@@ -125,53 +125,24 @@ object Apb3DecoderStdGenerators {
 
 
 
-case class Apb3UartGenerator(apbOffset : BigInt,
-                             p : UartCtrlMemoryMappedConfig)
+case class Apb3UartGenerator(apbOffset : BigInt)
                             (implicit decoder: Apb3DecoderGenerator) extends Generator {
+  val parameter = newDependency[UartCtrlMemoryMappedConfig]
   val interrupt = produce(logic.io.interrupt)
   val uart = produceIo(logic.io.uart)
   val apb = produce(logic.io.apb)
-  val logic = add task Apb3UartCtrl(p)
+  val logic = add task Apb3UartCtrl(parameter)
 
   decoder.addSlave(apb, apbOffset)
 }
 
-object Apb3UartGenerator {
-  def apply(apbOffset: BigInt,
-            baudrate: Int,
-            txFifoDepth: Int,
-            rxFifoDepth: Int)
-           (implicit decoder: Apb3DecoderGenerator) : Apb3UartGenerator = Apb3UartGenerator(
-    apbOffset = apbOffset,
-    UartCtrlMemoryMappedConfig(
-      uartCtrlConfig = UartCtrlGenerics(
-        dataWidthMax = 8,
-        clockDividerWidth = 12,
-        preSamplingSize = 1,
-        samplingSize = 3,
-        postSamplingSize = 1
-      ),
-      initConfig = UartCtrlInitConfig(
-        baudrate = baudrate,
-        dataLength = 7, //7 => 8 bits
-        parity = UartParityType.NONE,
-        stop = UartStopType.ONE
-      ),
-      busCanWriteClockDividerConfig = false,
-      busCanWriteFrameConfig = false,
-      txFifoDepth = txFifoDepth,
-      rxFifoDepth = rxFifoDepth
-    )
-  )
-}
 
-case class  Apb3GpioGenerator(apbOffset : BigInt,
-                              p : spinal.lib.io.Gpio.Parameter)
+case class  Apb3GpioGenerator(apbOffset : BigInt)
                              (implicit decoder: Apb3DecoderGenerator) extends Generator{
-
+  val parameter = newDependency[spinal.lib.io.Gpio.Parameter]
   val gpio = produceIo(logic.io.gpio)
   val apb = produce(logic.io.bus)
-  val logic = add task Apb3Gpio2(p)
+  val logic = add task Apb3Gpio2(parameter)
 
   decoder.addSlave(apb, apbOffset)
 }

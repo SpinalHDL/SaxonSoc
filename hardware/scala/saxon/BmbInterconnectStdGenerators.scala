@@ -120,3 +120,66 @@ object BmbInterconnectStdGenerators {
     //    dependencies += output
   })
 }
+
+
+
+
+
+
+case class SdramSdrBmbGenerator(address: BigInt)
+                               (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+
+  val layout = newDependency[SdramLayout]
+  val timings = newDependency[SdramTimings]
+  val requirements = newDependency[BmbParameter]
+
+  val bmb   =   produce(logic.io.bmb)
+  val sdram = produceIo(logic.io.sdram)
+
+  layout.produce{
+    interconnect.addSlave(
+      capabilities = BmbSdramCtrl.bmbCapabilities(layout),
+      requirements = requirements,
+      bus = bmb,
+      mapping = SizeMapping(address, layout.capacity)
+    )
+  }
+
+  val logic = add task BmbSdramCtrl(
+    bmbParameter = requirements,
+    layout = layout,
+    timing = timings,
+    CAS = 3
+  )
+}
+
+
+case class  BmbToApb3Decoder(address : BigInt)
+                            (implicit interconnect: BmbInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) extends Generator {
+  val input = produce(logic.bridge.io.input)
+  val requirements = newDependency[BmbParameter]
+
+  val requirementsGenerator = Dependable(apbDecoder.inputConfig){
+    interconnect.addSlave(
+      capabilities = BmbToApb3Bridge.busCapabilities(
+        addressWidth = apbDecoder.inputConfig.addressWidth,
+        dataWidth = apbDecoder.inputConfig.dataWidth
+      ),
+      requirements = requirements,
+      bus = input,
+      mapping = SizeMapping(address, BigInt(1) << apbDecoder.inputConfig.addressWidth)
+    )
+  }
+
+  dependencies += requirements
+  dependencies += apbDecoder
+
+  val logic = add task new Area {
+    val bridge = BmbToApb3Bridge(
+      apb3Config = apbDecoder.inputConfig,
+      bmbParameter = requirements,
+      pipelineBridge = false
+    )
+    apbDecoder.input << bridge.io.output
+  }
+}
