@@ -53,43 +53,51 @@ class DE1_SOC_LINUX extends Generator{
       cpu.iBus -> List(sdramA.bmb),
       cpu.dBus -> List(sdramA.bmb)
     )
-
-    def defaultConfig(): Unit = this {
-      cpu.config.load(VexRiscvConfigs.linux)
-      cpu.enableJtag(clockCtrl)
-
-      sdramA.layout.load(IS42x320D.layout)
-      sdramA.timings.load(IS42x320D.timingGrade7)
-
-      uartA.parameter.load(
-        UartCtrlMemoryMappedConfig(
-          baudrate = 1000000,
-          txFifoDepth = 128,
-          rxFifoDepth = 128
-        )
-      )
-
-      gpioA.parameter.load(
-        Gpio.Parameter(
-          width = 8,
-          interrupt = List(0, 1)
-        )
-      )
-
-      plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(0)), id = 4)
-      plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(1)), id = 5)
-    }
-  }
-
-  def defaultConfig(): Unit = this {
-    clockCtrl.clkFrequency.load(100 MHz)
   }
 }
 
 
 object DE1_SOC_LINUX {
+  //Function used to configure the SoC
+  def configure(g : DE1_SOC_LINUX) ={
+    g{
+      import g._
+      clockCtrl.clkFrequency.load(100 MHz)
+
+      system {
+        import g.system._
+
+        cpu.config.load(VexRiscvConfigs.linux)
+        cpu.enableJtag(clockCtrl)
+
+        sdramA.layout.load(IS42x320D.layout)
+        sdramA.timings.load(IS42x320D.timingGrade7)
+
+        uartA.parameter.load(
+          UartCtrlMemoryMappedConfig(
+            baudrate = 1000000,
+            txFifoDepth = 128,
+            rxFifoDepth = 128
+          )
+        )
+
+        gpioA.parameter.load(
+          Gpio.Parameter(
+            width = 8,
+            interrupt = List(0, 1)
+          )
+        )
+
+        plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(0)), id = 4)
+        plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(1)), id = 5)
+      }
+    }
+    g
+  }
+
+  //Generate the SoC
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(InOutWrapper(new DE1_SOC_LINUX(){defaultConfig(); system.defaultConfig()}.toComponent()))
+    SpinalRtlConfig.generateVerilog(InOutWrapper(configure(new DE1_SOC_LINUX()).toComponent()))
   }
 }
 
