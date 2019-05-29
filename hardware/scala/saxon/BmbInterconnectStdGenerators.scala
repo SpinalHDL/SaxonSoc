@@ -64,9 +64,9 @@ object BmbInterconnectStdGenerators {
                      (implicit interconnect: BmbInterconnectGenerator) = wrap(new Generator {
 
 
-    val layout = newDependency[SdramLayout]
-    val timings = newDependency[SdramTimings]
-    val requirements = newDependency[BmbParameter]
+    val layout = createDependency[SdramLayout]
+    val timings = createDependency[SdramTimings]
+    val requirements = createDependency[BmbParameter]
 
     val bmb   = produce(logic.io.bmb)
     val sdram = produceIo(logic.io.sdram)
@@ -129,11 +129,11 @@ object BmbInterconnectStdGenerators {
 case class SdramSdrBmbGenerator(address: BigInt)
                                (implicit interconnect: BmbInterconnectGenerator) extends Generator {
 
-  val layout = newDependency[SdramLayout]
-  val timings = newDependency[SdramTimings]
-  val requirements = newDependency[BmbParameter]
+  val layout = createDependency[SdramLayout]
+  val timings = createDependency[SdramTimings]
+  val requirements = createDependency[BmbParameter]
 
-  val bmb   =   produce(logic.io.bmb)
+  val bmb   = produce(logic.io.bmb)
   val sdram = produceIo(logic.io.sdram)
 
   layout.produce{
@@ -154,10 +154,39 @@ case class SdramSdrBmbGenerator(address: BigInt)
 }
 
 
+case class BmbOnChipRamGenerator(address: BigInt)
+                           (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+  val size      = Handle[BigInt]
+  val dataWidth = Handle[Int]
+  val hexInit = createDependency[String]
+  val requirements = createDependency[BmbParameter]
+  val bmb = produce(logic.io.bus)
+
+  Dependable(size, dataWidth){
+    interconnect.addSlave(
+      capabilities = BmbOnChipRam.busCapabilities(size, dataWidth),
+      requirements = requirements,
+      bus = bmb,
+      mapping = SizeMapping(address, BigInt(1) << log2Up(size))
+    )
+  }
+
+
+  val logic = add task BmbOnChipRam(
+    p = requirements,
+    size = size,
+    hexOffset = address,
+    hexInit = hexInit
+  )
+}
+
+
+
+
 case class  BmbToApb3Decoder(address : BigInt)
                             (implicit interconnect: BmbInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) extends Generator {
   val input = produce(logic.bridge.io.input)
-  val requirements = newDependency[BmbParameter]
+  val requirements = createDependency[BmbParameter]
 
   val requirementsGenerator = Dependable(apbDecoder.inputConfig){
     interconnect.addSlave(

@@ -127,7 +127,7 @@ object Apb3DecoderStdGenerators {
 
 case class Apb3UartGenerator(apbOffset : BigInt)
                             (implicit decoder: Apb3DecoderGenerator) extends Generator {
-  val parameter = newDependency[UartCtrlMemoryMappedConfig]
+  val parameter = createDependency[UartCtrlMemoryMappedConfig]
   val interrupt = produce(logic.io.interrupt)
   val uart = produceIo(logic.io.uart)
   val apb = produce(logic.io.apb)
@@ -139,7 +139,7 @@ case class Apb3UartGenerator(apbOffset : BigInt)
 
 case class  Apb3GpioGenerator(apbOffset : BigInt)
                              (implicit decoder: Apb3DecoderGenerator) extends Generator{
-  val parameter = newDependency[spinal.lib.io.Gpio.Parameter]
+  val parameter = createDependency[spinal.lib.io.Gpio.Parameter]
   val gpio = produceIo(logic.io.gpio)
   val apb = produce(logic.io.bus)
   val logic = add task Apb3Gpio2(parameter)

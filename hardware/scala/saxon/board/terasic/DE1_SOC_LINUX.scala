@@ -1,7 +1,7 @@
-package saxon.board
+package saxon.board.terasic
 
 import saxon.ResetSourceKind.EXTERNAL
-import saxon.{Apb3GpioGenerator, ClockDomainGenerator, SaxonSocLinux, SaxonSocSdram, SdramSdrBmbGenerator, SpinalRtlConfig, VexRiscvConfigs}
+import saxon._
 import spinal.core._
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.generator._
@@ -45,7 +45,7 @@ class DE1_SOC_LINUX extends Generator{
     onClockDomain(clockCtrl.clockDomain)
 
     //Add components
-    val sdramA = SdramSdrBmbGenerator(address = 0x80000000l)
+    val sdramA = SdramSdrBmbGenerator(0x80000000l)
     val gpioA = Apb3GpioGenerator(0x00000)
 
     //Interconnect specification
@@ -58,46 +58,41 @@ class DE1_SOC_LINUX extends Generator{
 
 
 object DE1_SOC_LINUX {
+
   //Function used to configure the SoC
-  def configure(g : DE1_SOC_LINUX) ={
-    g{
-      import g._
-      clockCtrl.clkFrequency.load(100 MHz)
+  def default(g : DE1_SOC_LINUX) = g{
+    import g._
+    clockCtrl.clkFrequency.load(100 MHz)
 
-      system {
-        import g.system._
+    system {
+      import system._
 
-        cpu.config.load(VexRiscvConfigs.linux)
-        cpu.enableJtag(clockCtrl)
+      cpu.config.load(VexRiscvConfigs.linux)
+      cpu.enableJtag(clockCtrl)
 
-        sdramA.layout.load(IS42x320D.layout)
-        sdramA.timings.load(IS42x320D.timingGrade7)
+      sdramA.layout.load(IS42x320D.layout)
+      sdramA.timings.load(IS42x320D.timingGrade7)
 
-        uartA.parameter.load(
-          UartCtrlMemoryMappedConfig(
-            baudrate = 1000000,
-            txFifoDepth = 128,
-            rxFifoDepth = 128
-          )
-        )
+      uartA.parameter load UartCtrlMemoryMappedConfig(
+        baudrate = 1000000,
+        txFifoDepth = 128,
+        rxFifoDepth = 128
+      )
 
-        gpioA.parameter.load(
-          Gpio.Parameter(
-            width = 8,
-            interrupt = List(0, 1)
-          )
-        )
+      gpioA.parameter load Gpio.Parameter(
+        width = 8,
+        interrupt = List(0, 1)
+      )
 
-        plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(0)), id = 4)
-        plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(1)), id = 5)
-      }
+      plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(0)), id = 4)
+      plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(1)), id = 5)
     }
     g
   }
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(InOutWrapper(configure(new DE1_SOC_LINUX()).toComponent()))
+    SpinalRtlConfig.generateVerilog(InOutWrapper(default(new DE1_SOC_LINUX()).toComponent()))
   }
 }
 
