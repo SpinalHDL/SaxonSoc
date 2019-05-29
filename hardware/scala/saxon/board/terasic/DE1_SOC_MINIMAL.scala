@@ -8,7 +8,7 @@ import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
 
 
-class DE1_SOC_EMBEDDED extends Generator{
+class DE1_SOC_MINIMAL extends Generator{
   val clocking = add task new Area{
     val CLOCK_50 = in Bool()
     val resetN = in Bool()
@@ -20,15 +20,17 @@ class DE1_SOC_EMBEDDED extends Generator{
   val clockCtrl = ClockDomainGenerator()
   clockCtrl.resetSourceKind.load(EXTERNAL)
   clockCtrl.powerOnReset.load(true)
+  clockCtrl.clkFrequency.load(50 MHz)
 
-  val system = new SaxonSocLinux {
+  val system = new BmbApbVexRiscvGenerator {
     onClockDomain(clockCtrl.clockDomain)
 
     //Add components
     val ramA = BmbOnChipRamGenerator(0x80000000l)
-    ramA.dataWidth.load(32)
-
+    val uartA = Apb3UartGenerator(0x10000)
     val gpioA = Apb3GpioGenerator(0x00000)
+
+    ramA.dataWidth.load(32)
 
     //Interconnect specification
     interconnect.addConnection(
@@ -39,17 +41,16 @@ class DE1_SOC_EMBEDDED extends Generator{
 }
 
 
-object DE1_SOC_EMBEDDED {
+object DE1_SOC_MINIMAL {
 
   //Function used to configure the SoC
-  def default(g : DE1_SOC_EMBEDDED) = g{
+  def default(g : DE1_SOC_MINIMAL) = g{
     import g._
-    clockCtrl.clkFrequency.load(50 MHz)
 
     system {
       import system._
 
-      cpu.config.load(VexRiscvConfigs.linux)
+      cpu.config.load(VexRiscvConfigs.minimal)
       cpu.enableJtag(clockCtrl)
 
       ramA.size.load(32 KiB)
@@ -60,22 +61,15 @@ object DE1_SOC_EMBEDDED {
         txFifoDepth = 1,
         rxFifoDepth = 1
       )
-
-
-      gpioA.parameter load Gpio.Parameter(
-        width = 8,
-        interrupt = List(0, 1)
-      )
-
-      plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(0)), id = 4)
-      plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(1)), id = 5)
+      
+      gpioA.parameter load Gpio.Parameter(width = 8)
     }
     g
   }
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(InOutWrapper(default(new DE1_SOC_EMBEDDED()).toComponent()))
+    SpinalRtlConfig.generateVerilog(InOutWrapper(default(new DE1_SOC_MINIMAL()).toComponent()))
   }
 }
 
