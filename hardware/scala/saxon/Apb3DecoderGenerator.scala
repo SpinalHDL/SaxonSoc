@@ -38,7 +38,7 @@ case class Apb3DecoderGenerator() extends Generator {
     models += SlaveModel(slave, config, address)
   }
 
-
+  dependencies += input
   val logic = add task new Area {
 
     val decoder = Apb3Decoder(
