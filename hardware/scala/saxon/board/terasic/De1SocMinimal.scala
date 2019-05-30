@@ -8,7 +8,7 @@ import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
 
 
-class DE1_SOC_MINIMAL extends Generator{
+class De1SocMinimal extends Generator{
   val clocking = add task new Area{
     val CLOCK_50 = in Bool()
     val resetN = in Bool()
@@ -41,10 +41,10 @@ class DE1_SOC_MINIMAL extends Generator{
 }
 
 
-object DE1_SOC_MINIMAL {
+object De1SocMinimal {
 
   //Function used to configure the SoC
-  def default(g : DE1_SOC_MINIMAL) = g{
+  def default(g : De1SocMinimal) = g{
     import g._
 
     system {
@@ -61,7 +61,7 @@ object DE1_SOC_MINIMAL {
         txFifoDepth = 1,
         rxFifoDepth = 1
       )
-      
+
       gpioA.parameter load Gpio.Parameter(width = 8)
     }
     g
@@ -69,7 +69,7 @@ object DE1_SOC_MINIMAL {
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(InOutWrapper(default(new DE1_SOC_MINIMAL()).toComponent()))
+    SpinalRtlConfig.generateVerilog(InOutWrapper(default(new De1SocMinimal()).toComponent()))
   }
 }
 

@@ -3,6 +3,7 @@ package saxon
 import spinal.lib.generator._
 import spinal.lib.io.Gpio
 import spinal.lib.memory.sdram.IS42x320D
+import spinal.lib.misc.plic.PlicMapping
 
 class BmbApbVexRiscvGenerator extends Generator {
   implicit val interconnect = BmbInterconnectGenerator()
@@ -17,8 +18,11 @@ class BmbApbVexRiscvGenerator extends Generator {
 }
 
 class SaxonSocLinux extends BmbApbVexRiscvGenerator{
-  val plic = Apb3PlicGenerator(0xF0000)
-  cpu.setExternalInterrupt(plic.interrupt)
+  val plic = Apb3PlicGenerator(0xE00000)
+  plic.priorityWidth.load(2)
+  plic.mapping.load(PlicMapping.sifive)
+  plic.addTarget(cpu.externalInterrupt)
+  plic.addTarget(cpu.externalSupervisorInterrupt)
 
   val machineTimer = Apb3MachineTimerGenerator(0x08000)
   cpu.setTimerInterrupt(machineTimer.interrupt)

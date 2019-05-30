@@ -1,7 +1,7 @@
 package saxon
 
 import spinal.core._
-import spinal.lib.bus.amba3.apb.{Apb3, Apb3SlaveFactory}
+import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3SlaveFactory}
 import spinal.lib.com.uart.{Apb3UartCtrl, UartCtrlGenerics, UartCtrlInitConfig, UartCtrlMemoryMappedConfig, UartParityType, UartStopType}
 import spinal.lib.generator.{Generator, Handle}
 import spinal.lib.io.Apb3Gpio2
@@ -149,10 +149,17 @@ case class  Apb3GpioGenerator(apbOffset : BigInt)
 
 case class Apb3PlicGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator {
   val gateways = ArrayBuffer[Handle[PlicGateway]]()
-  val interrupt = produce(logic.targets(0).iep)
   val apb = produce(logic.apb)
+  val apbConfig = Apb3Config(22, 32)
 
-  val priorityWidth = 1
+  val priorityWidth = createDependency[Int]
+  val mapping = createDependency[PlicMapping]
+
+  val targetsModel = ArrayBuffer[Handle[Bool]]()
+  def addTarget(target : Handle[Bool]) = {
+    targetsModel += target
+    dependencies += target
+  }
 
   def addInterrupt[T <: Generator](source : Handle[Bool], id : Int) = {
     this.dependencies += wrap(new Generator {
@@ -168,28 +175,32 @@ case class Apb3PlicGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderG
   }
 
   val logic = add task new Area{
-    val apb = Apb3(addressWidth = 16, dataWidth = 32)
+    val apb = Apb3(apbConfig)
     val bus = Apb3SlaveFactory(apb)
 
-    val targets = Seq(
+    val targets = targetsModel.map(flag =>
       PlicTarget(
         gateways = gateways.map(_.get),
         priorityWidth = priorityWidth
       )
     )
 
-    val plicMapping = PlicMapping.light
-    gateways.foreach(_.priority := 1)
-    targets.foreach(_.threshold := 0)
-    targets.foreach(_.ie.foreach(_ := True))
-    val mapping = PlicMapper(bus, plicMapping)(
+//    gateways.foreach(_.priority := 1)
+//    targets.foreach(_.threshold := 0)
+//    targets.foreach(_.ie.foreach(_ := True))
+
+    val bridge = PlicMapper(bus, mapping)(
       gateways = gateways.map(_.get),
       targets = targets
     )
+
+    for(targetId <- 0 until targetsModel.length){
+      targetsModel(targetId) := targets(targetId).iep
+    }
   }
 
 
-  decoder.addSlave(apb, apbOffset)
+  decoder.addSlave(apb, apbConfig, apbOffset)
 }
 
 case class Apb3MachineTimerGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator{

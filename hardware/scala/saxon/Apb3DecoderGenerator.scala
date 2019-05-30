@@ -1,7 +1,7 @@
 package saxon
 
 import spinal.core.{Area, assert, log2Up}
-import spinal.lib.bus.amba3.apb.{Apb3, Apb3Decoder}
+import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3Decoder}
 import spinal.lib.bus.misc.SizeMapping
 import spinal.lib.generator.{Generator, Handle}
 
@@ -10,27 +10,39 @@ import scala.collection.mutable.ArrayBuffer
 
 case class Apb3DecoderGenerator() extends Generator {
 
-  case class SlaveModel(slave: Handle[Apb3], address: BigInt) {
-    def mapping = SizeMapping(address, (BigInt(1)) << slave.config.addressWidth)
+  case class SlaveModel(slave: Handle[Apb3], config : Handle[Apb3Config], address: BigInt) {
+    configGenerator.dependencies += config
+    def mapping = SizeMapping(address, (BigInt(1)) << config.addressWidth)
   }
 
   val models = ArrayBuffer[SlaveModel]()
-  val input = produce(logic.inputBus)
-  val inputConfig = produce(logic.inputBus.config)
+
+  val configGenerator = new Generator{val dummy = 0}
+  val inputConfig = configGenerator produce Apb3Config(
+    addressWidth = log2Up(models.map(m => m.mapping.end + 1).max),
+    dataWidth = models.head.config.dataWidth
+  )
+
+  val input = inputConfig.produce{
+    for (m <- models) assert(m.config.dataWidth == inputConfig.dataWidth)
+    Apb3(inputConfig)
+  }
 
   def addSlave(slave: Handle[Apb3], address: BigInt): Unit = {
     dependencies += slave
-    models += SlaveModel(slave, address)
+    models += SlaveModel(slave, slave.produce(slave.config), address)
   }
 
+  def addSlave(slave: Handle[Apb3], config : Handle[Apb3Config], address: BigInt): Unit = {
+    dependencies += slave
+    models += SlaveModel(slave, config, address)
+  }
+
+
   val logic = add task new Area {
-    val inputBus = Apb3(
-      addressWidth = log2Up(models.map(m => m.mapping.end + 1).max),
-      dataWidth = models.head.slave.config.dataWidth
-    )
-    for (m <- models) assert(m.slave.config.dataWidth == inputBus.config.dataWidth)
+
     val decoder = Apb3Decoder(
-      master = inputBus,
+      master = input,
       slaves = models.map(m => (m.slave.get, m.mapping))
     )
   }

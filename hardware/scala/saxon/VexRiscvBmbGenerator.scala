@@ -18,11 +18,9 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   val debugAskReset = Handle[() => Unit]
 
   val iBus, dBus = product[Bmb]
-  val externalInterrupt, timerInterrupt = product[Bool]
+  val externalInterrupt, externalSupervisorInterrupt, timerInterrupt = product[Bool]
 
-  def setExternalInterrupt(that: Handle[Bool]) = externalInterrupt.merge(that)
-
-  def setTimerInterrupt(that: Handle[Bool]) = timerInterrupt.merge(that)
+  def setTimerInterrupt(that: Handle[Bool]) = Dependable(that, timerInterrupt){timerInterrupt := that}
 
   def enableJtag(implicit clockCtrl: ClockDomainGenerator) : Unit = {
     this.debugClockDomain.merge(clockCtrl.controlClockDomain())
@@ -34,11 +32,6 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   dependencies += Dependable(withJtag) {
     if (withJtag) {
       dependencies ++= List(debugClockDomain, debugAskReset)
-    }
-  }
-  dependencies += Dependable(config) {
-    if (config.plugins.exists(_.isInstanceOf[CsrPlugin])) {
-      dependencies ++= List(externalInterrupt, timerInterrupt)
     }
   }
 
@@ -55,9 +48,9 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
       case plugin: IBusCachedPlugin => iBus.load(plugin.iBus.toBmb())
       case plugin: DBusCachedPlugin => dBus.load(plugin.dBus.toBmb())
       case plugin: CsrPlugin => {
-        externalInterrupt <> (plugin.externalInterrupt)
-        timerInterrupt <> (plugin.timerInterrupt)
-        if (plugin.config.supervisorGen) plugin.externalInterruptS := False
+        externalInterrupt load plugin.externalInterrupt
+        timerInterrupt load plugin.timerInterrupt
+        if (plugin.config.supervisorGen) externalSupervisorInterrupt load plugin.externalInterruptS
       }
       case plugin: DebugPlugin => plugin.debugClockDomain {
         when(RegNext(plugin.io.resetOut)) {

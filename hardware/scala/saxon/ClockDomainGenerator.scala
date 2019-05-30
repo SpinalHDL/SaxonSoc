@@ -12,12 +12,13 @@ object ResetSourceKind{
 }
 case class ClockDomainGenerator() extends Generator {
   import ResetSourceKind._
-
   val config = Handle(ClockDomain.defaultConfig)
   val clkFrequency = Handle[HertzNumber]
   val clock, reset = Handle[Bool]
   val resetSourceKind = Handle[ResetSourceKind]
   val powerOnReset = Handle[Boolean]
+
+  noClockDomain()
 
   val clockDomain = produce(
     ClockDomain(
@@ -37,11 +38,11 @@ case class ClockDomainGenerator() extends Generator {
   }
 
   def makeExternal(): this.type = {
-    Dependable(config){
+    this(Dependable(config){
       clock.load(in Bool())
       if(config.useResetPin) reset.load(in Bool())
       resetSourceKind.load(EXTERNAL)
-    }
+    })
 
     this
   }
