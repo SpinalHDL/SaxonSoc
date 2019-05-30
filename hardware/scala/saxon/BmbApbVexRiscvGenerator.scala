@@ -18,7 +18,7 @@ class BmbApbVexRiscvGenerator extends Generator {
 }
 
 class SaxonSocLinux extends BmbApbVexRiscvGenerator{
-  val plic = Apb3PlicGenerator(0xE00000)
+  val plic = Apb3PlicGenerator(0xC00000)
   plic.priorityWidth.load(2)
   plic.mapping.load(PlicMapping.sifive)
   plic.addTarget(cpu.externalInterrupt)

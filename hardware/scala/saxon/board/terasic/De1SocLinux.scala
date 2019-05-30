@@ -131,25 +131,25 @@ object De1SocLinuxSystemSim {
       clockDomain.forkStimulus(systemClkPeriod)
 //      clockDomain.forkSimSpeedPrinter(4)
 
-//      fork{
-//        while(true){
-//          sleep(systemClkPeriod*1000000)
-//          println("\nsimTime : " + simTime())
-//        }
-//      }
       fork{
-//        disableSimWave()
-//        sleep(600e9.toLong)
-//        enableSimWave()
-//        sleep(systemClkPeriod*1000000)
-//        simFailure()
-
         while(true){
-          disableSimWave()
-          sleep(systemClkPeriod*500000)
-          enableSimWave()
-          sleep(systemClkPeriod*100)
+          sleep(systemClkPeriod*1000000)
+          println("\nsimTime : " + simTime())
         }
+      }
+      fork{
+        disableSimWave()
+        sleep(70000000000l)
+        enableSimWave()
+        sleep(systemClkPeriod*1000000)
+        simFailure()
+
+//        while(true){
+//          disableSimWave()
+//          sleep(systemClkPeriod*500000)
+//          enableSimWave()
+//          sleep(systemClkPeriod*100)
+//        }
       }
 
 
@@ -177,7 +177,7 @@ object De1SocLinuxSystemSim {
       )
 //      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
 
-      val linuxPath = "../buildroot/output/images/"
+      val linuxPath = "../buildrootSpinal/output/images/"
       sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       sdram.loadBin(0x00400000, linuxPath + "Image")
       sdram.loadBin(0x00BF0000, linuxPath + "dtb")
