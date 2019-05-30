@@ -1,0 +1,21 @@
+set_io CLOCK_100 129
+set_io GRESET 128
+
+set_io system_uartA_uart_txd 88
+set_io system_uartA_uart_rxd 85
+
+set_io system_cpu_tms 3
+set_io system_cpu_tdi 7
+set_io system_cpu_tdo 4
+set_io system_cpu_tck 8
+
+set_io system_gpioA_gpio[0] 70
+set_io system_gpioA_gpio[1] 68
+set_io system_gpioA_gpio[2] 67
+set_io system_gpioA_gpio[3] 71
+set_io system_gpioA_gpio[4] 33
+set_io system_gpioA_gpio[5] 21
+set_io system_gpioA_gpio[6] 31
+set_io system_gpioA_gpio[7] 32
+
+
