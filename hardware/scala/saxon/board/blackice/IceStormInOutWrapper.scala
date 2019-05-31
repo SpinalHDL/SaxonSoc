@@ -57,15 +57,15 @@ object IceStormInOutWrapper {
             }
           }
           case bundle: TriStateArray if bundle.writeEnable.isOutput => {
-            val newIo = inout(Analog(bundle.write)).setWeakName(bundle.getName())
-            bundle.setAsDirectionLess.unsetName().allowDirectionLessIo
             for(i <- 0 until bundle.width) {
+              val newIo = inout(Analog(Bool)).setWeakName(bundle.getName() + "_" + i)
               val sbio = SB_IO("101001")
-              sbio.PACKAGE_PIN := newIo(i)
+              sbio.PACKAGE_PIN := newIo
               sbio.OUTPUT_ENABLE := bundle.writeEnable(i)
               sbio.D_OUT_0 := bundle.write(i)
               bundle.read(i) := sbio.D_IN_0
             }
+            bundle.setAsDirectionLess.unsetName().allowDirectionLessIo
           }
           case _ =>
         }
