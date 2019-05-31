@@ -9,13 +9,13 @@ set_io system_cpu_tdi 7
 set_io system_cpu_tdo 4
 set_io system_cpu_tck 8
 
-set_io system_gpioA_gpio[0] 70
-set_io system_gpioA_gpio[1] 68
-set_io system_gpioA_gpio[2] 67
-set_io system_gpioA_gpio[3] 71
-set_io system_gpioA_gpio[4] 33
-set_io system_gpioA_gpio[5] 21
-set_io system_gpioA_gpio[6] 31
-set_io system_gpioA_gpio[7] 32
+set_io system_gpioA_gpio_0 70
+set_io system_gpioA_gpio_1 68
+set_io system_gpioA_gpio_2 67
+set_io system_gpioA_gpio_3 71
+set_io system_gpioA_gpio_4 33
+set_io system_gpioA_gpio_5 21
+set_io system_gpioA_gpio_6 31
+set_io system_gpioA_gpio_7 32
 
 
