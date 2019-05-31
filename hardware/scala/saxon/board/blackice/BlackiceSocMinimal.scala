@@ -34,7 +34,7 @@ class BlackiceSocMinimal extends Generator{
   val clockCtrl = ClockDomainGenerator()
   clockCtrl.resetSourceKind.load(EXTERNAL)
   clockCtrl.powerOnReset.load(true)
-  clockCtrl.clkFrequency.load(50 MHz)
+  clockCtrl.clkFrequency.load(25 MHz)
 
   val system = new BlackiceSocMinimalSystem
   system.onClockDomain(clockCtrl.clockDomain)
