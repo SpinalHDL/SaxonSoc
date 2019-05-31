@@ -1,8 +1,8 @@
 set_io CLOCK_100 129
 set_io GRESET 128
 
-set_io system_uartA_uart_txd 88
-set_io system_uartA_uart_rxd 85
+set_io system_uartA_uart_txd 85
+set_io system_uartA_uart_rxd 88
 
 set_io system_cpu_tms 3
 set_io system_cpu_tdi 7

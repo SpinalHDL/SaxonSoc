@@ -47,7 +47,7 @@ class BlackiceSocMinimal extends Generator{
     pll.clock_in := CLOCK_100
 
     clockCtrl.clock.load(pll.clock_out)
-    clockCtrl.reset.load(!GRESET)
+    clockCtrl.reset.load(GRESET)
   }
 }
 
