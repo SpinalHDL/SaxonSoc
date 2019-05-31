@@ -59,7 +59,7 @@ object BlackiceSocMinimalSystem{
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(12 KiB)
-    ramA.hexInit.load(null)
+    ramA.hexInit.load("hardware/scala/saxon/board/blackice/blinkAndEcho.hex")
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
