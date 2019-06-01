@@ -71,7 +71,7 @@ object De1SocMinimal {
   def default(g : De1SocMinimal) = g{
     import g._
     De1SocMinimalSystem.default(system, clockCtrl)
-    clockCtrl.ResetSensitivity.load(ResetSensitivity.LOW) //TODO better error reporting if forgot this line
+    clockCtrl.resetSensitivity.load(ResetSensitivity.LOW) //TODO better error reporting if forgot this line
     g
   }
 
