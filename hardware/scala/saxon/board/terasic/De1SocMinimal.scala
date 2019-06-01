@@ -39,7 +39,7 @@ class De1SocMinimal extends Generator{
     val resetN = in Bool()
 
     clockCtrl.clock.load(CLOCK_50)
-    clockCtrl.reset.load(!resetN)
+    clockCtrl.reset.load(resetN)
   }
 }
 
@@ -71,7 +71,7 @@ object De1SocMinimal {
   def default(g : De1SocMinimal) = g{
     import g._
     De1SocMinimalSystem.default(system, clockCtrl)
-    clockCtrl.makeExternal(ResetSensitivity.LOW) //TODO better error reporting if forgot this line
+    clockCtrl.ResetSensitivity.load(ResetSensitivity.LOW) //TODO better error reporting if forgot this line
     g
   }
 

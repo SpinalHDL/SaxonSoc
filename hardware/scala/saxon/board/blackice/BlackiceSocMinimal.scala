@@ -79,7 +79,7 @@ object BlackiceSocMinimal {
   def default(g : BlackiceSocMinimal) = g{
     import g._
     BlackiceSocMinimalSystem.default(system, clockCtrl)
-    clockCtrl.makeExternal(ResetSensitivity.FALL)
+    clockCtrl.resetSensitivity load(ResetSensitivity.FALL)
     g
   }
 
