@@ -1,6 +1,5 @@
 package saxon.board.blackice
 
-import saxon.ResetSourceKind.EXTERNAL
 import saxon._
 import spinal.core._
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
@@ -32,7 +31,8 @@ class BlackiceSocMinimalSystem extends BmbApbVexRiscvGenerator{
 
 class BlackiceSocMinimal extends Generator{
   val clockCtrl = ClockDomainGenerator()
-  clockCtrl.resetSourceKind.load(EXTERNAL)
+  clockCtrl.resetHoldDuration.load(255)
+  clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
   clockCtrl.clkFrequency.load(25 MHz)
 
@@ -79,6 +79,7 @@ object BlackiceSocMinimal {
   def default(g : BlackiceSocMinimal) = g{
     import g._
     BlackiceSocMinimalSystem.default(system, clockCtrl)
+    clockCtrl.makeExternal(ResetSensitivity.FALL)
     g
   }
 

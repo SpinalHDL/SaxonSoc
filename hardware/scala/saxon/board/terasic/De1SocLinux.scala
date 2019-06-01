@@ -1,9 +1,9 @@
 package saxon.board.terasic
 
-import saxon.ResetSourceKind.EXTERNAL
-import saxon._
+import saxon.{ResetSensitivity, _}
 import spinal.core._
 import spinal.lib.com.jtag.sim.JtagTcp
+import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.generator._
@@ -18,6 +18,7 @@ class De1SocLinuxSystem extends SaxonSocLinux{
   //Add components
   val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
+  val spiA = Apb3SpiGenerator(0x20000)
 
   //Interconnect specification
   interconnect.addConnection(
@@ -28,7 +29,8 @@ class De1SocLinuxSystem extends SaxonSocLinux{
 
 class De1SocLinux extends Generator{
   val clockCtrl = ClockDomainGenerator()
-  clockCtrl.resetSourceKind.load(EXTERNAL)
+  clockCtrl.resetHoldDuration.load(255)
+  clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
 
   val system = new De1SocLinuxSystem()
@@ -81,6 +83,21 @@ object De1SocLinuxSystem{
       interrupt = List(0, 1)
     )
 
+    spiA.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
+      SpiXdrMasterCtrl.Parameters(
+        dataWidth = 8,
+        timerWidth = 12,
+        spi = SpiXdrParameter(
+          dataWidth = 2,
+          ioRate = 1,
+          ssWidth = 2
+        )
+      ) .addFullDuplex(id = 0),
+      cmdFifoDepth = 256,
+      rspFifoDepth = 256
+    )
+    spiA.inferSpiSdrIo()
+
     plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(0)), id = 4)
     plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(1)), id = 5)
 
@@ -93,6 +110,7 @@ object De1SocLinux {
   def default(g : De1SocLinux) = g{
     import g._
     clockCtrl.clkFrequency.load(100 MHz)
+    clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
     De1SocLinuxSystem.default(system, clockCtrl)
     g
   }
@@ -117,7 +135,7 @@ object De1SocLinuxSystemSim {
     simConfig.compile(new De1SocLinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
-      clockCtrl.makeExternal()
+      clockCtrl.makeExternal(ResetSensitivity.HIGH)
       clockCtrl.powerOnReset.load(true)
       clockCtrl.clkFrequency.load(100 MHz)
       De1SocLinuxSystem.default(this, clockCtrl)
@@ -131,25 +149,25 @@ object De1SocLinuxSystemSim {
       clockDomain.forkStimulus(systemClkPeriod)
 //      clockDomain.forkSimSpeedPrinter(4)
 
-      fork{
-        while(true){
-          sleep(systemClkPeriod*1000000)
-          println("\nsimTime : " + simTime())
-        }
-      }
-      fork{
-        disableSimWave()
-        sleep(70000000000l)
-        enableSimWave()
-        sleep(systemClkPeriod*1000000)
-        simFailure()
-
+//      fork{
 //        while(true){
-//          disableSimWave()
-//          sleep(systemClkPeriod*500000)
-//          enableSimWave()
-//          sleep(systemClkPeriod*100)
+//          sleep(systemClkPeriod*1000000)
+//          println("\nsimTime : " + simTime())
 //        }
+//      }
+      fork{
+//        disableSimWave()
+//        sleep(70000000000l)
+//        enableSimWave()
+//        sleep(systemClkPeriod*1000000)
+//        simFailure()
+
+        while(true){
+          disableSimWave()
+          sleep(systemClkPeriod*500000)
+          enableSimWave()
+          sleep(systemClkPeriod*100)
+        }
       }
 
 
@@ -177,7 +195,7 @@ object De1SocLinuxSystemSim {
       )
 //      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
 
-      val linuxPath = "../buildrootSpinal/output/images/"
+      val linuxPath = "../buildroot/output/images/"
       sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       sdram.loadBin(0x00400000, linuxPath + "Image")
       sdram.loadBin(0x00BF0000, linuxPath + "dtb")

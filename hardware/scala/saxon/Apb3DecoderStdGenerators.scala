@@ -2,9 +2,12 @@ package saxon
 
 import spinal.core._
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3SlaveFactory}
+import spinal.lib.com.spi.SpiHalfDuplexMaster
+import spinal.lib.com.spi.ddr.{Apb3SpiXdrMasterCtrl, SpiXdrMasterCtrl}
 import spinal.lib.com.uart.{Apb3UartCtrl, UartCtrlGenerics, UartCtrlInitConfig, UartCtrlMemoryMappedConfig, UartParityType, UartStopType}
-import spinal.lib.generator.{Generator, Handle}
+import spinal.lib.generator.{Dependable, Generator, Handle}
 import spinal.lib.io.Apb3Gpio2
+import spinal.lib.master
 import spinal.lib.misc.plic.{PlicGateway, PlicGatewayActiveHigh, PlicMapper, PlicMapping, PlicTarget}
 
 import scala.collection.mutable.ArrayBuffer
@@ -135,6 +138,24 @@ case class Apb3UartGenerator(apbOffset : BigInt)
 
   decoder.addSlave(apb, apbOffset)
 }
+
+
+case class Apb3SpiGenerator(apbOffset : BigInt)
+                            (implicit decoder: Apb3DecoderGenerator) extends Generator {
+  val parameter = createDependency[SpiXdrMasterCtrl.MemoryMappingParameters]
+  val interrupt = produce(logic.io.interrupt)
+  val phy = produce(logic.io.spi)
+  val spi = Handle[SpiHalfDuplexMaster]
+  val apb = produce(logic.io.apb)
+  val logic = add task Apb3SpiXdrMasterCtrl(parameter)
+
+  decoder.addSlave(apb, apbOffset)
+
+
+  def inferSpiSdrIo() = Dependable(phy)(spi.load(master(phy.toSpi().setPartialName(spi, "")))) //TODO automated naming
+}
+
+
 
 
 case class  Apb3GpioGenerator(apbOffset : BigInt)

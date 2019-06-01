@@ -34,16 +34,16 @@ make -j${nproc}
 
 
 ```
-git clone http://github.com/buildroot/buildroot
+git clone https://github.com/SpinalHDL/buildroot.git buildroot
+git clone https://github.com/SpinalHDL/linux.git -b vexriscv --depth 100 linux
 cd buildroot
-cp -r ../SaxonSoc.git/software/buildroot/* ./
 make spinal_saxon_default_defconfig
-make -j$(nproc)
-output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
+make -j$(nproc); output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
 dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts
 ```
 
-make linux-dirclean linux-rebuild -j$(nproc)
+riscv64-unknown-elf-objdump -S -d output/images/vmlinux > output/images/vmlinux.asm
+make linux-rebuild all -j$(nproc)
 
 src/openocd -f tcl/interface/ftdi/ft2232h_breakout.cfg -c 'set BRIEY_CPU0_YAML ../SaxonSoc.git/cpu0.yaml' -f tcl/target/saxon.cfg
-cu -l /dev/ttyUSB0 -s 1000000
+cu -l /dev/ttyUSB -s 1000000

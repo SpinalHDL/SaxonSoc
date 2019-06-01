@@ -1,6 +1,6 @@
 package saxon.board.terasic
 
-import saxon.ResetSourceKind.EXTERNAL
+
 import saxon._
 import spinal.core._
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
@@ -26,7 +26,8 @@ class De1SocMinimalSystem extends BmbApbVexRiscvGenerator{
 
 class De1SocMinimal extends Generator{
   val clockCtrl = ClockDomainGenerator()
-  clockCtrl.resetSourceKind.load(EXTERNAL)
+  clockCtrl.resetHoldDuration.load(255)
+  clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
   clockCtrl.clkFrequency.load(50 MHz)
 
@@ -70,6 +71,7 @@ object De1SocMinimal {
   def default(g : De1SocMinimal) = g{
     import g._
     De1SocMinimalSystem.default(system, clockCtrl)
+    clockCtrl.makeExternal(ResetSensitivity.LOW) //TODO better error reporting if forgot this line
     g
   }
 
