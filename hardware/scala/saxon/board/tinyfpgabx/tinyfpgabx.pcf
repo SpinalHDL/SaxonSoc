@@ -1,0 +1,21 @@
+set_io CLOCK_16 B2
+set_io GRESET B1
+
+set_io system_uartA_uart_txd A1
+set_io system_uartA_uart_rxd A2
+
+set_io system_cpu_tms H9
+set_io system_cpu_tdi D9
+set_io system_cpu_tdo D8
+set_io system_cpu_tck C9
+
+set_io system_gpioA_gpio_0 H2
+set_io system_gpioA_gpio_1 J1
+set_io system_gpioA_gpio_2 H1
+set_io system_gpioA_gpio_3 G2
+set_io system_gpioA_gpio_4 E1
+set_io system_gpioA_gpio_5 E2
+set_io system_gpioA_gpio_6 D1
+set_io system_gpioA_gpio_7 D2
+
+
