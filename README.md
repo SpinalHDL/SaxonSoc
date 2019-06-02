@@ -34,11 +34,13 @@ make -j${nproc}
 
 
 ```
-git clone https://github.com/SpinalHDL/buildroot.git buildroot
+git clone https://github.com/SpinalHDL/buildroot.git -b saxon buildroot
 git clone https://github.com/SpinalHDL/linux.git -b vexriscv --depth 100 linux
 cd buildroot
 make spinal_saxon_default_defconfig
-make linux-rebuild all -j$(nproc); output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image; dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts
+make linux-rebuild all -j$(nproc);
+output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image;
+dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts;
 ```
 
 riscv64-unknown-elf-objdump -S -d output/images/vmlinux > output/images/vmlinux.asm
