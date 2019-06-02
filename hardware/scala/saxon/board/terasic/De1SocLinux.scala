@@ -46,7 +46,7 @@ class De1SocLinux extends Generator{
     pll.rst := False
     sdramClk := pll.outclk_1
     clockCtrl.clock.load(pll.outclk_0)
-    clockCtrl.reset.load(!resetN)
+    clockCtrl.reset.load(resetN)
   }
 }
 
