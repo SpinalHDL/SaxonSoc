@@ -26,6 +26,7 @@ time: bin/toplevel.bin
 	icetime -tmd hx8k bin/toplevel.asc
 
 prog : bin/toplevel.bin
+	stty -F /dev/ttyACM0 raw
 	cat bin/toplevel.bin >/dev/ttyACM0
 
 clean :

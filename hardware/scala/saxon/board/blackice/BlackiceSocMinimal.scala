@@ -5,6 +5,7 @@ import spinal.core._
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
+import saxon.board.blackice.peripheral.Apb3SevenSegmentGenerator
 
 case class BlackicePll() extends BlackBox{
   setDefinitionName("blackice_pll")
@@ -18,6 +19,7 @@ class BlackiceSocMinimalSystem extends BmbApbVexRiscvGenerator{
   val ramA = BmbOnChipRamGenerator(0x80000000l)
   val uartA = Apb3UartGenerator(0x10000)
   val gpioA = Apb3GpioGenerator(0x00000)
+  val sevenSegment = Apb3SevenSegmentGenerator(0x20000)
 
   ramA.dataWidth.load(32)
 
@@ -59,7 +61,7 @@ object BlackiceSocMinimalSystem{
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(12 KiB)
-    ramA.hexInit.load("hardware/scala/saxon/board/blackice/blinkAndEcho.hex")
+    ramA.hexInit.load("hardware/scala/saxon/board/blackice/bootHex.hex")
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
