@@ -28,5 +28,6 @@ set_io system_sevenSegment_sevenSegment_segPins[4] 19
 set_io system_sevenSegment_sevenSegment_segPins[5] 16
 set_io system_sevenSegment_sevenSegment_segPins[6] 15
 
-
+set_io system_pwm_pwm_pins[0] 52
+set_io system_pwm_pwm_pins[1] 49
 
