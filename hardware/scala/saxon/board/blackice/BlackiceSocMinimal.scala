@@ -21,6 +21,7 @@ class BlackiceSocMinimalSystem extends BmbApbVexRiscvGenerator{
   val gpioA = Apb3GpioGenerator(0x00000)
   val sevenSegment = Apb3SevenSegmentGenerator(0x20000)
   val pwm = Apb3PwmGenerator(0x30000)
+  val machineTimer = Apb3MachineTimerGenerator(0x08000)
 
   ramA.dataWidth.load(32)
 
