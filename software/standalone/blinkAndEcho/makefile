@@ -10,7 +10,7 @@ SRCS = 	$(wildcard src/*.c) \
 		$(wildcard src/*.S)
 
 
-LDSCRIPT = ${STANDALONE}/common/linker_xip.ld
+LDSCRIPT = ${STANDALONE}/common/linker_ram.ld
 
 include ${STANDALONE}/common/riscv64-unknown-elf.mk
 include ${STANDALONE}/common/standalone.mk
