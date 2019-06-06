@@ -5,7 +5,7 @@ import spinal.core._
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
-import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator}
+import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator, Apb3QspiAnalogGenerator}
 
 class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   //Add components
@@ -15,6 +15,7 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val sevenSegment = Apb3SevenSegmentGenerator(0x20000)
   val pwm = Apb3PwmGenerator(0x30000)
   val machineTimer = Apb3MachineTimerGenerator(0x08000)
+  val qspiAnalog = Apb3QspiAnalogGenerator(0x40000)
 
   ramA.dataWidth.load(32)
 

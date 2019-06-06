@@ -31,3 +31,11 @@ set_io system_sevenSegment_sevenSegment_segPins[6] 15
 set_io system_pwm_pwm_pins[0] 52
 set_io system_pwm_pwm_pins[1] 49
 
+set_io system_qspiAnalog_qspiAnalog_qck 82
+set_io system_qspiAnalog_qspiAnalog_qss 81
+
+set_io system_qspiAnalog_qspiAnalog_qd_0 83
+set_io system_qspiAnalog_qspiAnalog_qd_1 84
+set_io system_qspiAnalog_qspiAnalog_qd_2 79
+set_io system_qspiAnalog_qspiAnalog_qd_3 80
+
