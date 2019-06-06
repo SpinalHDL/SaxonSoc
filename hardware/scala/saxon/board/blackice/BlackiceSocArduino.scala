@@ -12,7 +12,8 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val ramA = BmbOnChipRamGenerator(0x80000000l)
   val uartA = Apb3UartGenerator(0x10000)
   val gpioA = Apb3GpioGenerator(0x00000)
-  val sevenSegment = Apb3SevenSegmentGenerator(0x20000)
+  val gpioB = Apb3GpioGenerator(0x50000)
+  val sevenSegmentA = Apb3SevenSegmentGenerator(0x20000)
   val pwm = Apb3PwmGenerator(0x30000)
   val machineTimer = Apb3MachineTimerGenerator(0x08000)
   val qspiAnalog = Apb3QspiAnalogGenerator(0x40000)
@@ -57,7 +58,7 @@ object BlackiceSocArduinoSystem{
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(12 KiB)
-    ramA.hexInit.load("hardware/scala/saxon/board/blackice/bootHex.hex")
+    ramA.hexInit.load("software/standalone/bootHex/build/bootHex.hex")
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
@@ -66,6 +67,7 @@ object BlackiceSocArduinoSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(width = 8)
+    gpioB.parameter load Gpio.Parameter(width = 2, interrupt = List(0,1))
     pwm.width load(2)
 
     g
