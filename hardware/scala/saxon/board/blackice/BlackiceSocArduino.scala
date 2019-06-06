@@ -7,11 +7,14 @@ import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
 import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator}
 
-class BlackiceSocMinimalSystem extends BmbApbVexRiscvGenerator{
+class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   //Add components
   val ramA = BmbOnChipRamGenerator(0x80000000l)
   val uartA = Apb3UartGenerator(0x10000)
   val gpioA = Apb3GpioGenerator(0x00000)
+  val sevenSegment = Apb3SevenSegmentGenerator(0x20000)
+  val pwm = Apb3PwmGenerator(0x30000)
+  val machineTimer = Apb3MachineTimerGenerator(0x08000)
 
   ramA.dataWidth.load(32)
 
@@ -23,14 +26,14 @@ class BlackiceSocMinimalSystem extends BmbApbVexRiscvGenerator{
 }
 
 
-class BlackiceSocMinimal extends Generator{
+class BlackiceSocArduino extends Generator{
   val clockCtrl = ClockDomainGenerator()
   clockCtrl.resetHoldDuration.load(255)
   clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
   clockCtrl.clkFrequency.load(25 MHz)
 
-  val system = new BlackiceSocMinimalSystem
+  val system = new BlackiceSocArduinoSystem
   system.onClockDomain(clockCtrl.clockDomain)
 
   val clocking = add task new Area{
@@ -45,8 +48,8 @@ class BlackiceSocMinimal extends Generator{
   }
 }
 
-object BlackiceSocMinimalSystem{
-  def default(g : BlackiceSocMinimalSystem, clockCtrl : ClockDomainGenerator) = g {
+object BlackiceSocArduinoSystem{
+  def default(g : BlackiceSocArduinoSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.minimal)
@@ -62,24 +65,25 @@ object BlackiceSocMinimalSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(width = 8)
+    pwm.width load(2)
 
     g
   }
 }
 
 
-object BlackiceSocMinimal {
+object BlackiceSocArduino {
   //Function used to configure the SoC
-  def default(g : BlackiceSocMinimal) = g{
+  def default(g : BlackiceSocArduino) = g{
     import g._
-    BlackiceSocMinimalSystem.default(system, clockCtrl)
+    BlackiceSocArduinoSystem.default(system, clockCtrl)
     clockCtrl.resetSensitivity load(ResetSensitivity.FALL)
     g
   }
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new BlackiceSocMinimal()).toComponent()))
+    SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new BlackiceSocArduino()).toComponent()))
   }
 }
 

@@ -1,18 +1,18 @@
-VERILOG = ../../../../netlist/BlackiceSocMinimal.v blackice_pll.v
+VERILOG = ../../../../netlist/BlackiceSocArduino.v blackice_pll.v
 
 generate :
-	(cd ../../../../..; sbt "runMain saxon.board.blackice.BlackiceSocMinimal")
+	(cd ../../../../..; sbt "runMain saxon.board.blackice.BlackiceSocArduino")
 
-../../../../netlist/BlackiceSocMinimal.v :
-	(cd ../../../../..; sbt "runMain saxon.board.blackice.BlackiceSocMinimal")
+../../../../netlist/BlackiceSocArduino.v :
+	(cd ../../../../..; sbt "runMain saxon.board.blackice.BlackiceSocArduino")
 
-../../../../netlist/BlackiceSocMinimal.v*.bin:
+../../../../netlist/BlackiceSocArduino.v*.bin:
 
-bin/toplevel.json : ${VERILOG} ../../../../netlist/BlackiceSocMinimal.v*.bin
+bin/toplevel.json : ${VERILOG} ../../../../netlist/BlackiceSocArduino.v*.bin
 	mkdir -p bin
-	rm -f BlackiceSocMinimal.v*.bin
-	cp ../../../../netlist/BlackiceSocMinimal.v*.bin . | true
-	yosys -v3 -p "synth_ice40 -top BlackiceSocMinimal -json bin/toplevel.json" ${VERILOG}
+	rm -f BlackiceSocArduino.v*.bin
+	cp ../../../../netlist/BlackiceSocArduino.v*.bin . | true
+	yosys -v3 -p "synth_ice40 -top BlackiceSocArduino -json bin/toplevel.json" ${VERILOG}
 
 bin/toplevel.asc : blackice.pcf bin/toplevel.json
 	nextpnr-ice40 --freq 25 --hx8k --package tq144:4k --json bin/toplevel.json --pcf blackice.pcf --asc bin/toplevel.asc --opt-timing --placer heap
@@ -31,4 +31,4 @@ prog : bin/toplevel.bin
 
 clean :
 	rm -rf bin
-	rm -f BlackiceSocMinimal.v*.bin
+	rm -f BlackiceSocArduino.v*.bin
