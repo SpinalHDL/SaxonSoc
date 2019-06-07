@@ -42,3 +42,45 @@ set_io system_qspiAnalog_qspiAnalog_qd_1 84
 set_io system_qspiAnalog_qspiAnalog_qd_2 79
 set_io system_qspiAnalog_qspiAnalog_qd_3 80
 
+set_io system_sramA_sram_addr[0] 137
+set_io system_sramA_sram_addr[1] 138
+set_io system_sramA_sram_addr[2] 139
+set_io system_sramA_sram_addr[3] 141
+set_io system_sramA_sram_addr[4] 142
+set_io system_sramA_sram_addr[5] 42
+set_io system_sramA_sram_addr[6] 43
+set_io system_sramA_sram_addr[7] 44
+set_io system_sramA_sram_addr[8] 73
+set_io system_sramA_sram_addr[9] 74
+set_io system_sramA_sram_addr[10] 75
+set_io system_sramA_sram_addr[11] 76
+set_io system_sramA_sram_addr[12] 115
+set_io system_sramA_sram_addr[13] 116
+set_io system_sramA_sram_addr[14] 117
+set_io system_sramA_sram_addr[15] 118
+set_io system_sramA_sram_addr[16] 119
+set_io system_sramA_sram_addr[17] 78
+
+set_io system_sramA_sram_cs 23
+set_io system_sramA_sram_we 120
+set_io system_sramA_sram_oe 29
+set_io system_sramA_sram_lb 24
+set_io system_sramA_sram_ub 28
+
+set_io system_sramA_sram_dat_0 136
+set_io system_sramA_sram_dat_1 135
+set_io system_sramA_sram_dat_2 134
+set_io system_sramA_sram_dat_3 130
+set_io system_sramA_sram_dat_4 125
+set_io system_sramA_sram_dat_5 124
+set_io system_sramA_sram_dat_6 122
+set_io system_sramA_sram_dat_7 121
+set_io system_sramA_sram_dat_8 62
+set_io system_sramA_sram_dat_9 61
+set_io system_sramA_sram_dat_10 60
+set_io system_sramA_sram_dat_11 56
+set_io system_sramA_sram_dat_12 55
+set_io system_sramA_sram_dat_13 48
+set_io system_sramA_sram_dat_14 47
+set_io system_sramA_sram_dat_15 45
+

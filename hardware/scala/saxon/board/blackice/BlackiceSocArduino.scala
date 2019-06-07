@@ -6,10 +6,12 @@ import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
 import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator, Apb3QspiAnalogGenerator}
+import saxon.board.blackice.sram._
 
 class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   //Add components
   val ramA = BmbOnChipRamGenerator(0x80000000l)
+  val sramA = BmbSramGenerator(0x90000000l)
   val uartA = Apb3UartGenerator(0x10000)
   val gpioA = Apb3GpioGenerator(0x00000)
   val gpioB = Apb3GpioGenerator(0x50000)
@@ -22,8 +24,8 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
 
   //Interconnect specification
   interconnect.addConnection(
-    cpu.iBus -> List(ramA.bmb),
-    cpu.dBus -> List(ramA.bmb)
+    cpu.iBus -> List(ramA.bmb, sramA.bmb),
+    cpu.dBus -> List(ramA.bmb, sramA.bmb)
   )
 }
 
@@ -59,6 +61,8 @@ object BlackiceSocArduinoSystem{
 
     ramA.size.load(12 KiB)
     ramA.hexInit.load("software/standalone/bootHex/build/bootHex.hex")
+
+    sramA.layout load SramLayout(dataWidth=16, addressWidth=19, byteAddressWidth=32)
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,

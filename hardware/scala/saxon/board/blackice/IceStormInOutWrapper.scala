@@ -31,13 +31,17 @@ object IceStormInOutWrapper {
     c.rework {
       for ((dataParent, count) <- dataParents) {
         dataParent match {
-          case bundle: TriState[_]  if bundle.writeEnable.isOutput  => {
-            val newIo = inout(Analog(bundle.dataType)).setWeakName(bundle.getName())
-            bundle.setAsDirectionLess.unsetName().allowDirectionLessIo
-            bundle.read.assignFrom(newIo)
-            when(bundle.writeEnable){
-              newIo := bundle.write
+          case bundle: TriState[Bits]   if bundle.writeEnable.isOutput  => {
+            for(i <- 0 until bundle.read.getWidth) {
+              val newIo = inout(Analog(Bool)).setWeakName(bundle.getName() + "_" + i)
+              val sbio = SB_IO("101001")
+              sbio.PACKAGE_PIN := newIo
+              sbio.OUTPUT_ENABLE := bundle.writeEnable
+              sbio.D_OUT_0 := bundle.write(i)
+              bundle.read(i) := sbio.D_IN_0
+              println("set_io " + bundle.getName() + "_" + i)
             }
+            bundle.setAsDirectionLess.unsetName().allowDirectionLessIo
           }
           case bundle : TriStateOutput[_] if bundle.isOutput => {
             val newIo = inout(Analog(bundle.dataType)).setWeakName(bundle.getName())
@@ -58,6 +62,7 @@ object IceStormInOutWrapper {
           }
           case bundle: TriStateArray if bundle.writeEnable.isOutput => {
             for(i <- 0 until bundle.width) {
+              println("set_io " + bundle.getName() + "_" + i)
               val newIo = inout(Analog(Bool)).setWeakName(bundle.getName() + "_" + i)
               val sbio = SB_IO("101001")
               sbio.PACKAGE_PIN := newIo
@@ -66,6 +71,11 @@ object IceStormInOutWrapper {
               bundle.read(i) := sbio.D_IN_0
             }
             bundle.setAsDirectionLess.unsetName().allowDirectionLessIo
+          }
+          case bundle: Bundle => {
+            for (data <- bundle.elements) {
+              println("set_io " + data._2.getName())
+            }
           }
           case _ =>
         }

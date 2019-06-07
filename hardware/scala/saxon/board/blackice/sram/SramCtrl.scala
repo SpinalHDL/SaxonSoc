@@ -29,8 +29,8 @@ case class SramInterface(g : SramLayout) extends Bundle with IMasterSlave{
 object BmbSramCtrl{
   def bmbCapabilities(layout : SramLayout) = BmbParameter(
     addressWidth  = layout.byteAddressWidth,
-    dataWidth     = layout.dataWidth,
-    lengthWidth   = log2Up(layout.dataWidth/8),
+    dataWidth     = 32,
+    lengthWidth   = log2Up(32/8),
     sourceWidth   = Int.MaxValue,
     contextWidth  = Int.MaxValue,
     canRead       = true,
@@ -69,7 +69,7 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
 
   io.sram.cs := !io.bus.cmd.valid
 
-  io.bus.rsp.valid := RegNext(io.bus.cmd.ready && !io.bus.cmd.isWrite) init(False)
+  io.bus.rsp.valid := RegNextWhen(io.bus.cmd.valid, io.bus.cmd.ready) init(False)
   io.bus.rsp.source  := RegNextWhen(io.bus.cmd.source,  io.bus.cmd.ready)
   io.bus.rsp.context := RegNextWhen(io.bus.cmd.context, io.bus.cmd.ready)
 
@@ -78,7 +78,7 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
 
   io.sram.dat.writeEnable := we
 
-  io.bus.cmd.ready := False
+  io.bus.cmd.ready := !io.bus.rsp.isStall
 
   we := False
   oe := False
@@ -105,7 +105,6 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
         ub := io.bus.cmd.mask(3)
         state := 3
       } elsewhen (state === 3) {
-        io.bus.cmd.ready := True
         state := 0
       }
     } otherwise { // Read
@@ -124,7 +123,6 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
         state := 3
       } elsewhen (state === 3) {
         rspData(31 downto 16) := io.sram.dat.read
-        io.bus.cmd.ready := True
         state := 0
       }
     }
