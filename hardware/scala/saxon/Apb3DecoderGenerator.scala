@@ -3,7 +3,7 @@ package saxon
 import spinal.core.{Area, assert, log2Up}
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3Decoder}
 import spinal.lib.bus.misc.SizeMapping
-import spinal.lib.generator.{Generator, Handle}
+import spinal.lib.generator.{Generator, Handle, MemoryConnection, SimpleBus}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -23,19 +23,20 @@ case class Apb3DecoderGenerator() extends Generator {
     dataWidth = models.head.config.dataWidth
   )
 
+  inputConfig produce(tags += new SimpleBus(input, BigInt(1) << inputConfig.addressWidth))
+
   val input = inputConfig.produce{
     for (m <- models) assert(m.config.dataWidth == inputConfig.dataWidth)
     Apb3(inputConfig)
   }
 
-  def addSlave(slave: Handle[Apb3], address: BigInt): Unit = {
-    dependencies += slave
-    models += SlaveModel(slave, slave.produce(slave.config), address)
-  }
+
+  def addSlave(slave: Handle[Apb3], address: BigInt): Unit = addSlave(slave, slave.produce(slave.config), address)
 
   def addSlave(slave: Handle[Apb3], config : Handle[Apb3Config], address: BigInt): Unit = {
     dependencies += slave
     models += SlaveModel(slave, config, address)
+    tags += new MemoryConnection(input, slave, address)
   }
 
   dependencies += input

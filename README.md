@@ -47,6 +47,9 @@ riscv64-unknown-elf-objdump -S -d output/images/vmlinux > output/images/vmlinux.
 make linux-rebuild all -j$(nproc)
 
 printf "\x0f\x01" > /dev/spidev0.1
+echo 3 > /proc/sys/kernel/printk
+dd if=/dev/zero of=speed bs=1M count=1 conv=fsync
 
 src/openocd -f tcl/interface/ftdi/ft2232h_breakout.cfg -c 'set BRIEY_CPU0_YAML ../SaxonSoc.git/cpu0.yaml' -f tcl/target/saxon.cfg
 cu -l /dev/ttyUSB -s 1000000
+picocom -b 1000000 /dev/ttyUSB --imap lfcrlf
