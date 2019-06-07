@@ -32,12 +32,12 @@ object IceStormInOutWrapper {
       for ((dataParent, count) <- dataParents) {
         dataParent match {
           case bundle: TriState[Bits]   if bundle.writeEnable.isOutput  => {
-            for(i <- 0 until bundle.read.getWidth) {
+            for(i <- 0 until bundle.read.getBitsWidth) {
               val newIo = inout(Analog(Bool)).setWeakName(bundle.getName() + "_" + i)
               val sbio = SB_IO("101001")
               sbio.PACKAGE_PIN := newIo
               sbio.OUTPUT_ENABLE := bundle.writeEnable
-              sbio.D_OUT_0 := bundle.write(i)
+              sbio.D_OUT_0 := bundle.write.asBits(i)
               bundle.read(i) := sbio.D_IN_0
               println("set_io " + bundle.getName() + "_" + i)
             }
