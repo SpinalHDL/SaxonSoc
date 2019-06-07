@@ -105,6 +105,7 @@ object De1SocLinuxSystem{
   }
 }
 
+
 object De1SocLinux {
   //Function used to configure the SoC
   def default(g : De1SocLinux) = g{
@@ -117,7 +118,8 @@ object De1SocLinux {
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(InOutWrapper(default(new De1SocLinux()).toComponent()))
+    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new De1SocLinux()).toComponent()))
+    BspGenerator(report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
   }
 }
 

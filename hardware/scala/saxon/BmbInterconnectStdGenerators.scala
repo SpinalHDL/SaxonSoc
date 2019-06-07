@@ -3,7 +3,7 @@ package saxon
 import spinal.core.{Area, log2Up}
 import spinal.lib.bus.bmb.{BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
 import spinal.lib.bus.misc.SizeMapping
-import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle}
+import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection}
 import spinal.lib.memory.sdram.{BmbSdramCtrl, SdramLayout, SdramTimings}
 
 
@@ -211,4 +211,7 @@ case class  BmbToApb3Decoder(address : BigInt)
     )
     apbDecoder.input << bridge.io.output
   }
+
+
+  tags += new MemoryConnection(input, apbDecoder.input, 0)
 }

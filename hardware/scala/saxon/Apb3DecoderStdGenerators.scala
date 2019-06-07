@@ -7,7 +7,7 @@ import spinal.lib.com.spi.ddr.{Apb3SpiXdrMasterCtrl, SpiXdrMasterCtrl}
 import spinal.lib.com.uart.{Apb3UartCtrl, UartCtrlGenerics, UartCtrlInitConfig, UartCtrlMemoryMappedConfig, UartParityType, UartStopType}
 import spinal.lib.generator.{Dependable, Generator, Handle}
 import spinal.lib.io.Apb3Gpio2
-import spinal.lib.master
+import spinal.lib.{generator, master}
 import spinal.lib.misc.plic.{PlicGateway, PlicGatewayActiveHigh, PlicMapper, PlicMapping, PlicTarget}
 
 import scala.collection.mutable.ArrayBuffer
@@ -124,10 +124,6 @@ object Apb3DecoderStdGenerators {
 
 
 
-
-
-
-
 case class Apb3UartGenerator(apbOffset : BigInt)
                             (implicit decoder: Apb3DecoderGenerator) extends Generator {
   val parameter = createDependency[UartCtrlMemoryMappedConfig]
@@ -137,6 +133,15 @@ case class Apb3UartGenerator(apbOffset : BigInt)
   val logic = add task Apb3UartCtrl(parameter)
 
   decoder.addSlave(apb, apbOffset)
+
+  add task dts(apb,
+    s"""${this.name}: tty@${apbOffset.toString(16)} {
+       |  compatible = "spinal-lib,uart-1.0";
+       |  reg = <0x${apbOffset.toString(16)} 0x1000>;
+       |}""".stripMargin
+  )
+  export(parameter)
+
 }
 
 
@@ -151,6 +156,15 @@ case class Apb3SpiGenerator(apbOffset : BigInt)
 
   decoder.addSlave(apb, apbOffset)
 
+  add task dts(
+    apb,
+    s"""${this.name}: spi@${apbOffset.toString(16)} {
+       |  compatible = "spinal-lib,spi-1.0";
+       |  #address-cells = <1>;
+       |  #size-cells = <0>;
+       |  reg = <0x${apbOffset.toString(16)} 0x1000>;
+       |}""".stripMargin
+  )
 
   def inferSpiSdrIo() = Dependable(phy)(spi.load(master(phy.toSpi().setPartialName(spi, "")))) //TODO automated naming
 }
@@ -166,6 +180,15 @@ case class  Apb3GpioGenerator(apbOffset : BigInt)
   val logic = add task Apb3Gpio2(parameter)
 
   decoder.addSlave(apb, apbOffset)
+
+  add task dts(
+    apb,
+    s"""${this.name}: gpio@${apbOffset.toString(16)} {
+       |  compatible = "spinal-lib,gpio-1.0";
+       |  reg = <0x${apbOffset.toString(16)} 0x1000>;
+       |}""".stripMargin
+  )
+
 }
 
 case class Apb3PlicGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator {
