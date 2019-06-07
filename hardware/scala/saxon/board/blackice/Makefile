@@ -29,6 +29,9 @@ prog : bin/toplevel.bin
 	stty -F /dev/ttyACM0 raw
 	cat bin/toplevel.bin >/dev/ttyACM0
 
+blackice_pll.v   :
+	icepll -i 100 -o 25 -f blackice_pll.v -m -n blackice_pll
+
 clean :
 	rm -rf bin
 	rm -f BlackiceSocArduino.v*.bin
