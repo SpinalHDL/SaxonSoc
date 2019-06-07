@@ -29,7 +29,6 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   )
 }
 
-
 class BlackiceSocArduino extends Generator{
   val clockCtrl = ClockDomainGenerator()
   clockCtrl.resetHoldDuration.load(255)
@@ -62,7 +61,7 @@ object BlackiceSocArduinoSystem{
     ramA.size.load(12 KiB)
     ramA.hexInit.load("software/standalone/bootHex/build/bootHex.hex")
 
-    sramA.layout load SramLayout(dataWidth=16, addressWidth=19, byteAddressWidth=32)
+    sramA.layout load SramLayout(dataWidth=16, addressWidth=18)
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
@@ -77,7 +76,6 @@ object BlackiceSocArduinoSystem{
     g
   }
 }
-
 
 object BlackiceSocArduino {
   //Function used to configure the SoC

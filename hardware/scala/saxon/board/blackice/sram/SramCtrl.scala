@@ -5,13 +5,12 @@ import spinal.lib._
 import spinal.lib.io.TriState
 import spinal.lib.bus.bmb._
 
-case class SramLayout(byteAddressWidth: Int, addressWidth: Int, dataWidth : Int){
-  def bytePerWord = dataWidth/8
-  def capacity = BigInt(1) << addressWidth
+case class SramLayout(addressWidth: Int, dataWidth : Int) {
+  val capacity = BigInt(1) << (addressWidth + log2Up(dataWidth/8))
 }
 
 case class SramInterface(g : SramLayout) extends Bundle with IMasterSlave{
-  val addr = Bits((g.addressWidth - 1) bits)
+  val addr = Bits((g.addressWidth) bits)
   val dat = TriState(Bits(g.dataWidth bits))
   val cs  = Bool
   val we  = Bool
@@ -25,10 +24,9 @@ case class SramInterface(g : SramLayout) extends Bundle with IMasterSlave{
   }
 }
 
-
 object BmbSramCtrl{
   def bmbCapabilities(layout : SramLayout) = BmbParameter(
-    addressWidth  = layout.byteAddressWidth,
+    addressWidth  = layout.addressWidth + log2Up(layout.dataWidth/8),
     dataWidth     = 32,
     lengthWidth   = log2Up(32/8),
     sourceWidth   = Int.MaxValue,
@@ -61,10 +59,10 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
 
   val state = Reg(UInt(2 bits)) init(0)
 
-  val datOut = Reg(Bits(16 bits))
+  val datOut = Reg(Bits(sramLayout.dataWidth bits))
   io.sram.dat.write := datOut
 
-  val addr = Reg(Bits(18 bits))
+  val addr = Reg(Bits(sramLayout.addressWidth bits))
   io.sram.addr := addr
 
   io.sram.cs := !io.bus.cmd.valid
@@ -89,7 +87,7 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
   when (io.bus.cmd.valid) {
     when(io.bus.cmd.isWrite) {
       when (state === 0) {
-        addr := io.bus.cmd.address(sramLayout.addressWidth - 1  downto 2) ## B"0"
+        addr := io.bus.cmd.address(sramLayout.addressWidth  downto 2) ## B"0"
         we := True
         datOut := io.bus.cmd.data(15 downto 0)
         lb := io.bus.cmd.mask(0)
@@ -98,7 +96,7 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
       } elsewhen (state === 1) {
         state := 2
       } elsewhen (state === 2) {
-        addr := io.bus.cmd.address(sramLayout.addressWidth - 1 downto 2) ## B"1"
+        addr := io.bus.cmd.address(sramLayout.addressWidth downto 2) ## B"1"
         we := True
         datOut := io.bus.cmd.data(31 downto 16)
         lb := io.bus.cmd.mask(2)
@@ -112,13 +110,13 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
       ub := True
       when (state === 0) {
         oe := True
-        addr := io.bus.cmd.address(sramLayout.addressWidth - 1 downto 2) ## B"0"
+        addr := io.bus.cmd.address(sramLayout.addressWidth downto 2) ## B"0"
         state := 1
       } elsewhen (state === 1) {
         rspData(15 downto 0) := io.sram.dat.read
         state := 2
       } elsewhen (state === 2) {
-        addr := io.bus.cmd.address(sramLayout.addressWidth - 1 downto 2) ## B"1"
+        addr := io.bus.cmd.address(sramLayout.addressWidth  downto 2) ## B"1"
         oe := True
         state := 3
       } elsewhen (state === 3) {
