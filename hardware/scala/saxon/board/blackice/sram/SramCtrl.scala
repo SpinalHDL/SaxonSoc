@@ -1,9 +1,14 @@
 package saxon.board.blackice.sram
 
+import org.scalatest.FunSuite
 import spinal.core._
+import spinal.core.sim.SimConfig
 import spinal.lib._
 import spinal.lib.io.TriState
 import spinal.lib.bus.bmb._
+import spinal.lib.bus.bmb.sim.BmbMemoryTester
+
+import scala.util.Random
 
 case class SramLayout(addressWidth: Int, dataWidth : Int) {
   val capacity = BigInt(1) << (addressWidth + log2Up(dataWidth/8))
@@ -67,7 +72,7 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
 
   io.sram.cs := !io.bus.cmd.valid
 
-  io.bus.rsp.valid := RegNextWhen(io.bus.cmd.valid, io.bus.cmd.ready) init(False)
+  io.bus.rsp.valid := RegInit(False) clearWhen(io.bus.rsp.ready) setWhen(io.bus.cmd.fire)
   io.bus.rsp.source  := RegNextWhen(io.bus.cmd.source,  io.bus.cmd.ready)
   io.bus.rsp.context := RegNextWhen(io.bus.cmd.context, io.bus.cmd.ready)
 
@@ -76,7 +81,7 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
 
   io.sram.dat.writeEnable := we
 
-  io.bus.cmd.ready := !io.bus.rsp.isStall
+  io.bus.cmd.ready := False
 
   we := False
   oe := False
@@ -84,7 +89,7 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
   io.bus.rsp.setSuccess()
   io.bus.rsp.last := True
 
-  when (io.bus.cmd.valid) {
+  when (io.bus.cmd.valid && !io.bus.rsp.isStall) {
     when(io.bus.cmd.isWrite) {
       when (state === 0) {
         addr := io.bus.cmd.address(sramLayout.addressWidth  downto 2) ## B"0"
@@ -104,6 +109,7 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
         state := 3
       } elsewhen (state === 3) {
         state := 0
+        io.bus.cmd.ready := True
       }
     } otherwise { // Read
       lb := True
@@ -122,7 +128,51 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
       } elsewhen (state === 3) {
         rspData(31 downto 16) := io.sram.dat.read
         state := 0
+        io.bus.cmd.ready := True
       }
     }
   }
 }
+
+
+
+
+object SpinalSimBmbSramCtrlTester extends App{
+  import spinal.core.sim._
+  val layout = SramLayout(addressWidth = 12, dataWidth = 16)
+  val sramData = new Array[Byte](2 << layout.addressWidth)
+  Random.nextBytes(sramData)
+
+  SimConfig.withWave.compile{
+    BmbSramCtrl(
+      bmbParameter = BmbSramCtrl.bmbCapabilities(layout).copy(
+        sourceWidth = 3,
+        contextWidth = 6
+      ),
+      sramLayout = layout
+    )
+  }.doSimUntilVoid("test",42){ dut =>
+    new BmbMemoryTester(bmb = dut.io.bus,
+      cd = dut.clockDomain) {
+      for (i <- 0 until sramData.length) memory.setByte(i, sramData(i))
+    }
+
+
+    dut.clockDomain.onSamplings{
+      delayed(2){
+        dut.io.sram.dat.read.randomize()
+        if(!dut.io.sram.cs.toBoolean){
+          val addr = dut.io.sram.addr.toInt << 1
+          if (!dut.io.sram.we.toBoolean && dut.io.sram.oe.toBoolean) {
+            val data = dut.io.sram.dat.write.toInt
+            if (!dut.io.sram.lb.toBoolean) sramData(addr) = (data & 0xFF).toByte
+            if (!dut.io.sram.ub.toBoolean) sramData(addr + 1) = ((data >> 8) & 0xFF).toByte
+          } else {
+            if(!dut.io.sram.oe.toBoolean) dut.io.sram.dat.read #= (sramData(addr).toInt & 0xFF) | (sramData(addr + 1).toInt & 0xFF) * 256
+          }
+        }
+      }
+    }
+  }
+}
+
