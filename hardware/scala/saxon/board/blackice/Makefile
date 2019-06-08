@@ -2,9 +2,11 @@ VERILOG = ../../../../netlist/BlackiceSocArduino.v blackice_pll.v
 
 generate :
 	(cd ../../../../..; sbt "runMain saxon.board.blackice.BlackiceSocArduino")
+	cp ../../../../../soc.h ../../../../../software/bsp/BlackiceArduino/include
 
 ../../../../netlist/BlackiceSocArduino.v :
 	(cd ../../../../..; sbt "runMain saxon.board.blackice.BlackiceSocArduino")
+	cp ../../../../../soc.h ../../../../../software/bsp/BlackiceArduino/include
 
 ../../../../netlist/BlackiceSocArduino.v*.bin:
 

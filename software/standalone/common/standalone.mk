@@ -2,6 +2,10 @@ OBJDIR ?= build
 
 LDFLAGS += -lc
 
+ifdef BSP
+CFLAGS += -I${STANDALONE}/../bsp/${BSP}/include
+endif
+
 CFLAGS += -I${STANDALONE}/include
 LDFLAGS +=  -nostdlib -lgcc -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME).map,--print-memory-usage
 
