@@ -81,7 +81,7 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
 
   io.sram.dat.writeEnable := we
 
-  io.bus.cmd.ready := False
+  io.bus.cmd.ready := state === 3
 
   we := False
   oe := False
@@ -109,7 +109,6 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
         state := 3
       } elsewhen (state === 3) {
         state := 0
-        io.bus.cmd.ready := True
       }
     } otherwise { // Read
       lb := True
@@ -128,7 +127,6 @@ case class BmbSramCtrl(bmbParameter: BmbParameter,
       } elsewhen (state === 3) {
         rspData(31 downto 16) := io.sram.dat.read
         state := 0
-        io.bus.cmd.ready := True
       }
     }
   }
