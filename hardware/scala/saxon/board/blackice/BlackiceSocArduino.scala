@@ -20,6 +20,9 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val machineTimer = Apb3MachineTimerGenerator(0x08000)
   val qspiAnalog = Apb3QspiAnalogGenerator(0x40000)
 
+  cpu.setTimerInterrupt(machineTimer.interrupt)
+  cpu.externalInterrupt.produce(cpu.externalInterrupt := False)
+
   ramA.dataWidth.load(32)
 
   //Interconnect specification
@@ -55,7 +58,7 @@ object BlackiceSocArduinoSystem{
   def default(g : BlackiceSocArduinoSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
 
-    cpu.config.load(VexRiscvConfigs.minimal)
+    cpu.config.load(VexRiscvConfigs.minimalWithCsr)
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(12 KiB)
