@@ -2,13 +2,49 @@
 
 #include "saxon.h"
 
+extern const uint32_t _sp;
+extern void trapEntry();
+
+#define MACHINE_TIMER_CMP (*(volatile uint64_t*)0x10008008)
+#define MACHINE_TIMER (*(volatile uint64_t*)0x10008000)
+
+#define MSTATUS_MPP 0x00001800
+#define MSTATUS_MIE 0x00000008
+
+#define MIE_MTIE (1 << 7)
+#define MIE_MTIP (1 << 7)
+#define MIE_MEIE (1 << 11)
+
+#define csr_write(csr, val)					\
+({								\
+	unsigned long __v = (unsigned long)(val);		\
+	__asm__ __volatile__ ("csrw " #csr ", %0"		\
+			      : : "rK" (__v));			\
+})
+
+#define csr_set(csr, val)					\
+({								\
+	unsigned long __v = (unsigned long)(val);		\
+	__asm__ __volatile__ ("csrs " #csr ", %0"		\
+			      : : "rK" (__v));			\
+})
+
+#define csr_clear(csr, val)					\
+({								\
+	unsigned long __v = (unsigned long)(val);		\
+	__asm__ __volatile__ ("csrc " #csr ", %0"		\
+			      : : "rK" (__v));			\
+})
+
+#define NULL 0
+
 #define PROMPT 0
 #define NEXT 1
 #define LOOP 2
 
 static int c, cnt, pos, val, len;
 static char *cp;
-static void *base_addr = (void *) 0x80000C00;;
+static void *base_addr = NULL;
 static int state;
 static int echo = 0;
 
@@ -25,7 +61,7 @@ void prompt() {
 }
 
 void start_prog() {
-  GPIO_A->OUTPUT = 0x00000000; // Switch off all Leds
+  //GPIO_A->OUTPUT = 0x00000000; // Switch off all Leds
   // Drain the uart
   while (UART_A->STATUS >> 24) c = UART_A->DATA;
   __asm __volatile__(
@@ -37,28 +73,40 @@ void start_prog() {
   );
 }
 
+void trap() {
+  GPIO_A->OUTPUT |= 4;
+  GPIO_A->OUTPUT ^= 8;
+  MACHINE_TIMER_CMP = 0x7FFFFFFFFFFFFFFF;
+}
+
 void main() {
   // set 4 output bits for LEDs
   GPIO_A->OUTPUT_ENABLE = 0x0000000F;
   GPIO_A->OUTPUT = 0x00000000;
 
-  GPIO_A->OUTPUT |= 0x01; // Set Red LED
+  MACHINE_TIMER_CMP = 0x7FFFFFFFFFFFFFFF;
+
+  csr_write(mtvec, trapEntry); //Set the machine trap vector (trap.S)
+  csr_write(mie, MIE_MTIE); // Enable machine timer interrupts
+  csr_write(mstatus, MSTATUS_MPP | MSTATUS_MIE); //Enable interrupts
+
+  //GPIO_A->OUTPUT |= 0x01; // Set Red LED
 
   state = PROMPT;
   int cycles = 0;
 
   // Loop reading characters from UART
   while (1) {
-    GPIO_A->OUTPUT |= 0x04; // Set Green LED
-    if (cycles > 1000000) GPIO_A->OUTPUT |= 0x08;
-    if (cycles++ >= 1000000 && 
+    //GPIO_A->OUTPUT |= 0x04; // Set Green LED
+    //if (cycles > 1000000) GPIO_A->OUTPUT |= 0x08;
+    if (cycles++ >= 1000000 && base_addr != NULL &&
         ((*(volatile uint32_t*) base_addr) & 0xfff) == 0x197)  { // If no input, start user program
       start_prog();
     }
 
     if (UART_A->STATUS >> 24) { // UART RX interrupt?
       cycles = 0; 
-      GPIO_A->OUTPUT |= 0x02;  // Set Yellow Led
+      //GPIO_A->OUTPUT |= 0x02;  // Set Yellow Led
 
       // Output prompt
       if (state == PROMPT) { 
@@ -129,7 +177,7 @@ void main() {
       // End of address
       if (pos == len) {
         cp = (char *) val;
-        // val must equal base_addr
+        if (base_addr == NULL) base_addr = (void *) val;
         continue;
       }
 
