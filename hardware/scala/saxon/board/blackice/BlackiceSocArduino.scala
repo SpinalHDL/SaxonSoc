@@ -3,9 +3,10 @@ package saxon.board.blackice
 import saxon._
 import spinal.core._
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
+import spinal.lib.com.i2c._
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
-import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator, Apb3QspiAnalogGenerator}
+import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator, Apb3QspiAnalogGenerator, Apb3I2cGenerator}
 import saxon.board.blackice.sram._
 
 class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
@@ -19,6 +20,7 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val pwm = Apb3PwmGenerator(0x30000)
   val machineTimer = Apb3MachineTimerGenerator(0x08000)
   val qspiAnalog = Apb3QspiAnalogGenerator(0x40000)
+  val i2c = Apb3I2cGenerator(0x60000)
 
   cpu.setTimerInterrupt(machineTimer.interrupt)
   cpu.externalInterrupt.produce(cpu.externalInterrupt := False)
@@ -75,6 +77,18 @@ object BlackiceSocArduinoSystem{
     gpioA.parameter load Gpio.Parameter(width = 8)
     gpioB.parameter load Gpio.Parameter(width = 2, interrupt = List(0,1))
     pwm.width load(2)
+
+    i2c.parameter load I2cSlaveMemoryMappedGenerics(
+      ctrlGenerics = I2cSlaveGenerics(
+        samplingWindowSize = 3,
+        samplingClockDividerWidth = 10 bits,
+        timeoutWidth = 20 bits
+      ),
+      addressFilterCount = 0,
+      masterGenerics = I2cMasterMemoryMappedGenerics(
+        timerWidth = 12
+      )
+    )
 
     g
   }

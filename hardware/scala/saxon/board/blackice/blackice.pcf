@@ -34,6 +34,9 @@ set_io system_sevenSegmentA_sevenSegment_segPins[6] 15
 set_io system_pwm_pwm_pins[0] 52
 set_io system_pwm_pwm_pins[1] 49
 
+set_io system_i2c_i2c_sda 95
+set_io system_i2c_i2c_scl 93
+
 set_io system_qspiAnalog_qspiAnalog_qck 82
 set_io system_qspiAnalog_qspiAnalog_qss 81
 

@@ -50,15 +50,15 @@ object IceStormInOutWrapper {
               newIo := bundle.write
             }
           }
-          case bundle: ReadableOpenDrain[_]  if bundle.isMasterInterface => {
-            val newIo = inout(Analog(bundle.dataType)).setWeakName(bundle.getName())
+          case bundle: ReadableOpenDrain[Bool] => {
+            val newIo = inout(Analog(Bool)).setWeakName(bundle.getName())
+            val sbio = SB_IO("101001")
+            sbio.PACKAGE_PIN := newIo
+            sbio.OUTPUT_ENABLE := !bundle.write
+            sbio.D_OUT_0 := bundle.write
+            bundle.read := sbio.D_IN_0
+            println("set_io " + bundle.getName())
             bundle.setAsDirectionLess.unsetName().allowDirectionLessIo
-            bundle.read.assignFrom(newIo)
-            for((value, id) <- bundle.write.asBits.asBools.zipWithIndex) {
-              when(!value){
-                newIo.assignFromBits("0", id, 1 bits)
-              }
-            }
           }
           case bundle: TriStateArray if bundle.writeEnable.isOutput => {
             for(i <- 0 until bundle.width) {
