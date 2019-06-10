@@ -8,6 +8,7 @@ import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
 import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator, Apb3QspiAnalogGenerator, Apb3I2cGenerator}
 import saxon.board.blackice.sram._
+import spinal.lib.misc.plic.PlicMapping
 
 class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   //Add components
@@ -21,9 +22,16 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val machineTimer = Apb3MachineTimerGenerator(0x08000)
   val qspiAnalog = Apb3QspiAnalogGenerator(0x40000)
   val i2c = Apb3I2cGenerator(0x60000)
-
+  val plic = Apb3PlicGenerator(0xC00000)
+  
+  plic.priorityWidth.load(2)
+  plic.mapping.load(PlicMapping.sifive)
+  plic.addTarget(cpu.externalInterrupt)
+  //plic.addTarget(cpu.externalSupervisorInterrupt)
   cpu.setTimerInterrupt(machineTimer.interrupt)
-  cpu.externalInterrupt.produce(cpu.externalInterrupt := False)
+  //cpu.externalInterrupt.produce(cpu.externalInterrupt := False)
+
+  plic.addInterrupt(source = uartA.interrupt, id = 1)
 
   ramA.dataWidth.load(32)
 
