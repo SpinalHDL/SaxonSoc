@@ -75,8 +75,8 @@ case class ClockDomainGenerator() extends Generator {
     val inputResetTrigger = resetSensitivity.get match {
       case HIGH => if(resetSynchronous)  CombInit(reset.get) else ResetCtrl.asyncAssertSyncDeassert(reset.get, resetCtrlClockDomain, inputPolarity = spinal.core.HIGH, config.resetActiveLevel)
       case LOW =>  if(resetSynchronous) !CombInit(reset.get) else ResetCtrl.asyncAssertSyncDeassert(reset.get,resetCtrlClockDomain, inputPolarity = spinal.core.LOW, config.resetActiveLevel)
-      case RISE => assert(resetSynchronous); reset.rise
-      case FALL => assert(resetSynchronous); reset.fall
+      case RISE => if(resetSynchronous) reset.rise else BufferCC(reset.get).rise
+      case FALL => if(resetSynchronous) reset.fall else BufferCC(reset.get).fall
     }
 
     val resetUnbuffered = False
