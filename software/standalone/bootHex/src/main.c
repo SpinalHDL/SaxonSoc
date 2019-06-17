@@ -11,9 +11,7 @@ extern void trapEntry();
 #define MSTATUS_MPP 0x00001800
 #define MSTATUS_MIE 0x00000008
 
-#define MIE_MTIE (1 << 7)
-#define MIE_MTIP (1 << 7)
-#define MIE_MEIE (1 << 11)
+
 
 #define csr_write(csr, val)					\
 ({								\

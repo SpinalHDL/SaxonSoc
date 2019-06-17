@@ -73,7 +73,7 @@ object De1SocLinuxSystem{
     sdramA.timings.load(IS42x320D.timingGrade7)
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
-      baudrate = 1000000,
+      baudrate = 115200,
       txFifoDepth = 128,
       rxFifoDepth = 128
     )
@@ -119,7 +119,7 @@ object De1SocLinux {
   //Generate the SoC
   def main(args: Array[String]): Unit = {
     val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new De1SocLinux()).toComponent()))
-    BspGenerator(report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
+    BspGenerator("De1SocLinux", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
   }
 }
 
@@ -144,7 +144,7 @@ object De1SocLinuxSystemSim {
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
-      val uartBaudRate = 1000000
+      val uartBaudRate = 115200
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
@@ -159,9 +159,9 @@ object De1SocLinuxSystemSim {
 //      }
       fork{
 //        disableSimWave()
-//        sleep(70000000000l)
+//        sleep(0.2e12.toLong)
 //        enableSimWave()
-//        sleep(systemClkPeriod*1000000)
+//        sleep(systemClkPeriod*2000000)
 //        simFailure()
 
         while(true){
@@ -195,13 +195,23 @@ object De1SocLinuxSystemSim {
         layout = dut.sdramA.logic.layout,
         clockDomain = clockDomain
       )
-//      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
+
 
       val linuxPath = "../buildroot/output/images/"
       sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       sdram.loadBin(0x00400000, linuxPath + "Image")
       sdram.loadBin(0x00BF0000, linuxPath + "dtb")
       sdram.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
+
+
+//      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
+
+
+//      val linuxPath = "/home/miaou/pro/litex/linux-on-litex-vexriscv/buildroot/"
+//      sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+//      sdram.loadBin(0x00400000, linuxPath + "Image")
+//      sdram.loadBin(0x00BF0000, "../buildroot/output/images/dtb")
+//      sdram.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
     }
   }
 }

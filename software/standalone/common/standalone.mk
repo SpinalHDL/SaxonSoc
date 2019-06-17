@@ -3,10 +3,11 @@ OBJDIR ?= build
 LDFLAGS += -lc
 
 ifdef BSP
-CFLAGS += -I${STANDALONE}/../bsp/${BSP}/include
+CFLAGS += -I${STANDALONE}/../../bsp/${BSP}/include
 endif
 
 CFLAGS += -I${STANDALONE}/include
+CFLAGS += -I${STANDALONE}/driver
 LDFLAGS +=  -nostdlib -lgcc -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME).map,--print-memory-usage
 
 DOT:= .

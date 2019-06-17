@@ -51,5 +51,24 @@ echo 3 > /proc/sys/kernel/printk
 dd if=/dev/zero of=speed bs=1M count=1 conv=fsync
 
 src/openocd -f tcl/interface/ftdi/ft2232h_breakout.cfg -c 'set BRIEY_CPU0_YAML ../SaxonSoc.git/cpu0.yaml' -f tcl/target/saxon.cfg
-cu -l /dev/ttyUSB -s 1000000
-picocom -b 1000000 /dev/ttyUSB --imap lfcrlf
+cu -l /dev/ttyUSB -s 115200
+picocom -b 115200 /dev/ttyUSB --imap lfcrlf
+
+GPIO => https://www.emcraft.com/stm32f429discovery/controlling-gpio-from-linux-user-space
+
+Warning, if you want to run eclipse against a simulated target, you would need to add some delay after the reset
+
+monitor reset halt
+monitor sleep 1000
+
+
+
+## GPIO
+
+cd /sys/class/gpio/
+echo 510 > export
+echo in > gpio510/direction
+echo both > gpio510/edge
+hello 510
+
+make hello-rebuild

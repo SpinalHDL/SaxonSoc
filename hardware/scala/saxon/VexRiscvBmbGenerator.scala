@@ -38,7 +38,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   val jtag = add task (withJtag.get generate slave(Jtag()))
   val logic = add task new Area {
     withJtag.get generate new Area {
-      config.add(new DebugPlugin(debugClockDomain, 2))
+      config.add(new DebugPlugin(debugClockDomain, 0))
     }
 
     val cpu = new VexRiscv(config)

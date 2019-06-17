@@ -1,7 +1,7 @@
 package saxon
 
 import spinal.core._
-import spinal.lib.BufferCC
+import spinal.lib.{BufferCC, ResetCtrl}
 import spinal.lib.generator._
 
 
@@ -71,14 +71,12 @@ case class ClockDomainGenerator() extends Generator {
   )
 
   val logic = add task new ClockingArea(resetCtrlClockDomain) {
-    val inputResetSyncronized = if(resetSynchronous) CombInit(reset.get) else BufferCC(reset.get)
-
     import ResetSensitivity._
     val inputResetTrigger = resetSensitivity.get match {
-      case HIGH => inputResetSyncronized
-      case LOW => !inputResetSyncronized
-      case RISE => inputResetSyncronized.rise
-      case FALL => inputResetSyncronized.fall
+      case HIGH => if(resetSynchronous)  CombInit(reset.get) else ResetCtrl.asyncAssertSyncDeassert(reset.get, resetCtrlClockDomain, inputPolarity = spinal.core.HIGH, config.resetActiveLevel)
+      case LOW =>  if(resetSynchronous) !CombInit(reset.get) else ResetCtrl.asyncAssertSyncDeassert(reset.get,resetCtrlClockDomain, inputPolarity = spinal.core.LOW, config.resetActiveLevel)
+      case RISE => assert(resetSynchronous); reset.rise
+      case FALL => assert(resetSynchronous); reset.fall
     }
 
     val resetUnbuffered = False

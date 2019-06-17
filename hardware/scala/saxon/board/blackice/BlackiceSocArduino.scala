@@ -114,7 +114,7 @@ object BlackiceSocArduino {
   //Generate the SoC
   def main(args: Array[String]): Unit = {
     val report = SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new BlackiceSocArduino()).toComponent()))
-    BspGenerator(report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
+    BspGenerator("BlackiceSocArduino", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
   }
 }
 

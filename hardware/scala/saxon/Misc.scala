@@ -1,27 +1,39 @@
 package saxon
 
+import org.apache.commons.io.FileUtils
 import spinal.core.{Nameable, SpinalEnumElement}
 import spinal.core.internals.Misc
 import spinal.lib.generator.{Dts, Export, Generator, Handle, MemoryConnection, SimpleBus, Tag}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import java.io._
+
+import spinal.core.ClockDomain.FixedFrequency
 
 object BspGenerator {
-  def apply[T <: Nameable](root: Generator, memoryView : Handle[T]) {
+  def apply[T <: Nameable](name : String, root: Generator, memoryView : Handle[T]) {
 
     val generators = ArrayBuffer[Generator]()
     generators += root
     root.foreachGeneratorRec(generators += _)
 
-    import java.io._
-    val headerFile = new PrintWriter(new File("soc.h" ))
+
+    val bsp = new File("bsp")
+    bsp.mkdir()
+
+    val target = new File(bsp, name)
+    FileUtils.deleteDirectory(target)
+    target.mkdir()
+
+    val include = new File(target, "include")
+    include.mkdir()
+
+    val headerFile = new PrintWriter(new File(include, "soc.h"))
+    val dtsFile = new PrintWriter(new File("soc.dts"))
+
     headerFile.println("#ifndef SOC_H")
     headerFile.println("#define SOC_H")
-
-
-
-    val dtsFile = new PrintWriter(new File("soc.dts" ))
 
 
     def camelToUpperCase(str : String) = str.split("(?=\\p{Upper})").map(_.toUpperCase).mkString("_")
@@ -34,6 +46,7 @@ object BspGenerator {
 
       def rec(prefix : String, value : Any): Unit = value match {
         case value : Int => headerFile.println(s"#define ${prefix} $value")
+        case value : FixedFrequency => headerFile.println(s"#define ${prefix} ${value.getValue.toBigDecimal.toBigInt.toString(10)}")
         case value : Boolean => headerFile.println(s"#define ${prefix} ${if(value) 1 else 0}")
         case value : SpinalEnumElement[_] =>  headerFile.println(s"#define ${prefix} $value")
         case value : Object => Misc.reflect(value, (name, obj) => {
