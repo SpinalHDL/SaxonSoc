@@ -46,7 +46,7 @@ dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_
 riscv64-unknown-elf-objdump -S -d output/images/vmlinux > output/images/vmlinux.asm
 make linux-rebuild all -j$(nproc)
 
-printf "\x0f\x01" > /dev/spidev0.1
+printf "\x0f\x01" > /dev/spidev0.0
 echo 3 > /proc/sys/kernel/printk
 dd if=/dev/zero of=speed bs=1M count=1 conv=fsync
 
@@ -64,11 +64,12 @@ monitor sleep 1000
 
 
 ## GPIO
+export PIN=511
+echo $PIN > /sys/class/gpio/export
+echo in > /sys/class/gpio/gpio$PIN/direction
+echo both > /sys/class/gpio/gpio${PIN}/edge
+hello $PIN
 
-cd /sys/class/gpio/
-echo 510 > export
-echo in > gpio510/direction
-echo both > gpio510/edge
-hello 510
+
 
 make hello-rebuild

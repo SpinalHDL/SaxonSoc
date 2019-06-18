@@ -19,6 +19,7 @@ class De1SocLinuxSystem extends SaxonSocLinux{
   val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
+  val spiB = Apb3SpiGenerator(0x21000)
 
   //Interconnect specification
   interconnect.addConnection(
@@ -79,9 +80,14 @@ object De1SocLinuxSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 8,
-      interrupt = List(0, 1)
+      width = 16,
+      interrupt = List(0, 1, 2, 3)
     )
+
+    plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(0)), id = 4)
+    plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(1)), id = 5)
+    plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(2)), id = 6)
+    plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(3)), id = 7)
 
     spiA.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
       SpiXdrMasterCtrl.Parameters(
@@ -90,7 +96,7 @@ object De1SocLinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 2
+          ssWidth = 0
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
@@ -98,8 +104,21 @@ object De1SocLinuxSystem{
     )
     spiA.inferSpiSdrIo()
 
-    plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(0)), id = 4)
-    plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(1)), id = 5)
+    spiB.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
+      SpiXdrMasterCtrl.Parameters(
+        dataWidth = 8,
+        timerWidth = 12,
+        spi = SpiXdrParameter(
+          dataWidth = 2,
+          ioRate = 1,
+          ssWidth = 0
+        )
+      ) .addFullDuplex(id = 0),
+      cmdFifoDepth = 256,
+      rspFifoDepth = 256
+    )
+    spiB.inferSpiSdrIo()
+
 
     g
   }
