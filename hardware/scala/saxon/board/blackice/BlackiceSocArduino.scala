@@ -29,10 +29,10 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   plic.addTarget(cpu.externalInterrupt)
   //plic.addTarget(cpu.externalSupervisorInterrupt)
   cpu.setTimerInterrupt(machineTimer.interrupt)
-  //cpu.externalInterrupt.produce(cpu.externalInterrupt := False)
 
   plic.addInterrupt(source = uartA.interrupt, id = 1)
-
+  plic.addInterrupt(source = gpioB.produce(gpioB.logic.io.interrupt(0)), id = 4)
+  plic.addInterrupt(source = gpioB.produce(gpioB.logic.io.interrupt(1)), id = 5)
   ramA.dataWidth.load(32)
 
   //Interconnect specification

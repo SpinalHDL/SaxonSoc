@@ -55,7 +55,7 @@ void main() {
   machineTimer_setCmp((void *) MACHINE_TIMER, 0x7FFFFFFFFFFFFFFF);
 
   csr_write(mtvec, trap_entry); //Set the machine trap vector (trap.S)
-  csr_write(mie, MIE_MTIE); // Enable machine timer interrupts
+  csr_write(mie, MIE_MTIE | MIE_MEIE); // Enable timer and external interrupts
   csr_write(mstatus, MSTATUS_MPP | MSTATUS_MIE); //Enable interrupts
 
   //GPIO_A->OUTPUT |= 0x01; // Set Red LED
