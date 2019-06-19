@@ -3,6 +3,7 @@
 
 #include "saxon.h"
 #include "machineTimer.h"
+#include "plic.h"
 
 extern void trap_entry();
 
@@ -42,9 +43,14 @@ void start_prog() {
 }
 
 void trap() {
+  uint32_t claim;
+
   GPIO_A->OUTPUT |= 4;
   GPIO_A->OUTPUT ^= 8;
-  machineTimer_setCmp((void *) MACHINE_TIMER, 0x7FFFFFFFFFFFFFFF);
+  machineTimer_setCmp(MACHINE_TIMER, 0x7FFFFFFFFFFFFFFF);
+  while(claim = plic_claim(PLIC, PLIC_CPU_0)){
+    plic_release(PLIC, PLIC_CPU_0, claim); //unmask the claimed interrupt
+  }
 }
 
 void main() {
@@ -52,11 +58,20 @@ void main() {
   GPIO_A->OUTPUT_ENABLE = 0x0000000F;
   GPIO_A->OUTPUT = 0x00000000;
 
-  machineTimer_setCmp((void *) MACHINE_TIMER, 0x7FFFFFFFFFFFFFFF);
+  machineTimer_setCmp(MACHINE_TIMER, 0x7FFFFFFFFFFFFFFF);
 
   csr_write(mtvec, trap_entry); //Set the machine trap vector (trap.S)
   csr_write(mie, MIE_MTIE | MIE_MEIE); // Enable timer and external interrupts
   csr_write(mstatus, MSTATUS_MPP | MSTATUS_MIE); //Enable interrupts
+
+  //configure PLIC
+  plic_set_threshold(PLIC, PLIC_CPU_0, 0); //cpu 0 accept all interrupts with priority above 0
+
+  //enable GPIO_A pin 0 rising edge interrupt
+  plic_set_enable(PLIC, PLIC_CPU_0, PLIC_GPIO_A_0, 1);
+  plic_set_enable(PLIC, PLIC_CPU_0, PLIC_GPIO_A_0 + 1, 1);
+  plic_set_priority(PLIC, PLIC_GPIO_A_0, 1);
+  plic_set_priority(PLIC, PLIC_GPIO_A_0 + 1, 1);
 
   //GPIO_A->OUTPUT |= 0x01; // Set Red LED
 
