@@ -37,6 +37,13 @@ set_io system_pwm_pwm_pins[1] 49
 set_io system_i2c_i2c_sda 95
 set_io system_i2c_i2c_scl 93
 
+set_io system_testLeds[0] 87
+set_io system_testLeds[1] 90
+
+set_io system_spiA_spi_sclk 18
+set_io system_spiA_spi_data_0 17
+set_io system_spiA_spi_data_1 12
+
 set_io system_qspiAnalog_qspiAnalog_qck 82
 set_io system_qspiAnalog_qspiAnalog_qss 81
 

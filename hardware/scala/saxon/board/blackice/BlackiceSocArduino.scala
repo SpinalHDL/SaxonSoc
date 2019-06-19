@@ -9,6 +9,7 @@ import spinal.lib.io.{Gpio, InOutWrapper}
 import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator, Apb3QspiAnalogGenerator, Apb3I2cGenerator}
 import saxon.board.blackice.sram._
 import spinal.lib.misc.plic.PlicMapping
+import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 
 class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   //Add components
@@ -23,7 +24,8 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val qspiAnalog = Apb3QspiAnalogGenerator(0x40000)
   val i2c = Apb3I2cGenerator(0x60000)
   val plic = Apb3PlicGenerator(0xC00000)
-  
+  val spiA = Apb3SpiGenerator(0x70000) 
+
   plic.priorityWidth.load(2)
   plic.mapping.load(PlicMapping.sifive)
   plic.addTarget(cpu.externalInterrupt)
@@ -97,6 +99,21 @@ object BlackiceSocArduinoSystem{
         timerWidth = 12
       )
     )
+
+    spiA.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
+      SpiXdrMasterCtrl.Parameters(
+        dataWidth = 8,
+        timerWidth = 12,
+        spi = SpiXdrParameter(
+          dataWidth = 2,
+          ioRate = 1,
+          ssWidth = 0
+        )
+      ) .addFullDuplex(id = 0),
+      cmdFifoDepth = 256,
+      rspFifoDepth = 256
+    )
+    spiA.inferSpiSdrIo()
 
     g
   }
