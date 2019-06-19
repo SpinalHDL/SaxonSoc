@@ -80,7 +80,7 @@ object De1SocLinuxSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 16,
+      width = 24,
       interrupt = List(0, 1, 2, 3)
     )
 
