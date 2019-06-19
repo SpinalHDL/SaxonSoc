@@ -1,4 +1,4 @@
-PROJ_NAME=timerDemo
+PROJ_NAME=timerAndGpioInterruptDemo
 DEBUG=yes
 MULDIV=yes
 COMPRESSED=no

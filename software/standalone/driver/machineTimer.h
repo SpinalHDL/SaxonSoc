@@ -3,14 +3,14 @@
 
 #include <stdint.h>
 
-void machineTimer_setCmp(void *p, uint64_t cmp){
+void machineTimer_setCmp(uint32_t p, uint64_t cmp){
 	uint32_t *r = p;
 	r[3] = 0xFFFFFFFF;
 	r[2] = cmp;
 	r[3] = cmp >> 32;
 }
 
-uint64_t machineTimer_getTime(void *p){
+uint64_t machineTimer_getTime(uint32_t p){
 	uint32_t *r = p;
 	uint32_t lo, hi;
 

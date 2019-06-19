@@ -2,7 +2,7 @@ SUBDIRS := 	dhrystone \
 			blinkAndEcho \
 			machineModeSbi \
 			bootHex \
-			timerDemo \
+			timerAndGpioInterruptDemo \
 
 
 all:
