@@ -13,7 +13,7 @@ extern void trap_entry();
 
 static int c, cnt, pos, val, len;
 static char *cp;
-static void *base_addr = NULL;
+static void *base_addr = 0x90000000;
 static int state;
 static int echo = 0;
 
