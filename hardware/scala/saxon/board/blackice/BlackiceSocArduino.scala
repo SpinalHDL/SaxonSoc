@@ -6,10 +6,10 @@ import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.i2c._
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
-import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator, Apb3QspiAnalogGenerator, Apb3I2cGenerator}
+import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator, Apb3QspiAnalogGenerator, Apb3I2cGenerator, Apb3SpiMasterGenerator}
 import saxon.board.blackice.sram._
 import spinal.lib.misc.plic.PlicMapping
-import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
+import spinal.lib.com.spi._
 
 class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   //Add components
@@ -24,7 +24,7 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val qspiAnalog = Apb3QspiAnalogGenerator(0x40000)
   val i2c = Apb3I2cGenerator(0x60000)
   val plic = Apb3PlicGenerator(0xC00000)
-  val spiA = Apb3SpiGenerator(0x70000) 
+  val spiA = Apb3SpiMasterGenerator(0x70000) 
 
   plic.priorityWidth.load(2)
   plic.mapping.load(PlicMapping.sifive)
@@ -84,7 +84,7 @@ object BlackiceSocArduinoSystem{
       rxFifoDepth = 1
     )
 
-    gpioA.parameter load Gpio.Parameter(width = 8)
+    gpioA.parameter load Gpio.Parameter(width = 12)
     gpioB.parameter load Gpio.Parameter(width = 2, interrupt = List(0,1))
     pwm.width load(2)
 
@@ -100,20 +100,13 @@ object BlackiceSocArduinoSystem{
       )
     )
 
-    spiA.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
-      SpiXdrMasterCtrl.Parameters(
+    spiA.parameter load SpiMasterCtrlMemoryMappedConfig(
+      SpiMasterCtrlGenerics(
         dataWidth = 8,
-        timerWidth = 12,
-        spi = SpiXdrParameter(
-          dataWidth = 2,
-          ioRate = 1,
-          ssWidth = 0
-        )
-      ) .addFullDuplex(id = 0),
-      cmdFifoDepth = 256,
-      rspFifoDepth = 256
+        timerWidth = 32,
+        ssWidth = 1
+      )
     )
-    spiA.inferSpiSdrIo()
 
     g
   }

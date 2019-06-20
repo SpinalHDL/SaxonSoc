@@ -17,6 +17,10 @@ set_io system_gpioA_gpio_4 33
 set_io system_gpioA_gpio_5 21
 set_io system_gpioA_gpio_6 31
 set_io system_gpioA_gpio_7 32
+set_io system_gpioA_gpio_8 143
+set_io system_gpioA_gpio_9 114
+set_io system_gpioA_gpio_10 112
+set_io system_gpioA_gpio_11 107
 
 set_io system_gpioB_gpio_0 63
 set_io system_gpioB_gpio_1 64
@@ -40,9 +44,10 @@ set_io system_i2c_i2c_scl 93
 set_io system_testLeds[0] 87
 set_io system_testLeds[1] 90
 
-set_io system_spiA_spi_sclk 18
-set_io system_spiA_spi_data_0 17
-set_io system_spiA_spi_data_1 12
+set_io system_spiA_spi_sclk 144
+set_io system_spiA_spi_mosi 113
+set_io system_spiA_spi_miso 110
+set_io system_spiA_spi_ss 106
 
 set_io system_qspiAnalog_qspiAnalog_qck 82
 set_io system_qspiAnalog_qspiAnalog_qss 81
