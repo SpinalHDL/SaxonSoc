@@ -49,6 +49,8 @@ set_io system_spiA_spi_mosi 113
 set_io system_spiA_spi_miso 110
 set_io system_spiA_spi_ss 106
 
+set_io system_ws2811_ws2811_dout 34
+
 set_io system_qspiAnalog_qspiAnalog_qck 82
 set_io system_qspiAnalog_qspiAnalog_qss 81
 

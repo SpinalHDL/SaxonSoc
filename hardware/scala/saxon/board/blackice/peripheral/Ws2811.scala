@@ -233,9 +233,10 @@ case class Apb3Ws2811Ctrl(maxLeds : Int, clockHz: Int = 50000000) extends Compon
 case class  Apb3Ws2811Generator(apbOffset : BigInt)
                              (implicit decoder: Apb3DecoderGenerator) extends Generator{
   val maxLeds = createDependency[Int]
+  val clockHz = createDependency[Int]
   val ws2811 = produceIo(logic.io.ws2811)
   val apb = produce(logic.io.apb)
-  val logic = add task Apb3Ws2811Ctrl(maxLeds)
+  val logic = add task Apb3Ws2811Ctrl(maxLeds, clockHz)
 
   decoder.addSlave(apb, apbOffset)
 }

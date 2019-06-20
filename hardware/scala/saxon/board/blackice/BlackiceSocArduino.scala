@@ -6,7 +6,7 @@ import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.i2c._
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
-import saxon.board.blackice.peripheral.{Apb3SevenSegmentGenerator, Apb3PwmGenerator, Apb3QspiAnalogGenerator, Apb3I2cGenerator, Apb3SpiMasterGenerator}
+import saxon.board.blackice.peripheral._
 import saxon.board.blackice.sram._
 import spinal.lib.misc.plic.PlicMapping
 import spinal.lib.com.spi._
@@ -25,6 +25,7 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val i2c = Apb3I2cGenerator(0x60000)
   val plic = Apb3PlicGenerator(0xC00000)
   val spiA = Apb3SpiMasterGenerator(0x70000) 
+  val ws2811 = Apb3Ws2811Generator(0xD8000) 
 
   plic.priorityWidth.load(2)
   plic.mapping.load(PlicMapping.sifive)
@@ -107,6 +108,9 @@ object BlackiceSocArduinoSystem{
         ssWidth = 1
       )
     )
+
+    ws2811.maxLeds load(16)
+    ws2811.clockHz load(clockCtrl.clkFrequency.toInt)
 
     g
   }
