@@ -27,17 +27,6 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val spiA = Apb3SpiMasterGenerator(0x70000) 
   val ws2811 = Apb3Ws2811Generator(0xD8000) 
 
-  plic.priorityWidth.load(2)
-  plic.mapping.load(PlicMapping.sifive)
-  plic.addTarget(cpu.externalInterrupt)
-  //plic.addTarget(cpu.externalSupervisorInterrupt)
-  cpu.setTimerInterrupt(machineTimer.interrupt)
-
-  plic.addInterrupt(source = uartA.interrupt, id = 1)
-  plic.addInterrupt(source = gpioB.produce(gpioB.logic.io.interrupt(0)), id = 4)
-  plic.addInterrupt(source = gpioB.produce(gpioB.logic.io.interrupt(1)), id = 5)
-  ramA.dataWidth.load(32)
-
   //Interconnect specification
   interconnect.addConnection(
     cpu.iBus -> List(ramA.bmb, sramA.bmb),
@@ -71,24 +60,40 @@ object BlackiceSocArduinoSystem{
   def default(g : BlackiceSocArduinoSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
 
+    // Configure cpu
+    cpu.setTimerInterrupt(machineTimer.interrupt)
     cpu.config.load(VexRiscvConfigs.minimalWithCsr)
     cpu.enableJtag(clockCtrl)
 
+    // Configure ram
+    ramA.dataWidth.load(32)
     ramA.size.load(12 KiB)
     ramA.hexInit.load("software/standalone/bootHex/build/bootHex.hex")
 
     sramA.layout load SramLayout(dataWidth=16, addressWidth=18)
 
+    // Configure Platform Intrrupt Controller
+    plic.priorityWidth.load(2)
+    plic.mapping.load(PlicMapping.sifive)
+    plic.addTarget(cpu.externalInterrupt)
+
+    plic.addInterrupt(source = uartA.interrupt, id = 1)
+    plic.addInterrupt(source = gpioB.produce(gpioB.logic.io.interrupt(0)), id = 4)
+    plic.addInterrupt(source = gpioB.produce(gpioB.logic.io.interrupt(1)), id = 5)
+
+    // Configure uart
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
       txFifoDepth = 1,
       rxFifoDepth = 1
     )
 
+    // Configure gpio
     gpioA.parameter load Gpio.Parameter(width = 12)
     gpioB.parameter load Gpio.Parameter(width = 2, interrupt = List(0,1))
     pwm.width load(2)
 
+    // Configure i2c
     i2c.parameter load I2cSlaveMemoryMappedGenerics(
       ctrlGenerics = I2cSlaveGenerics(
         samplingWindowSize = 3,
@@ -101,6 +106,7 @@ object BlackiceSocArduinoSystem{
       )
     )
 
+    // Configure spi
     spiA.parameter load SpiMasterCtrlMemoryMappedConfig(
       SpiMasterCtrlGenerics(
         dataWidth = 8,
@@ -109,6 +115,7 @@ object BlackiceSocArduinoSystem{
       )
     )
 
+    // Configure Led strip
     ws2811.maxLeds load(16)
     ws2811.clockHz load(clockCtrl.clkFrequency.toInt)
 
