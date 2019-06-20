@@ -70,6 +70,34 @@ echo in > /sys/class/gpio/gpio$PIN/direction
 echo both > /sys/class/gpio/gpio${PIN}/edge
 hello $PIN
 
+## Ethernet
+ifconfig eth0 up
+ifconfig eth0 0.0.0.0 0.0.0.0 && dhclient
+ifconfig eth0:0 192.168.1.6 up
+ifconfig eth0 192.168.1.1
+/sbin/udhcpc -i eth0
+
+nano /etc/network/interfaces
+auto eth0
+iface eth0 inet dhcp
+ifdown eth0; ifup eth0
+
+
+auto eth1
+iface eth1 inet dhcp
+ifdown eth1; ifup eth1
+
+ftp://speedtest.tele2.net/
+wget ftp://speedtest.tele2.net/5MB.zip
+wget --output-document=/dev/null ftp://speedtest.tele2.net/5MB
+
+
+dmesg | grep eth
+ifconfig -a
 
 
 make hello-rebuild
+
+
+you can run 'scripts/get_maintainer.pl <your-patch.diff>', or 'scripts/get_maintainer.pl -f drivers/gpio/gpio-sifive.c' to find out
+<jn__> the most important mailing lists in the case should be linux-gpio@vger.kernel.org and linux-riscv@lists.infradead.org
