@@ -32,6 +32,11 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
     cpu.iBus -> List(ramA.bmb, sramA.bmb),
     cpu.dBus -> List(ramA.bmb, sramA.bmb)
   )
+
+  interconnect.setConnector(cpu.dBus){case (m,s) =>
+    m.cmd.halfPipe >> s.cmd
+    m.rsp << s.rsp
+  }
 }
 
 class BlackiceSocArduino extends Generator{
@@ -62,7 +67,8 @@ object BlackiceSocArduinoSystem{
 
     // Configure cpu
     cpu.setTimerInterrupt(machineTimer.interrupt)
-    cpu.config.load(VexRiscvConfigs.minimalWithCsr)
+    //cpu.config.load(VexRiscvConfigs.minimalWithCsr)
+    cpu.config.load(VexRiscvConfigs.muraxLike)
     cpu.enableJtag(clockCtrl)
 
     // Configure ram

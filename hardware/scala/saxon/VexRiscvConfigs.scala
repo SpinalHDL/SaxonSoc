@@ -246,5 +246,75 @@ object VexRiscvConfigs {
       ))
       c
     }
-  }
+ 
+    def muraxLike = VexRiscvConfig(
+      withMemoryStage = true,
+      withWriteBackStage = true,
+      List(
+        new IBusSimplePlugin(
+          resetVector = 0x80000000l,
+          cmdForkOnSecondStage = false,
+          cmdForkPersistence = true,
+          prediction = plugin.NONE,
+          catchAccessFault = false,
+          compressedGen = false
+        ),
+        new DBusSimplePlugin(
+          catchAddressMisaligned = false,
+          catchAccessFault = false,
+          earlyInjection = false
+        ),
+        new DecoderSimplePlugin(
+          catchIllegalInstruction = false
+        ),
+        new RegFilePlugin(
+          regFileReadyKind = plugin.SYNC,
+          zeroBoot = false
+        ),
+        new IntAluPlugin,
+        new SrcPlugin(
+          separatedAddSub = false,
+          executeInsertion = false
+        ),
+        new LightShifterPlugin(),
+        new BranchPlugin(
+          earlyBranch = false,
+          catchAddressMisaligned = false
+        ),
+        new HazardSimplePlugin(
+          bypassExecute = false,
+          bypassMemory = false,
+          bypassWriteBack = false,
+          bypassWriteBackBuffer = false,
+          pessimisticUseSrc = false,
+          pessimisticWriteRegFile = false,
+          pessimisticAddressMatch = false
+        ),
+        new YamlPlugin("cpu0.yaml"),
+        new CsrPlugin(new CsrPluginConfig(
+          catchIllegalAccess = false,
+          mvendorid = null,
+          marchid = null,
+          mimpid = null,
+          mhartid = null,
+          misaExtensionsInit = 0,
+          misaAccess = CsrAccess.NONE,
+          mtvecAccess = CsrAccess.WRITE_ONLY,
+          mtvecInit = null,
+          mepcAccess = CsrAccess.READ_WRITE,
+          mscratchGen = false,
+          mcauseAccess = CsrAccess.READ_ONLY,
+          mbadaddrAccess = CsrAccess.NONE,
+          mcycleAccess = CsrAccess.NONE,
+          minstretAccess = CsrAccess.NONE,
+          ecallGen = true,
+          ebreakGen = false,
+          wfiGenAsWait = false,
+          wfiGenAsNop = true,
+          ucycleAccess = CsrAccess.NONE
+        ) 
+      )
+    )
+  )
+}
 
