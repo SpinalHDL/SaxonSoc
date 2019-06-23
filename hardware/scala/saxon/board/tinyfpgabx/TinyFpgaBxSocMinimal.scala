@@ -7,13 +7,6 @@ import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
 import saxon.board.blackice.IceStormInOutWrapper
 
-case class TinyFpgaBxPll() extends BlackBox{
-  setDefinitionName("tinyfpgabx_pll")
-  val clock_in = in Bool()
-  val clock_out = out Bool()
-  val locked = out Bool()
-}
-
 class TinyFpgaBxSocMinimalSystem extends BmbApbVexRiscvGenerator{
   //Add components
   val ramA = BmbOnChipRamGenerator(0x80000000l)
