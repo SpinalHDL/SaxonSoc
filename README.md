@@ -43,6 +43,11 @@ output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/im
 dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts;
 ```
 
+//clean all target files
+rm -rf output/target
+find output/ -name ".stamp_target_installed" |xargs rm -rf
+
+
 riscv64-unknown-elf-objdump -S -d output/images/vmlinux > output/images/vmlinux.asm
 make linux-rebuild all -j$(nproc)
 
@@ -89,7 +94,7 @@ ifdown eth1; ifup eth1
 
 ftp://speedtest.tele2.net/
 wget ftp://speedtest.tele2.net/5MB.zip
-wget --output-document=/dev/null ftp://speedtest.tele2.net/5MB
+wget --output-document=/dev/null ftp://speedtest.tele2.net/5MB.zip
 
 
 dmesg | grep eth
@@ -101,3 +106,68 @@ make hello-rebuild
 
 you can run 'scripts/get_maintainer.pl <your-patch.diff>', or 'scripts/get_maintainer.pl -f drivers/gpio/gpio-sifive.c' to find out
 <jn__> the most important mailing lists in the case should be linux-gpio@vger.kernel.org and linux-riscv@lists.infradead.org
+
+
+
+nano /etc/wilc_wpa_supplicant
+
+ctrl_interface=/var/run/wpa_supplicant
+update_config=1
+country=US
+
+network={
+    ssid="Rawrrr"
+    key_mgmt=NONE
+}
+
+wpa_supplicant -i wlan0 -D n180211 -c /etc/wilc_wpa_supplicant
+
+
+
+**** connect to
+nano  /etc/network/interfaces
+
+auto wlan0
+iface wlan0 inet dhcp
+
+ifconfig wlan0 up
+
+iwlist wlan0 scan
+
+iwconfig wlan0 essid miaou-P65-P67SE key s:prout
+
+### Connect to a open wifi
+echo 4 > /proc/sys/kernel/printk
+nano /etc/wpa_supplicant.conf
+network={
+    ssid="miaou-P65-P67SE"
+    key_mgmt=NONE
+    priority=100
+}
+
+wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant.conf -D nl80211
+udhcpc -i wlan0
+
+
+
+nano wilc_wpa_supplicant.conf
+ctrl_interface=/var/run/wpa_supplicant
+update_config=1
+
+
+
+**** AP mode
+nano /etc/wilc_hostapd_open.conf
+
+interface=wlan0
+driver=nl80211
+ctrl_interface=/var/run/hostapd
+ssid=wilc1000_SoftAP
+dtim_period=2
+beacon_int=100
+channel=7
+hw_mode=g
+max_num_sta=8
+ap_max_inactivity=300
+
+hostapd /etc/wilc_hostapd_open.conf -B &
