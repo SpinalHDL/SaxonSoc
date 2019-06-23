@@ -7,6 +7,14 @@ extern const uint32_t _sp;
 extern void trapEntry();
 extern void emulationTrap();
 
+
+void putHex(int value){
+	for(int i = 7; i >=	 0;i--){
+		int hex = (value >> i*4) & 0xF;
+		putC(hex > 9 ? 'A' + hex - 10 : '0' + hex);
+	}
+}
+
 void putString(char* s){
 	while(*s){
 		putC(*s);
@@ -91,56 +99,190 @@ void emulationTrapToSupervisorTrap(uint32_t sepc, uint32_t mstatus){
       __typeof__ (b) _b = (b); \
     _a < _b ? _a : _b; })
 
-
-
 //Will modify MTVEC
 int32_t readWord(uint32_t address, int32_t *data){
 	int32_t result, tmp;
-	int32_t failed;
+	int32_t fail;
 	__asm__ __volatile__ (
 		"  	li       %[tmp],  0x00020000\n"
 		"	csrs     mstatus,  %[tmp]\n"
 		"  	la       %[tmp],  1f\n"
 		"	csrw     mtvec,  %[tmp]\n"
-		"	li       %[failed], 1\n"
+		"	li       %[fail], 1\n"
 		"	lw       %[result], 0(%[address])\n"
-		"	li       %[failed], 0\n"
+		"	li       %[fail], 0\n"
 		"1:\n"
 		"  	li       %[tmp],  0x00020000\n"
 		"	csrc     mstatus,  %[tmp]\n"
-		: [result]"=&r" (result), [failed]"=&r" (failed), [tmp]"=&r" (tmp)
+		: [result]"=&r" (result), [fail]"=&r" (fail), [tmp]"=&r" (tmp)
 		: [address]"r" (address)
 		: "memory"
 	);
 
 	*data = result;
-	return failed;
+	return fail;
 }
 
 //Will modify MTVEC
-int32_t writeWord(uint32_t address, int32_t data){
+int32_t readWordUnaligned(uint32_t address, int32_t *data){
 	int32_t result, tmp;
-	int32_t failed;
+	int32_t fail;
 	__asm__ __volatile__ (
 		"  	li       %[tmp],  0x00020000\n"
 		"	csrs     mstatus,  %[tmp]\n"
 		"  	la       %[tmp],  1f\n"
 		"	csrw     mtvec,  %[tmp]\n"
-		"	li       %[failed], 1\n"
-		"	sw       %[data], 0(%[address])\n"
-		"	li       %[failed], 0\n"
+		"	li       %[fail], 1\n"
+		"	lbu      %[result], 0(%[address])\n"
+		"	lbu      %[tmp],    1(%[address])\n"
+		"	slli     %[tmp],  %[tmp], 8\n"
+		"	or       %[result], %[result], %[tmp]\n"
+		"	lbu      %[tmp],    2(%[address])\n"
+		"	slli     %[tmp],  %[tmp], 16\n"
+		"	or       %[result], %[result], %[tmp]\n"
+		"	lbu      %[tmp],    3(%[address])\n"
+		"	slli     %[tmp],  %[tmp], 24\n"
+		"	or       %[result], %[result], %[tmp]\n"
+		"	li       %[fail], 0\n"
 		"1:\n"
 		"  	li       %[tmp],  0x00020000\n"
 		"	csrc     mstatus,  %[tmp]\n"
-		: [failed]"=&r" (failed), [tmp]"=&r" (tmp)
+		: [result]"=&r" (result), [fail]"=&r" (fail), [tmp]"=&r" (tmp)
+		: [address]"r" (address)
+		: "memory"
+	);
+
+	*data = result;
+	return fail;
+}
+
+//Will modify MTVEC
+int32_t readHalfUnaligned(uint32_t address, int32_t *data){
+	int32_t result, tmp;
+	int32_t fail;
+	__asm__ __volatile__ (
+		"  	li       %[tmp],  0x00020000\n"
+		"	csrs     mstatus,  %[tmp]\n"
+		"  	la       %[tmp],  1f\n"
+		"	csrw     mtvec,  %[tmp]\n"
+		"	li       %[fail], 1\n"
+		"	lb       %[result], 1(%[address])\n"
+		"	slli     %[result],  %[result], 8\n"
+		"	lbu      %[tmp],    0(%[address])\n"
+		"	or       %[result], %[result], %[tmp]\n"
+		"	li       %[fail], 0\n"
+		"1:\n"
+		"  	li       %[tmp],  0x00020000\n"
+		"	csrc     mstatus,  %[tmp]\n"
+		: [result]"=&r" (result), [fail]"=&r" (fail), [tmp]"=&r" (tmp)
+		: [address]"r" (address)
+		: "memory"
+	);
+
+	*data = result;
+	return fail;
+}
+
+
+
+
+
+//Will modify MTVEC
+int32_t writeWord(uint32_t address, int32_t data){
+	int32_t result, tmp;
+	int32_t fail;
+	__asm__ __volatile__ (
+		"  	li       %[tmp],  0x00020000\n"
+		"	csrs     mstatus,  %[tmp]\n"
+		"  	la       %[tmp],  1f\n"
+		"	csrw     mtvec,  %[tmp]\n"
+		"	li       %[fail], 1\n"
+		"	sw       %[data], 0(%[address])\n"
+		"	li       %[fail], 0\n"
+		"1:\n"
+		"  	li       %[tmp],  0x00020000\n"
+		"	csrc     mstatus,  %[tmp]\n"
+		: [fail]"=&r" (fail), [tmp]"=&r" (tmp)
 		: [address]"r" (address), [data]"r" (data)
 		: "memory"
 	);
 
-	return failed;
+	return fail;
 }
 
 
+//Will modify MTVEC
+int32_t writeWordUnaligned(uint32_t address, int32_t data){
+	int32_t result, tmp;
+	int32_t fail;
+	__asm__ __volatile__ (
+		"  	li       %[tmp],  0x00020000\n"
+		"	csrs     mstatus,  %[tmp]\n"
+		"  	la       %[tmp],  1f\n"
+		"	csrw     mtvec,  %[tmp]\n"
+		"	li       %[fail], 1\n"
+		"	sb       %[data], 0(%[address])\n"
+		"	srl      %[data], %[data], 8\n"
+		"	sb       %[data], 1(%[address])\n"
+		"	srl      %[data], %[data], 8\n"
+		"	sb       %[data], 2(%[address])\n"
+		"	srl      %[data], %[data], 8\n"
+		"	sb       %[data], 3(%[address])\n"
+		"	li       %[fail], 0\n"
+		"1:\n"
+		"  	li       %[tmp],  0x00020000\n"
+		"	csrc     mstatus,  %[tmp]\n"
+		: [fail]"=&r" (fail), [tmp]"=&r" (tmp)
+		: [address]"r" (address), [data]"r" (data)
+		: "memory"
+	);
+
+	return fail;
+}
+
+
+//Will modify MTVEC
+int32_t writeShortUnaligned(uint32_t address, int32_t data){
+	int32_t result, tmp;
+	int32_t fail;
+	__asm__ __volatile__ (
+		"  	li       %[tmp],  0x00020000\n"
+		"	csrs     mstatus,  %[tmp]\n"
+		"  	la       %[tmp],  1f\n"
+		"	csrw     mtvec,  %[tmp]\n"
+		"	li       %[fail], 1\n"
+		"	sb       %[data], 0(%[address])\n"
+		"	srl      %[data], %[data], 8\n"
+		"	sb       %[data], 1(%[address])\n"
+		"	li       %[fail], 0\n"
+		"1:\n"
+		"  	li       %[tmp],  0x00020000\n"
+		"	csrc     mstatus,  %[tmp]\n"
+		: [fail]"=&r" (fail), [tmp]"=&r" (tmp)
+		: [address]"r" (address), [data]"r" (data)
+		: "memory"
+	);
+
+	return fail;
+}
+
+
+
+uint32_t readInstruction(uint32_t pc){
+	uint32_t i;
+	if (pc & 2) {
+		readWord(pc - 2, &i);
+		i >>= 16;
+		if (i & 3 == 3) {
+			uint32_t u32Buf;
+			readWord(pc+2, &u32Buf);
+			i |= u32Buf << 16;
+		}
+	} else {
+		readWord(pc, &i);
+	}
+	return i;
+}
 
 
 void trap(){
@@ -155,6 +297,53 @@ void trap(){
 		}
 	} else { //exception
 		switch(cause){
+		case CAUSE_UNALIGNED_LOAD:{
+			uint32_t mepc = csr_read(mepc);
+			uint32_t mstatus = csr_read(mstatus);
+			uint32_t instruction = readInstruction(mepc);
+			uint32_t address = csr_read(mbadaddr);
+			uint32_t func3 =(instruction >> 12) & 0x7;
+			uint32_t rd = (instruction >> 7) & 0x1F;
+			int32_t readValue;
+			int32_t fail;
+
+			switch(func3){
+			case 1: fail = readHalfUnaligned(address, &readValue); break;  //LH
+			case 2: fail = readWordUnaligned(address, &readValue); break; //LW
+			case 5: fail = readHalfUnaligned(address, &readValue) & 0xFFFF; break; //LHU
+			}
+
+			if(fail){
+				emulationTrapToSupervisorTrap(mepc, mstatus);
+				return;
+			}
+
+			writeRegister(rd, readValue);
+			csr_write(mepc, mepc + 4);
+			csr_write(mtvec, trapEntry); //Restore mtvec
+		}break;
+		case CAUSE_UNALIGNED_STORE:{
+			uint32_t mepc = csr_read(mepc);
+			uint32_t mstatus = csr_read(mstatus);
+			uint32_t instruction = readInstruction(mepc);
+			uint32_t address = csr_read(mbadaddr);
+			uint32_t func3 =(instruction >> 12) & 0x7;
+			int32_t writeValue = readRegister((instruction >> 20) & 0x1F);
+			int32_t fail;
+
+			switch(func3){
+			case 1: fail = writeShortUnaligned(address, writeValue); break; //SH
+			case 2: fail = writeWordUnaligned(address, writeValue); break; //SW
+			}
+
+			if(fail){
+				emulationTrapToSupervisorTrap(mepc, mstatus);
+				return;
+			}
+
+			csr_write(mepc, mepc + 4);
+			csr_write(mtvec, trapEntry); //Restore mtvec
+		}break;
 		case CAUSE_ILLEGAL_INSTRUCTION:{
 			uint32_t mepc = csr_read(mepc);
 			uint32_t mstatus = csr_read(mstatus);
@@ -165,20 +354,7 @@ void trap(){
 			uint32_t instruction = csr_read(mbadaddr);
 #endif
 #ifdef QEMU
-			uint32_t instruction = 0;
-			uint32_t i;
-			if (mepc & 2) {
-				readWord(mepc - 2, &i);
-				i >>= 16;
-				if (i & 3 == 3) {
-					uint32_t u32Buf;
-					readWord(mepc+2, &u32Buf);
-					i |= u32Buf << 16;
-				}
-			} else {
-				readWord(mepc, &i);
-			}
-			instruction = i;
+			uint32_t instruction = readInstruction(mepc);
 			csr_write(mtvec, trapEntry); //Restore mtvec
 #endif
 
@@ -227,7 +403,7 @@ void trap(){
 				} break;
 				case 0x73:{
 					//CSR
-					uint32_t input = (instruction & 0x4000) ? ((instruction >> 15) & 0x1F) : readRegister((instruction >> 15) & 0x1F);;
+					uint32_t input = (instruction & 0x4000) ? ((instruction >> 15) & 0x1F) : readRegister((instruction >> 15) & 0x1F);
 					uint32_t clear, set;
 					uint32_t write;
 					switch (funct3 & 0x3) {
@@ -281,10 +457,18 @@ void trap(){
 				csr_clear(sip, MIP_STIP);
 				csr_write(mepc, csr_read(mepc) + 4);
 			}break;
-			default: stopSim(); break;
+			default: {
+				putString("Unknown SABI\n");
+				stopSim();
+			} break;
 			}
 		}break;
-		default: redirectTrap(); break;
+		default: {
+			putString("Unknown exception ");
+		    putHex(cause);
+			putString("\n");
+			redirectTrap();
+		} break;
 		}
 	}
 
