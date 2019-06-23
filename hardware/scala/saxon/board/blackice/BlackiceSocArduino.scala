@@ -44,7 +44,7 @@ class BlackiceSocArduino extends Generator{
   clockCtrl.resetHoldDuration.load(255)
   clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
-  clockCtrl.clkFrequency.load(25 MHz)
+  clockCtrl.clkFrequency.load(40 MHz)
 
   val system = new BlackiceSocArduinoSystem
   system.onClockDomain(clockCtrl.clockDomain)

@@ -6,8 +6,8 @@
  * Use at your own risk.
  *
  * Given input frequency:       100.000 MHz
- * Requested output frequency:   25.000 MHz
- * Achieved output frequency:    25.000 MHz
+ * Requested output frequency:   40.000 MHz
+ * Achieved output frequency:    40.000 MHz
  */
 
 module blackice_pll(
@@ -18,10 +18,10 @@ module blackice_pll(
 
 SB_PLL40_CORE #(
 		.FEEDBACK_PATH("SIMPLE"),
-		.DIVR(4'b0000),		// DIVR =  0
-		.DIVF(7'b0000111),	// DIVF =  7
-		.DIVQ(3'b101),		// DIVQ =  5
-		.FILTER_RANGE(3'b101)	// FILTER_RANGE = 5
+		.DIVR(4'b0100),		// DIVR =  4
+		.DIVF(7'b0011111),	// DIVF = 31
+		.DIVQ(3'b100),		// DIVQ =  4
+		.FILTER_RANGE(3'b010)	// FILTER_RANGE = 2
 	) uut (
 		.LOCK(locked),
 		.RESETB(1'b1),
