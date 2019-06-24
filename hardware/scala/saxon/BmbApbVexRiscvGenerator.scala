@@ -28,5 +28,5 @@ class SaxonSocLinux extends BmbApbVexRiscvGenerator{
   cpu.setTimerInterrupt(machineTimer.interrupt)
 
   val uartA = Apb3UartGenerator(0x10000)
-  plic.addInterrupt(source = uartA.interrupt, id = 1)
+  uartA.connectInterrupt(plic, 1)
 }

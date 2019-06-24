@@ -83,11 +83,7 @@ object De1SocLinuxSystem{
       width = 24,
       interrupt = List(0, 1, 2, 3)
     )
-
-    plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(0)), id = 4)
-    plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(1)), id = 5)
-    plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(2)), id = 6)
-    plic.addInterrupt(source = gpioA.produce(gpioA.logic.io.interrupt(3)), id = 7)
+    gpioA.connectInterrupts(plic, 4)
 
     spiA.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
       SpiXdrMasterCtrl.Parameters(
