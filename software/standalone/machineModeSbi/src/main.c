@@ -181,7 +181,7 @@ int32_t readHalfUnaligned(uint32_t address, int32_t *data){
 
 //Will modify MTVEC
 int32_t writeWord(uint32_t address, int32_t data){
-	int32_t result, tmp;
+	int32_t tmp;
 	int32_t fail;
 	__asm__ __volatile__ (
 		trapReadyStart
@@ -198,7 +198,7 @@ int32_t writeWord(uint32_t address, int32_t data){
 
 //Will modify MTVEC
 int32_t writeWordUnaligned(uint32_t address, int32_t data){
-	int32_t result, tmp;
+	int32_t tmp;
 	int32_t fail;
 	__asm__ __volatile__ (
 		trapReadyStart
@@ -221,7 +221,7 @@ int32_t writeWordUnaligned(uint32_t address, int32_t data){
 
 //Will modify MTVEC
 int32_t writeShortUnaligned(uint32_t address, int32_t data){
-	int32_t result, tmp;
+	int32_t tmp;
 	int32_t fail;
 	__asm__ __volatile__ (
 		trapReadyStart
@@ -244,7 +244,7 @@ uint32_t readInstruction(uint32_t pc){
 	if (pc & 2) {
 		readWord(pc - 2, &i);
 		i >>= 16;
-		if (i & 3 == 3) {
+		if ((i & 3) == 3) {
 			uint32_t u32Buf;
 			readWord(pc+2, &u32Buf);
 			i |= u32Buf << 16;
