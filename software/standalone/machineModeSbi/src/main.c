@@ -99,21 +99,27 @@ void emulationTrapToSupervisorTrap(uint32_t sepc, uint32_t mstatus){
       __typeof__ (b) _b = (b); \
     _a < _b ? _a : _b; })
 
+#define trapReadyStart \
+		"  	li       %[tmp],  0x00020000\n" \
+		"	csrs     mstatus,  %[tmp]\n" \
+		"  	la       %[tmp],  1f\n" \
+		"	csrw     mtvec,  %[tmp]\n" \
+		"	li       %[fail], 1\n" \
+
+#define trapReadyEnd \
+		"	li       %[fail], 0\n" \
+		"1:\n" \
+		"  	li       %[tmp],  0x00020000\n" \
+		"	csrc     mstatus,  %[tmp]\n" \
+
 //Will modify MTVEC
 int32_t readWord(uint32_t address, int32_t *data){
 	int32_t result, tmp;
 	int32_t fail;
 	__asm__ __volatile__ (
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrs     mstatus,  %[tmp]\n"
-		"  	la       %[tmp],  1f\n"
-		"	csrw     mtvec,  %[tmp]\n"
-		"	li       %[fail], 1\n"
+		trapReadyStart
 		"	lw       %[result], 0(%[address])\n"
-		"	li       %[fail], 0\n"
-		"1:\n"
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrc     mstatus,  %[tmp]\n"
+		trapReadyEnd
 		: [result]"=&r" (result), [fail]"=&r" (fail), [tmp]"=&r" (tmp)
 		: [address]"r" (address)
 		: "memory"
@@ -128,11 +134,7 @@ int32_t readWordUnaligned(uint32_t address, int32_t *data){
 	int32_t result, tmp;
 	int32_t fail;
 	__asm__ __volatile__ (
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrs     mstatus,  %[tmp]\n"
-		"  	la       %[tmp],  1f\n"
-		"	csrw     mtvec,  %[tmp]\n"
-		"	li       %[fail], 1\n"
+			trapReadyStart
 		"	lbu      %[result], 0(%[address])\n"
 		"	lbu      %[tmp],    1(%[address])\n"
 		"	slli     %[tmp],  %[tmp], 8\n"
@@ -143,10 +145,7 @@ int32_t readWordUnaligned(uint32_t address, int32_t *data){
 		"	lbu      %[tmp],    3(%[address])\n"
 		"	slli     %[tmp],  %[tmp], 24\n"
 		"	or       %[result], %[result], %[tmp]\n"
-		"	li       %[fail], 0\n"
-		"1:\n"
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrc     mstatus,  %[tmp]\n"
+		trapReadyEnd
 		: [result]"=&r" (result), [fail]"=&r" (fail), [tmp]"=&r" (tmp)
 		: [address]"r" (address)
 		: "memory"
@@ -161,19 +160,12 @@ int32_t readHalfUnaligned(uint32_t address, int32_t *data){
 	int32_t result, tmp;
 	int32_t fail;
 	__asm__ __volatile__ (
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrs     mstatus,  %[tmp]\n"
-		"  	la       %[tmp],  1f\n"
-		"	csrw     mtvec,  %[tmp]\n"
-		"	li       %[fail], 1\n"
+		trapReadyStart
 		"	lb       %[result], 1(%[address])\n"
 		"	slli     %[result],  %[result], 8\n"
 		"	lbu      %[tmp],    0(%[address])\n"
 		"	or       %[result], %[result], %[tmp]\n"
-		"	li       %[fail], 0\n"
-		"1:\n"
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrc     mstatus,  %[tmp]\n"
+		trapReadyEnd
 		: [result]"=&r" (result), [fail]"=&r" (fail), [tmp]"=&r" (tmp)
 		: [address]"r" (address)
 		: "memory"
@@ -192,16 +184,9 @@ int32_t writeWord(uint32_t address, int32_t data){
 	int32_t result, tmp;
 	int32_t fail;
 	__asm__ __volatile__ (
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrs     mstatus,  %[tmp]\n"
-		"  	la       %[tmp],  1f\n"
-		"	csrw     mtvec,  %[tmp]\n"
-		"	li       %[fail], 1\n"
+		trapReadyStart
 		"	sw       %[data], 0(%[address])\n"
-		"	li       %[fail], 0\n"
-		"1:\n"
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrc     mstatus,  %[tmp]\n"
+		trapReadyEnd
 		: [fail]"=&r" (fail), [tmp]"=&r" (tmp)
 		: [address]"r" (address), [data]"r" (data)
 		: "memory"
@@ -216,11 +201,7 @@ int32_t writeWordUnaligned(uint32_t address, int32_t data){
 	int32_t result, tmp;
 	int32_t fail;
 	__asm__ __volatile__ (
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrs     mstatus,  %[tmp]\n"
-		"  	la       %[tmp],  1f\n"
-		"	csrw     mtvec,  %[tmp]\n"
-		"	li       %[fail], 1\n"
+		trapReadyStart
 		"	sb       %[data], 0(%[address])\n"
 		"	srl      %[data], %[data], 8\n"
 		"	sb       %[data], 1(%[address])\n"
@@ -228,10 +209,7 @@ int32_t writeWordUnaligned(uint32_t address, int32_t data){
 		"	sb       %[data], 2(%[address])\n"
 		"	srl      %[data], %[data], 8\n"
 		"	sb       %[data], 3(%[address])\n"
-		"	li       %[fail], 0\n"
-		"1:\n"
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrc     mstatus,  %[tmp]\n"
+		trapReadyEnd
 		: [fail]"=&r" (fail), [tmp]"=&r" (tmp)
 		: [address]"r" (address), [data]"r" (data)
 		: "memory"
@@ -246,18 +224,11 @@ int32_t writeShortUnaligned(uint32_t address, int32_t data){
 	int32_t result, tmp;
 	int32_t fail;
 	__asm__ __volatile__ (
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrs     mstatus,  %[tmp]\n"
-		"  	la       %[tmp],  1f\n"
-		"	csrw     mtvec,  %[tmp]\n"
-		"	li       %[fail], 1\n"
+		trapReadyStart
 		"	sb       %[data], 0(%[address])\n"
 		"	srl      %[data], %[data], 8\n"
 		"	sb       %[data], 1(%[address])\n"
-		"	li       %[fail], 0\n"
-		"1:\n"
-		"  	li       %[tmp],  0x00020000\n"
-		"	csrc     mstatus,  %[tmp]\n"
+		trapReadyEnd
 		: [fail]"=&r" (fail), [tmp]"=&r" (tmp)
 		: [address]"r" (address), [data]"r" (data)
 		: "memory"
