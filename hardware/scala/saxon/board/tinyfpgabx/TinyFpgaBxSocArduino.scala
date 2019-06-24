@@ -110,7 +110,7 @@ object TinyFpgaBxSocArduino {
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new TinyFpgaBxSocArduino()).toComponent()))
-  }
+    val report = SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new TinyFpgaBxSocArduino()).toComponent()))
+    BspGenerator("TinyFpgaBxSocArduino", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)  }
 }
 

@@ -79,7 +79,8 @@ object TinyFpgaBxSocMinimal {
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new TinyFpgaBxSocMinimal()).toComponent()))
-  }
+    val report = SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new TinyFpgaBxSocMinimal()).toComponent()))
+    BspGenerator("TinyFpgaBxSocMinimal", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
+}
 }
 
