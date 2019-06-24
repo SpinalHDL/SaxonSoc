@@ -81,7 +81,8 @@ object BlackiceSocMinimal {
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new BlackiceSocMinimal()).toComponent()))
+    val report = SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new BlackiceSocMinimal()).toComponent()))
+    BspGenerator("BlackiceSocMinimal", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
   }
 }
 
