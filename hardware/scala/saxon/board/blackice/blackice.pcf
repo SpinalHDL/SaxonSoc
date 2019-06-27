@@ -35,14 +35,26 @@ set_io system_sevenSegmentA_sevenSegment_segPins[4] 19
 set_io system_sevenSegmentA_sevenSegment_segPins[5] 16
 set_io system_sevenSegmentA_sevenSegment_segPins[6] 15
 
+#set_io system_lcdText_lcdText_e 144
+#set_io system_lcdText_lcdText_rs 143
+
+#set_io system_lcdText_lcdText_dout[0] 98
+#set_io system_lcdText_lcdText_dout[1] 99
+#set_io system_lcdText_lcdText_dout[2] 96
+#set_io system_lcdText_lcdText_dout[3] 97
+#set_io system_lcdText_lcdText_dout[4] 104
+#set_io system_lcdText_lcdText_dout[5] 105
+#set_io system_lcdText_lcdText_dout[6] 101
+#set_io system_lcdText_lcdText_dout[7] 102
+
 set_io system_pwm_pwm_pins[0] 52
 set_io system_pwm_pwm_pins[1] 49
 
 set_io system_i2c_i2c_sda 95
 set_io system_i2c_i2c_scl 93
 
-set_io system_testLeds[0] 87
-set_io system_testLeds[1] 90
+#set_io system_testLeds[0] 87
+#set_io system_testLeds[1] 90
 
 set_io system_spiA_spi_sclk 144
 set_io system_spiA_spi_mosi 113

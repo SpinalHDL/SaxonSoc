@@ -32,8 +32,8 @@ case class LcdTextCtrl(clockHz : Int = 50000000) extends Component {
   io.lcdText.rs := !io.data(8)
   io.lcdText.dout := io.data(7 downto 0)
 
-  // Enable must me set for 220 nanoseconds
-  val cycles = ((22 * clockHz) / 100000000) + 1
+  // Enable must me set for 230 nanoseconds
+  val cycles = ((23 * clockHz) / 100000000) + 1
   val counter = Reg(UInt(log2Up(cycles) bits)) init 0
 
   when (counter >  0) {

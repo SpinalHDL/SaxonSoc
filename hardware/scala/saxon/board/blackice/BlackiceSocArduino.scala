@@ -26,6 +26,7 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val plic = Apb3PlicGenerator(0xC00000)
   val spiA = Apb3SpiMasterGenerator(0x70000) 
   val ws2811 = Apb3Ws2811Generator(0xD8000) 
+  //val lcdText = Apb3LcdTextGenerator(0x80000)
 
   //Interconnect specification
   interconnect.addConnection(
@@ -126,6 +127,8 @@ object BlackiceSocArduinoSystem{
     // Configure Led strip
     ws2811.maxLeds load(16)
     ws2811.clockHz load(clockCtrl.clkFrequency.toInt)
+
+    //lcdText.clockHz load(clockCtrl.clkFrequency.toInt)
 
     g
   }
