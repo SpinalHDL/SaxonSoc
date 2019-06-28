@@ -18,18 +18,6 @@ case class SB_SPRAM256KA() extends BlackBox{
   mapCurrentClockDomain(CLOCK)
 }
 
-object SB_GB{
-  def apply(input : Bool) : Bool = {
-    val c = SB_GB().setCompositeName(input, "SB_GB", true)
-    c.USER_SIGNAL_TO_GLOBAL_BUFFER := input
-    c.GLOBAL_BUFFER_OUTPUT
-  }
-}
-
-case class SB_GB() extends BlackBox{
-  val USER_SIGNAL_TO_GLOBAL_BUFFER = in Bool()
-  val GLOBAL_BUFFER_OUTPUT = out Bool()
-}
 
 
 case class SB_RGBA_DRV() extends BlackBox{
@@ -124,16 +112,3 @@ case class SB_IO_DATA() extends BlackBox{
   setDefinitionName("SB_IO")
 }
 
-case class SB_IO(pinType : String) extends BlackBox{
-  addGeneric("PIN_TYPE", B(pinType))
-  val PACKAGE_PIN = inout(Analog(Bool))
-  val CLOCK_ENABLE = in Bool() default(False)
-  val INPUT_CLK = in Bool() default(False)
-  val OUTPUT_CLK = in Bool() default(False)
-  val OUTPUT_ENABLE = in Bool() default(False)
-  val D_OUT_0 = in Bool() default(False)
-  val D_OUT_1 = in Bool() default(False)
-  val D_IN_0 = out Bool()
-  val D_IN_1 = out Bool()
-  setDefinitionName("SB_IO")
-}

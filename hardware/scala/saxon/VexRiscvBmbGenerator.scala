@@ -16,6 +16,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   val withJtag = Handle[Boolean]
   val debugClockDomain = Handle[ClockDomain]
   val debugAskReset = Handle[() => Unit]
+  val hardwareBreakpointCount = Handle(0)
 
   val iBus, dBus = product[Bmb]
   val externalInterrupt, externalSupervisorInterrupt, timerInterrupt = product[Bool]
@@ -38,7 +39,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   val jtag = add task (withJtag.get generate slave(Jtag()))
   val logic = add task new Area {
     withJtag.get generate new Area {
-      config.add(new DebugPlugin(debugClockDomain, 0))
+      config.add(new DebugPlugin(debugClockDomain, hardwareBreakpointCount))
     }
 
     val cpu = new VexRiscv(config)

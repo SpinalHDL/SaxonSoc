@@ -1,7 +1,7 @@
-TOPLEVEL = SaxonHX8kBEvn
+TOPLEVEL = Ice40Hx8kBreakout
 
 ROOT = ../../..
-PIN_DEF = hx8kbevn.pcf
+PIN_DEF = ice40hx8kbevn.pcf
 VERILOGS = $(ROOT)/hardware/netlist/${TOPLEVEL}.v
 DEVICE = hx8k
 

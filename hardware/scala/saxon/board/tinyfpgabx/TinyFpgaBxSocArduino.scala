@@ -91,7 +91,7 @@ object TinyFpgaBxSocArduinoSystem{
       xipInstructionDataInit = 0x3B,
       xipDummyCountInit = 0,
       xipDummyDataInit = 0xFF,
-      xip = SpiXdrMasterCtrl.XipBusParameters(addressWidth = 24, dataWidth = 32)
+      xip = SpiXdrMasterCtrl.XipBusParameters(addressWidth = 24, lengthWidth = 2)
     )
 
     g

@@ -2,13 +2,15 @@ package saxon
 
 import spinal.core._
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3SlaveFactory}
-import spinal.lib.bus.misc.BusSlaveFactory
+import spinal.lib.bus.bmb.{Bmb, BmbParameter}
+import spinal.lib.bus.misc.{AddressMapping, BusSlaveFactory, SizeMapping}
 import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{Apb3SpiXdrMasterCtrl, SpiXdrMasterCtrl}
 import spinal.lib.com.uart.{Apb3UartCtrl, UartCtrlGenerics, UartCtrlInitConfig, UartCtrlMemoryMappedConfig, UartParityType, UartStopType}
-import spinal.lib.generator.{Dependable, Export, Generator, Handle}
+import spinal.lib.generator._
 import spinal.lib.io.Apb3Gpio2
-import spinal.lib.{generator, master}
+import spinal.lib._
+import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
 import spinal.lib.misc.plic.{PlicGateway, PlicGatewayActiveHigh, PlicMapper, PlicMapping, PlicTarget}
 
 import scala.collection.mutable.ArrayBuffer
@@ -53,14 +55,36 @@ case class Apb3UartGenerator(apbOffset : BigInt)
 }
 
 
-case class Apb3SpiGenerator(apbOffset : BigInt)
-                            (implicit decoder: Apb3DecoderGenerator) extends Generator {
+case class Apb3SpiGenerator(apbOffset : BigInt, xipOffset : BigInt = 0)
+                            (implicit decoder: Apb3DecoderGenerator, interconnect: BmbInterconnectGenerator = null) extends Generator {
   val parameter = createDependency[SpiXdrMasterCtrl.MemoryMappingParameters]
+  val withXip = Handle(false)
   val interrupt = produce(logic.io.interrupt)
-  val phy = produce(logic.io.spi)
+  val phy = produceIo(logic.io.spi)
   val spi = Handle[SpiHalfDuplexMaster]
   val apb = produce(logic.io.apb)
-  val logic = add task Apb3SpiXdrMasterCtrl(parameter)
+  val logic = add task Apb3SpiXdrMasterCtrl(parameter.copy(xip = if(!withXip) null else XipBusParameters(24, bmbRequirements.lengthWidth)))
+
+  val bmbRequirements = Handle[BmbParameter]
+  val bmb = Handle[Bmb]
+
+  dependencies += withXip.produce{
+    if(withXip) {
+      dependencies += bmbRequirements
+      interconnect.addSlave(
+        capabilities = Handle(SpiXdrMasterCtrl.getXipBmbCapabilities()),
+        requirements = bmbRequirements,
+        bus = bmb,
+        address = xipOffset
+      )
+      Dependable(Apb3SpiGenerator.this, bmbRequirements){
+        bmb.load(logic.io.xip.fromBmb(bmbRequirements))
+      }
+    }
+  }
+
+
+  dependencies += withXip
 
   decoder.addSlave(apb, apbOffset)
 
@@ -73,7 +97,34 @@ case class Apb3SpiGenerator(apbOffset : BigInt)
        |}""".stripMargin
   }
 
-  def inferSpiSdrIo() = Dependable(phy)(spi.load(master(phy.toSpi().setPartialName(spi, "")))) //TODO automated naming
+  def inferSpiSdrIo() = Dependable(phy)(spi.load(master(phy.setAsDirectionLess.toSpi().setPartialName(spi, "")))) //TODO automated naming
+
+//  val xipIo = new ClockingArea(xip.implicitCd) {
+//    RegNext(xip.logic.flash.ss.asBool) <> io.ICE_SS
+//
+//    val sclkIo = SB_IO_SCLK()
+//    sclkIo.PACKAGE_PIN <> io.ICE_SCK
+//    sclkIo.CLOCK_ENABLE := True
+//
+//    sclkIo.OUTPUT_CLK := ClockDomain.current.readClockWire
+//    sclkIo.D_OUT_0 <> xip.logic.flash.sclk.write(0)
+//    sclkIo.D_OUT_1 <> RegNext(xip.logic.flash.sclk.write(1))
+//
+//    val datas = for ((data, pin) <- (xip.logic.flash.data, List(io.ICE_MOSI, io.ICE_MISO).reverse).zipped) yield new Area {
+//      val dataIo = SB_IO_DATA()
+//      dataIo.PACKAGE_PIN := pin
+//      dataIo.CLOCK_ENABLE := True
+//
+//      dataIo.OUTPUT_CLK := ClockDomain.current.readClockWire
+//      dataIo.OUTPUT_ENABLE <> data.writeEnable
+//      dataIo.D_OUT_0 <> data.write(0)
+//      dataIo.D_OUT_1 <> RegNext(data.write(1))
+//
+//      dataIo.INPUT_CLK := ClockDomain.current.readClockWire
+//      data.read(0) := dataIo.D_IN_0
+//      data.read(1) := RegNext(dataIo.D_IN_1)
+//    }
+//  }
 }
 
 
