@@ -72,14 +72,32 @@ object Ice40Hx8kBreakoutSystem{
         timerWidth = 8,
         spi = SpiXdrParameter(
           dataWidth = 2,
-          ioRate = 1, //2
+          ioRate = 2,
           ssWidth = 1
         )
-      ) .addFullDuplex(id = 0),//.addHalfDuplex(id=1, rate=2, ddr=false, spiWidth=2),
+      ) .addFullDuplex(id = 0, rate = 2).addHalfDuplex(id=1, rate=2, ddr=false, spiWidth=2),
       cmdFifoDepth = 64,
       rspFifoDepth = 64,
-      xipConfigWritable = true,
-      xipEnableInit = true
+      cpolInit = false,
+      cphaInit = false,
+      modInit = 0,
+      sclkToogleInit = 0,
+      ssSetupInit = 0,
+      ssHoldInit = 0,
+      ssDisableInit = 0,
+      xipConfigWritable = false,
+      xipEnableInit = true,
+      xipInstructionEnableInit = true,
+      xipInstructionModInit = 0,
+      xipAddressModInit = 0,
+      xipDummyModInit = 0,
+      xipPayloadModInit = 1,
+//            xipInstructionDataInit = 0x0B,
+//            xipDummyCountInit = 0,
+//            xipDummyDataInit = 0xFF
+      xipInstructionDataInit = 0x3B,
+      xipDummyCountInit = 0,
+      xipDummyDataInit = 0xFF
     )
     spiA.withXip.load(true)
 
@@ -101,7 +119,8 @@ object Ice40Hx8kBreakout {
     import g._
     Ice40Hx8kBreakoutSystem.default(system, clockCtrl)
     clockCtrl.resetSensitivity.load(ResetSensitivity.HIGH)
-    system(system.spiA.inferSpiSdrIo())
+    system.spiA.inferSpiIce40()
+//    system.spiA.inferSpiSdrIo()
     g
   }
 
@@ -122,7 +141,7 @@ object Ice40Hx8kBreakoutSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-//    simConfig.withWave
+    simConfig.withWave
     simConfig.compile(new Ice40Hx8kBreakoutSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
@@ -157,7 +176,7 @@ object Ice40Hx8kBreakoutSystemSim {
       )
 
       val flash = new FlashModel(dut.spiA.phy, clockDomain)
-//      flash.loadBinary("software/standalone/blinkAndEcho/build/blinkAndEcho.bin", 0)
+      flash.loadBinary("software/standalone/blinkAndEcho/build/blinkAndEcho.bin", 0x100000)
     }
   }
 }

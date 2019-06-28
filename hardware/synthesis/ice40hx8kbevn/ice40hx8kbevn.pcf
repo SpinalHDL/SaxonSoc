@@ -20,7 +20,7 @@ set_io system_gpioA_gpio_6 B3
 set_io system_gpioA_gpio_7 C3
 
 #XIP
+set_io system_spiA_spi_sclk R11
+set_io system_spiA_spi_ss_0 R12
 set_io system_spiA_spi_data_0 P12
 set_io system_spiA_spi_data_1 P11
-set_io system_spiA_spi_sclk R11
-set_io system_spiA_spi_ss R12
