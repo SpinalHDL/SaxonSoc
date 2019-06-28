@@ -26,6 +26,7 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val plic = Apb3PlicGenerator(0xC00000)
   val spiA = Apb3SpiMasterGenerator(0x70000) 
   val ws2811 = Apb3Ws2811Generator(0xD8000) 
+  //val lcdText = Apb3LcdTextGenerator(0x80000)
 
   //Interconnect specification
   interconnect.addConnection(
@@ -78,14 +79,10 @@ object BlackiceSocArduinoSystem{
 
     sramA.layout load SramLayout(dataWidth=16, addressWidth=18)
 
-    // Configure Platform Intrrupt Controller
+    // Configure Platform Interrupt Controller
     plic.priorityWidth.load(2)
     plic.mapping.load(PlicMapping.sifive)
     plic.addTarget(cpu.externalInterrupt)
-
-    plic.addInterrupt(source = uartA.interrupt, id = 1)
-    plic.addInterrupt(source = gpioB.produce(gpioB.logic.io.interrupt(0)), id = 4)
-    plic.addInterrupt(source = gpioB.produce(gpioB.logic.io.interrupt(1)), id = 5)
 
     // Configure uart
     uartA.parameter load UartCtrlMemoryMappedConfig(
@@ -94,9 +91,15 @@ object BlackiceSocArduinoSystem{
       rxFifoDepth = 1
     )
 
+    uartA.connectInterrupt(plic, 1)
+
     // Configure gpio
     gpioA.parameter load Gpio.Parameter(width = 12)
     gpioB.parameter load Gpio.Parameter(width = 2, interrupt = List(0,1))
+
+    gpioB.connectInterrupts(plic, 4)
+
+    // Configure pwm
     pwm.width load(2)
 
     // Configure i2c
@@ -124,6 +127,8 @@ object BlackiceSocArduinoSystem{
     // Configure Led strip
     ws2811.maxLeds load(16)
     ws2811.clockHz load(clockCtrl.clkFrequency.toInt)
+
+    //lcdText.clockHz load(clockCtrl.clkFrequency.toInt)
 
     g
   }
