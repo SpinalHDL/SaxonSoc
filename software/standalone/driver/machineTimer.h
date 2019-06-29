@@ -2,23 +2,22 @@
 #define MACHINE_TIMER_H_
 
 #include <stdint.h>
+#include "io.h"
 
 void machineTimer_setCmp(uint32_t p, uint64_t cmp){
-	uint32_t *r = p;
-	r[3] = 0xFFFFFFFF;
-	r[2] = cmp;
-	r[3] = cmp >> 32;
+    write_u32(0xFFFFFFFF, p + 0xC);
+    write_u32(cmp, p + 0x8);
+    write_u32(cmp >> 32, p + 0xC);
 }
 
 uint64_t machineTimer_getTime(uint32_t p){
-	uint32_t *r = p;
 	uint32_t lo, hi;
 
 	/* Likewise, must guard against rollover when reading */
 	do {
-		hi = r[1];
-		lo = r[0];
-	} while (r[1] != hi);
+		hi = read_u32(p + 0x4);
+		lo = read_u32(p + 0x0);
+	} while (read_u32(p + 0x4) != hi);
 
 	return (((uint64_t)hi) << 32) | lo;
 }

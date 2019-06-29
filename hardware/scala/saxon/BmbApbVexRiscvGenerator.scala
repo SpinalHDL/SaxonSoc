@@ -14,7 +14,6 @@ class BmbApbVexRiscvGenerator extends Generator {
   interconnect.setDefaultArbitration(BmbInterconnectGenerator.STATIC_PRIORITY)
   interconnect.setPriority(cpu.iBus, 1)
   interconnect.setPriority(cpu.dBus, 2)
-  interconnect.addConnection(cpu.dBus, peripheralBridge.input)
 }
 
 class SaxonSocLinux extends BmbApbVexRiscvGenerator{

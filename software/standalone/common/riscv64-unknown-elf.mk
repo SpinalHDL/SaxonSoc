@@ -6,10 +6,10 @@ RISCV_OBJDUMP=${RISCV_BIN}objdump
 MARCH := rv32i
 BENCH ?= no
 
-ifeq ($(MULDIV),yes)
+ifeq ($(RV_M),yes)
 	MARCH := $(MARCH)m
 endif
-ifeq ($(COMPRESSED),yes)
+ifeq ($(RV_C),yes)
 	MARCH := $(MARCH)ac
 endif
 

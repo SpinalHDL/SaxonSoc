@@ -2,9 +2,6 @@ OBJDIR ?= build
 
 LDFLAGS += -lc
 
-ifdef BSP
-CFLAGS += -I${STANDALONE}/../../bsp/${BSP}/include
-endif
 
 CFLAGS += -I${STANDALONE}/include
 CFLAGS += -I${STANDALONE}/driver

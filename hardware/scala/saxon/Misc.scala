@@ -23,17 +23,22 @@ object BspGenerator {
     bsp.mkdir()
 
     val target = new File(bsp, name)
-    FileUtils.deleteDirectory(target)
     target.mkdir()
 
     val include = new File(target, "include")
     include.mkdir()
 
-    val headerFile = new PrintWriter(new File(include, "soc.h"))
-    val dtsFile = new PrintWriter(new File("soc.dts"))
+    val linker = new File(target, "linker")
+    linker.mkdir()
 
-    headerFile.println("#ifndef SOC_H")
-    headerFile.println("#define SOC_H")
+    val socFile = new File(include, "soc.h")
+    val dtsFile = new File(include, "soc.dts")
+
+    val headerWriter = new PrintWriter(socFile)
+    val dtsWriter = new PrintWriter(dtsFile)
+
+    headerWriter.println("#ifndef SOC_H")
+    headerWriter.println("#define SOC_H")
 
 
     def camelToUpperCase(str : String) = str.split("(?=\\p{Upper})").map(_.toUpperCase).mkString("_")
@@ -45,10 +50,10 @@ object BspGenerator {
       val gName = camelToUpperCase(g.getName())
 
       def rec(prefix : String, value : Any): Unit = value match {
-        case value : Int => headerFile.println(s"#define ${prefix} $value")
-        case value : FixedFrequency => headerFile.println(s"#define ${prefix} ${value.getValue.toBigDecimal.toBigInt.toString(10)}")
-        case value : Boolean => headerFile.println(s"#define ${prefix} ${if(value) 1 else 0}")
-        case value : SpinalEnumElement[_] =>  headerFile.println(s"#define ${prefix} $value")
+        case value : Int => headerWriter.println(s"#define ${prefix} $value")
+        case value : FixedFrequency => headerWriter.println(s"#define ${prefix} ${value.getValue.toBigDecimal.toBigInt.toString(10)}")
+        case value : Boolean => headerWriter.println(s"#define ${prefix} ${if(value) 1 else 0}")
+        case value : SpinalEnumElement[_] =>  headerWriter.println(s"#define ${prefix} $value")
         case value : Object => Misc.reflect(value, (name, obj) => {
           rec(prefix + "_" + camelToUpperCase(name), obj)
         })
@@ -67,7 +72,7 @@ object BspGenerator {
 
 
     def connectionExplorer[T <: Nameable](view : Handle[T], address : BigInt, addressLast : BigInt, tab : String): Unit ={
-      headerFile.println(s"#define ${camelToUpperCase(view.getName)} 0x${address.toString(16)}")
+      headerWriter.println(s"#define ${camelToUpperCase(view.getName)} 0x${address.toString(16)}")
 
       val viewConnections = connections.filter(_.input == view)
       if(viewConnections.nonEmpty){
@@ -80,7 +85,7 @@ object BspGenerator {
         if(simpleBusOption.isDefined) {
           val simpleBus = simpleBusOption.get.asInstanceOf[SimpleBus[_]]
           val busAddress = address - addressLastRec
-          dtsFile.println(
+          dtsWriter.println(
             s"""$tab${view.getName}@${busAddress.toString(16)} {
                |$tab  compatible = "simple-bus";
                |$tab  #address-cells = <0x1>;
@@ -96,10 +101,10 @@ object BspGenerator {
           val connectionAddress = address + c.address
           connectionExplorer(c.output, connectionAddress, addressLastRec, innerTab)
         }
-        if(simpleBusOption.isDefined) dtsFile.println(s"\n$tab};")
+        if(simpleBusOption.isDefined) dtsWriter.println(s"\n$tab};")
       } else {
         dtss.get(view) match {
-          case Some(dts) => dtsFile.println(dts.value.split("\n").map(e => tab + e).mkString("\n"));
+          case Some(dts) => dtsWriter.println(dts.value.split("\n").map(e => tab + e).mkString("\n"));
           case None =>
         }
       }
@@ -108,8 +113,12 @@ object BspGenerator {
     connectionExplorer(memoryView, 0, 0, "")
 
 
-    headerFile.println("#endif")
-    headerFile.close
-    dtsFile.close
+    headerWriter.println("#endif")
+    headerWriter.close
+    dtsWriter.close
+
+
   }
 }
+
+

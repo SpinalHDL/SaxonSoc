@@ -66,7 +66,7 @@ case class Apb3SpiGenerator(apbOffset : BigInt, xipOffset : BigInt = 0)
   val logic = add task Apb3SpiXdrMasterCtrl(parameter.copy(xip = if(!withXip) null else XipBusParameters(24, bmbRequirements.lengthWidth)))
 
   val bmbRequirements = Handle[BmbParameter]
-  val bmb = Handle[Bmb]
+  val bmb = product[Bmb]
 
   dependencies += withXip.produce{
     if(withXip) {

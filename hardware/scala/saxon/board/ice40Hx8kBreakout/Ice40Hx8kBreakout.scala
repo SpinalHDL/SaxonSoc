@@ -17,13 +17,18 @@ class Ice40Hx8kBreakoutSystem extends BmbApbVexRiscvGenerator{
   val uartA = Apb3UartGenerator(0x10000)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000, xipOffset = 0x20000000)
+  val machineTimer = Apb3MachineTimerGenerator(0x08000)
 
   ramA.dataWidth.load(32)
 
+
+
   //Interconnect specification
+  val bridge = BmbBridgeGenerator()
   interconnect.addConnection(
-    cpu.iBus -> List(ramA.bmb),
-    cpu.dBus -> List(ramA.bmb)
+    cpu.iBus -> List(bridge.bmb),
+    cpu.dBus -> List(bridge.bmb),
+    bridge.bmb -> List(ramA.bmb, peripheralBridge.input)
   )
 }
 
@@ -100,14 +105,11 @@ object Ice40Hx8kBreakoutSystem{
       xipDummyDataInit = 0xFF
     )
     spiA.withXip.load(true)
-
     cpu.hardwareBreakpointCount.load(4)
 
     interconnect.addConnection(
-      cpu.iBus -> List(spiA.bmb),
-      cpu.dBus -> List(spiA.bmb)
+      bridge.bmb -> List(spiA.bmb)
     )
-
     g
   }
 }
@@ -141,7 +143,7 @@ object Ice40Hx8kBreakoutSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-    simConfig.withWave
+//    simConfig.withWave
     simConfig.compile(new Ice40Hx8kBreakoutSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
@@ -177,6 +179,7 @@ object Ice40Hx8kBreakoutSystemSim {
 
       val flash = new FlashModel(dut.spiA.phy, clockDomain)
       flash.loadBinary("software/standalone/blinkAndEcho/build/blinkAndEcho.bin", 0x100000)
+//      flash.loadBinary("software/standalone/dhrystone/build/dhrystone.bin", 0x100000)
     }
   }
 }

@@ -20,7 +20,7 @@ class BlackiceSocMinimalSystem extends BmbApbVexRiscvGenerator{
   //Interconnect specification
   interconnect.addConnection(
     cpu.iBus -> List(ramA.bmb),
-    cpu.dBus -> List(ramA.bmb)
+    cpu.dBus -> List(ramA.bmb, peripheralBridge.input)
   )
 }
 

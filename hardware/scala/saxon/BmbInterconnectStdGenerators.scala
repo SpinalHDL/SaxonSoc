@@ -1,8 +1,8 @@
 package saxon
 
 import spinal.core.{Area, log2Up}
-import spinal.lib.bus.bmb.{BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
-import spinal.lib.bus.misc.SizeMapping
+import spinal.lib.bus.bmb.{Bmb, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
+import spinal.lib.bus.misc.{DefaultMapping, SizeMapping}
 import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection}
 import spinal.lib.memory.sdram.{BmbSdramCtrl, SdramLayout, SdramTimings}
 
@@ -179,6 +179,39 @@ case class BmbOnChipRamGenerator(address: BigInt)
     hexInit = hexInit
   )
 }
+
+
+object BmbBridgeGenerator{
+  def busCapabilities(addressWidth : Int, dataWidth : Int) = BmbParameter(
+    addressWidth  = addressWidth,
+    dataWidth     = dataWidth,
+    lengthWidth   = Int.MaxValue,
+    sourceWidth   = Int.MaxValue,
+    contextWidth  = Int.MaxValue,
+    canRead       = true,
+    canWrite      = true,
+    alignment     = BmbParameter.BurstAlignement.BYTE, //TODO check its propagation in the interconnect
+    maximumPendingTransactionPerId = Int.MaxValue
+  )
+}
+
+case class BmbBridgeGenerator()
+                              (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+  val requirements = createDependency[BmbParameter]
+  val bmb = produce(logic.get) //TODO task remove ?
+
+  interconnect.addSlave(
+    capabilities = BmbBridgeGenerator.busCapabilities(32, 32), //TODO
+    requirements = requirements,
+    bus = bmb,
+    mapping = SizeMapping(0, 1l << 32)  //TODO default
+  )
+
+  interconnect.addMaster(requirements, bmb)
+
+  val logic = add task Bmb(requirements)
+}
+
 
 
 

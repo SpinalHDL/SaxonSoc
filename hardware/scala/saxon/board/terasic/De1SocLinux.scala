@@ -24,7 +24,7 @@ class De1SocLinuxSystem extends SaxonSocLinux{
   //Interconnect specification
   interconnect.addConnection(
     cpu.iBus -> List(sdramA.bmb),
-    cpu.dBus -> List(sdramA.bmb)
+    cpu.dBus -> List(sdramA.bmb, peripheralBridge.input)
   )
 }
 
@@ -212,14 +212,15 @@ object De1SocLinuxSystemSim {
       )
 
 
-      val linuxPath = "../buildroot/output/images/"
-      sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      sdram.loadBin(0x00400000, linuxPath + "Image")
-      sdram.loadBin(0x00BF0000, linuxPath + "dtb")
-      sdram.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
+//      val linuxPath = "../buildroot/output/images/"
+//      sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+//      sdram.loadBin(0x00400000, linuxPath + "Image")
+//      sdram.loadBin(0x00BF0000, linuxPath + "dtb")
+//      sdram.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
 
 
-//      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
+      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
+//      sdram.loadBin(0, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
 
 
 //      val linuxPath = "/home/miaou/pro/litex/linux-on-litex-vexriscv/buildroot/"

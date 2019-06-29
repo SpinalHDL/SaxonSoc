@@ -11,6 +11,7 @@ void trap();
 void crash();
 void trap_entry();
 void timerInterrupt();
+void externalInterrupt();
 void scheduleTimer();
 
 
