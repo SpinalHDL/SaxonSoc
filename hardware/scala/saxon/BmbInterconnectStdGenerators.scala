@@ -162,14 +162,13 @@ case class BmbOnChipRamGenerator(address: BigInt)
   val requirements = createDependency[BmbParameter]
   val bmb = produce(logic.io.bus)
 
-  Dependable(size, dataWidth){
-    interconnect.addSlave(
-      capabilities = BmbOnChipRam.busCapabilities(size, dataWidth),
-      requirements = requirements,
-      bus = bmb,
-      mapping = SizeMapping(address, BigInt(1) << log2Up(size))
-    )
-  }
+
+  interconnect.addSlave(
+    capabilities = Dependable(size, dataWidth)(BmbOnChipRam.busCapabilities(size, dataWidth)),
+    requirements = requirements,
+    bus = bmb,
+    mapping = Dependable(size)(SizeMapping(address, BigInt(1) << log2Up(size)))
+  )
 
 
   val logic = add task BmbOnChipRam(
@@ -198,7 +197,7 @@ object BmbBridgeGenerator{
 case class BmbBridgeGenerator()
                               (implicit interconnect: BmbInterconnectGenerator) extends Generator {
   val requirements = createDependency[BmbParameter]
-  val bmb = produce(logic.get) //TODO task remove ?
+  val bmb = add task Bmb(requirements)
 
   interconnect.addSlave(
     capabilities = BmbBridgeGenerator.busCapabilities(32, 32), //TODO
@@ -209,7 +208,7 @@ case class BmbBridgeGenerator()
 
   interconnect.addMaster(requirements, bmb)
 
-  val logic = add task Bmb(requirements)
+
 }
 
 
@@ -221,17 +220,15 @@ case class  BmbToApb3Decoder(address : BigInt)
   val input = produce(logic.bridge.io.input)
   val requirements = createDependency[BmbParameter]
 
-  val requirementsGenerator = Dependable(apbDecoder.inputConfig){
-    interconnect.addSlave(
-      capabilities = BmbToApb3Bridge.busCapabilities(
-        addressWidth = apbDecoder.inputConfig.addressWidth,
-        dataWidth = apbDecoder.inputConfig.dataWidth
-      ),
-      requirements = requirements,
-      bus = input,
-      mapping = SizeMapping(address, BigInt(1) << apbDecoder.inputConfig.addressWidth)
-    )
-  }
+  interconnect.addSlave(
+    capabilities = apbDecoder.inputConfig produce BmbToApb3Bridge.busCapabilities(
+      addressWidth = apbDecoder.inputConfig.addressWidth,
+      dataWidth = apbDecoder.inputConfig.dataWidth
+    ),
+    requirements = requirements,
+    bus = input,
+    mapping = apbDecoder.inputConfig produce SizeMapping(address, BigInt(1) << apbDecoder.inputConfig.addressWidth)
+  )
 
   dependencies += requirements
   dependencies += apbDecoder

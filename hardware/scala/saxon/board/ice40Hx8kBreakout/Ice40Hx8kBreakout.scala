@@ -47,7 +47,6 @@ class Ice40Hx8kBreakout extends Generator{
     val clk_12M = in Bool()
 
     clockCtrl.clock.load(clk_12M)
-    clockCtrl.reset.load(False) // TODO improve
   }
 }
 

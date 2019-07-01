@@ -160,7 +160,6 @@ case class Apb3PlicGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderG
 
   override def addInterrupt(source : Handle[Bool], id : Int) = {
     this.dependencies += wrap(new Generator {
-      this.setCompositeName(Apb3PlicGenerator.this, id.toString) //TODO remove naming loop if removed
       dependencies += source
       add task new Area {
         gateways += PlicGatewayActiveHigh(
@@ -218,7 +217,7 @@ case class Apb3PlicGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderG
 }
 
 case class Apb3MachineTimerGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator{
-  val interrupt = produce(logic.io.mTimeInterrupt) //TODO fix error report when this one isn't drived
+  val interrupt = produce(logic.io.mTimeInterrupt)
   val apb = produce(logic.io.bus)
   val logic = add task MachineTimer()
 
