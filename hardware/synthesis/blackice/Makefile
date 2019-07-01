@@ -1,17 +1,17 @@
-VERILOG = ../../../../netlist/BlackiceSocArduino.v blackice_pll.v
+VERILOG = ../../netlist/BlackiceSocArduino.v blackice_pll.v
 
 generate :
-	(cd ../../../../..; sbt "runMain saxon.board.blackice.BlackiceSocArduino")
+	(cd ../../..; sbt "runMain saxon.board.blackice.BlackiceSocArduino")
 
-../../../../netlist/BlackiceSocArduino.v :
-	(cd ../../../../..; sbt "runMain saxon.board.blackice.BlackiceSocArduino")
+../../netlist/BlackiceSocArduino.v :
+	(cd ../../..; sbt "runMain saxon.board.blackice.BlackiceSocArduino")
 
-../../../../netlist/BlackiceSocArduino.v*.bin:
+../../netlist/BlackiceSocArduino.v*.bin:
 
-bin/toplevel.json : ${VERILOG} ../../../../netlist/BlackiceSocArduino.v*.bin
+bin/toplevel.json : ${VERILOG} ../../netlist/BlackiceSocArduino.v*.bin
 	mkdir -p bin
 	rm -f BlackiceSocArduino.v*.bin
-	cp ../../../../netlist/BlackiceSocArduino.v*.bin . | true
+	cp ../../netlist/BlackiceSocArduino.v*.bin . | true
 	yosys -v3 -p "synth_ice40 -top BlackiceSocArduino -json bin/toplevel.json" ${VERILOG}
 
 bin/toplevel.asc : blackice.pcf bin/toplevel.json
