@@ -5,14 +5,19 @@ PCF ?=
 DEVICE ?=
 PACKAGE ?=
 
+ifneq ($(PCF),)
+	PCF_CMD ?= --pcf ${PCF}
+endif
+
+
 bin/toplevel.json : ${VERILOG} ${BINARY}
 	mkdir -p bin
-	rm -f ${BINARY}
+	rm -f *.bin
 	cp ${BINARY} . | true
 	yosys -v3 -p "synth_ice40 -top ${TOPLEVEL} -json bin/toplevel.json" ${VERILOG}
 
 bin/toplevel.asc : ${PCF} bin/toplevel.json
-	nextpnr-ice40 --${DEVICE} --package ${PACKAGE} --json bin/toplevel.json --pcf ${PCF} --asc bin/toplevel.asc --opt-timing --placer heap
+	nextpnr-ice40 --${DEVICE} --package ${PACKAGE} --json bin/toplevel.json ${PCF_CMD} --asc bin/toplevel.asc --opt-timing --placer heap
 
 bin/toplevel.bin : bin/toplevel.asc
 	icepack bin/toplevel.asc bin/toplevel.bin

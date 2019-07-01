@@ -5,7 +5,7 @@ import spinal.lib.io.Gpio
 import spinal.lib.memory.sdram.IS42x320D
 import spinal.lib.misc.plic.PlicMapping
 
-class BmbApbVexRiscvGenerator extends Generator {
+class BmbApbVexRiscvGenerator  extends Generator {
   implicit val interconnect = BmbInterconnectGenerator()
   implicit val apbDecoder = Apb3DecoderGenerator()
   implicit val peripheralBridge = BmbToApb3Decoder(address = 0x10000000)

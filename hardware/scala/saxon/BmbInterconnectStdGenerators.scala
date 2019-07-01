@@ -190,7 +190,7 @@ object BmbBridgeGenerator{
     contextWidth  = Int.MaxValue,
     canRead       = true,
     canWrite      = true,
-    alignment     = BmbParameter.BurstAlignement.BYTE, //TODO check its propagation in the interconnect
+    alignment     = BmbParameter.BurstAlignement.BYTE,
     maximumPendingTransactionPerId = Int.MaxValue
   )
 }
@@ -204,7 +204,7 @@ case class BmbBridgeGenerator()
     capabilities = BmbBridgeGenerator.busCapabilities(32, 32), //TODO
     requirements = requirements,
     bus = bmb,
-    mapping = SizeMapping(0, 1l << 32)  //TODO default
+    mapping = DefaultMapping
   )
 
   interconnect.addMaster(requirements, bmb)

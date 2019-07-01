@@ -37,7 +37,6 @@ class Ice40Hx8kBreakoutSystem extends BmbApbVexRiscvGenerator{
 class Ice40Hx8kBreakout extends Generator{
   val clockCtrl = ClockDomainGenerator()
   clockCtrl.resetHoldDuration.load(255)
-  clockCtrl.resetSynchronous.load(true)
   clockCtrl.powerOnReset.load(true)
   clockCtrl.clkFrequency.load(12 MHz)
 
@@ -97,9 +96,6 @@ object Ice40Hx8kBreakoutSystem{
       xipAddressModInit = 0,
       xipDummyModInit = 0,
       xipPayloadModInit = 1,
-//            xipInstructionDataInit = 0x0B,
-//            xipDummyCountInit = 0,
-//            xipDummyDataInit = 0xFF
       xipInstructionDataInit = 0x3B,
       xipDummyCountInit = 0,
       xipDummyDataInit = 0xFF
@@ -110,6 +106,7 @@ object Ice40Hx8kBreakoutSystem{
     interconnect.addConnection(
       bridge.bmb -> List(spiA.bmb)
     )
+
     g
   }
 }
@@ -120,9 +117,8 @@ object Ice40Hx8kBreakout {
   def default(g : Ice40Hx8kBreakout) = g{
     import g._
     Ice40Hx8kBreakoutSystem.default(system, clockCtrl)
-    clockCtrl.resetSensitivity.load(ResetSensitivity.HIGH)
+    clockCtrl.resetSensitivity.load(ResetSensitivity.NONE)
     system.spiA.inferSpiIce40()
-//    system.spiA.inferSpiSdrIo()
     g
   }
 
@@ -179,7 +175,6 @@ object Ice40Hx8kBreakoutSystemSim {
 
       val flash = new FlashModel(dut.spiA.phy, clockDomain)
       flash.loadBinary("software/standalone/blinkAndEcho/build/blinkAndEcho.bin", 0x100000)
-//      flash.loadBinary("software/standalone/dhrystone/build/dhrystone.bin", 0x100000)
     }
   }
 }

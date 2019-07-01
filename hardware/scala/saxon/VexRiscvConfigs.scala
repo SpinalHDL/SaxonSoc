@@ -101,6 +101,98 @@ object VexRiscvConfigs {
       )
     )
 
+  def linuxIce40 = VexRiscvConfig(
+    withMemoryStage = true,
+    withWriteBackStage = true,
+    List(
+      new IBusCachedPlugin(
+        resetVector = 0x80000000l,
+        compressedGen = false,
+        prediction = plugin.NONE,
+        injectorStage = false,
+        config = InstructionCacheConfig(
+          cacheSize = 4096*1,
+          bytePerLine = 32,
+          wayCount = 1,
+          addressWidth = 32,
+          cpuDataWidth = 32,
+          memDataWidth = 32,
+          catchIllegalAccess = true,
+          catchAccessFault = true,
+          asyncTagMemory = false,
+          twoCycleRam = false,
+          twoCycleCache = true
+        ),
+        memoryTranslatorPortConfig = MmuPortConfig(
+          portTlbSize = 4
+        )
+      ),
+      new DBusCachedPlugin(
+        dBusCmdMasterPipe = false,
+        dBusCmdSlavePipe = false,
+        dBusRspSlavePipe = false,
+        config = new DataCacheConfig(
+          cacheSize         = 4096,
+          bytePerLine       = 32,
+          wayCount          = 1,
+          addressWidth      = 32,
+          cpuDataWidth      = 32,
+          memDataWidth      = 32,
+          catchAccessError  = true,
+          catchIllegal      = true,
+          catchUnaligned    = true,
+          withLrSc = true,
+          withAmo = false
+          //          )
+        ),
+        memoryTranslatorPortConfig = MmuPortConfig(
+          portTlbSize = 4
+        )
+      ),
+      new DecoderSimplePlugin(
+        catchIllegalInstruction = true
+      ),
+      new RegFilePlugin(
+        regFileReadyKind = plugin.SYNC,
+        zeroBoot = true,
+        x0Init = false
+      ),
+      new IntAluPlugin,
+      new SrcPlugin(
+        executeInsertion = true,
+        separatedAddSub = false
+      ),
+      new LightShifterPlugin(),
+//      new FullBarrelShifterPlugin(earlyInjection = false),
+      new HazardSimplePlugin(
+        bypassExecute           = true,
+        bypassMemory            = true,
+        bypassWriteBack         = true,
+        bypassWriteBackBuffer   = true,
+        pessimisticUseSrc       = false,
+        pessimisticWriteRegFile = false,
+        pessimisticAddressMatch = false
+      ),
+//      new MulPlugin,
+//      new MulDivIterativePlugin(
+//        genMul = false,
+//        genDiv = true,
+//        mulUnrollFactor = 32,
+//        divUnrollFactor = 1
+//      ),
+      new CsrPlugin(CsrPluginConfig.linuxMinimal(null).copy(ebreakGen = false)),
+
+      new BranchPlugin(
+        earlyBranch = false,
+        catchAddressMisaligned = true,
+        fenceiGenAsAJump = false
+      ),
+      new MmuPlugin(
+        ioRange = (x => x(31 downto 28) === 0x1)
+      ),
+      new YamlPlugin("cpu0.yaml")
+    )
+  )
 
 
     def cacheLessRegular = VexRiscvConfig(
