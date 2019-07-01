@@ -107,6 +107,18 @@ object Ice40Hx8kBreakoutSystem{
       bridge.bmb -> List(spiA.bmb)
     )
 
+    //Cut dBus address path
+    interconnect.setConnector(bridge.bmb){(m,s) =>
+      m.cmd >-> s.cmd
+      m.rsp << s.rsp
+    }
+
+    //Cut Xip rsp path
+//    interconnect.setConnector(spiA.bmb){(m,s) =>
+//      m.cmd >> s.cmd
+//      m.rsp <-< s.rsp
+//    }
+
     g
   }
 }
