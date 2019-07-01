@@ -173,7 +173,7 @@ case class Apb3PlicGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderG
     })
   }
 
-  override def getBus(): Handle[Nameable] = apb.asInstanceOf[Handle[Nameable]] //TODO better
+  override def getBus(): Handle[Nameable] = apb
 
   val logic = add task new Area{
     val apb = Apb3(apbConfig)
