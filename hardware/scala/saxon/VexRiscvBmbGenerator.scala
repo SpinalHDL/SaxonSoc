@@ -57,7 +57,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
         when(RegNext(plugin.io.resetOut)) {
           debugAskReset.get()
         }
-        jtag.value <> plugin.io.bus.fromJtag()
+        jtag <> plugin.io.bus.fromJtag()
       }
       case _ =>
     }

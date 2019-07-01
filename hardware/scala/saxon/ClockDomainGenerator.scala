@@ -61,7 +61,7 @@ case class ClockDomainGenerator() extends Generator {
   }
   def clockTree(input: Bool): Bool = input
 
-  def controlClockDomain() = produce(resetCtrlClockDomain(clockDomain.copy(clock = clockDomain.clock, reset = clockTree(RegNext(logic.resetUnbuffered)))))
+  def controlClockDomain() = produce(resetCtrlClockDomain.get(clockDomain.copy(clock = clockDomain.clock, reset = clockTree(RegNext(logic.resetUnbuffered)))))
 
 
   val resetCtrlClockDomain = add task ClockDomain(
