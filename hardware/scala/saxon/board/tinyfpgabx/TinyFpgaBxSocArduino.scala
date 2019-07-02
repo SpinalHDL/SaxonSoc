@@ -42,10 +42,10 @@ class TinyFpgaBxSocArduino extends Generator{
   val clocking = add task new Area{
     val CLOCK_16 = in Bool()
 
-    //val pll = TinyFpgaBxPll()
-    //pll.clock_in := CLOCK_16
+    val pll = TinyFpgaBxPll()
+    pll.clock_in := CLOCK_16
 
-    clockCtrl.clock.load(CLOCK_16)
+    clockCtrl.clock.load(pll.clock_out)
   }
 }
 
@@ -53,7 +53,7 @@ object TinyFpgaBxSocArduinoSystem{
   def default(g : TinyFpgaBxSocArduinoSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
 
-    cpu.config.load(VexRiscvConfigs.xip.fast)
+    cpu.config.load(VexRiscvConfigs.xip.fast(0x20050000))
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(8 KiB)
@@ -91,7 +91,7 @@ object TinyFpgaBxSocArduinoSystem{
       xipEnableInit = true,
       xipInstructionEnableInit = true,
       xipInstructionModInit = 0,
-      xipAddressModInit = 1,
+      xipAddressModInit = 0,
       xipDummyModInit = 0,
       xipPayloadModInit = 1,
       xipInstructionDataInit = 0x3B,
@@ -175,7 +175,7 @@ object TinyFpgaBxSocArduinoSystemSim {
       )
 
       val flash = new FlashModel(dut.spiA.phy, clockDomain)
-      flash.loadBinary("software/standalone/blinkAndEcho/build/blinkAndEcho.bin", 0x100000)
+      flash.loadBinary("software/standalone/blinkAndEcho/build/blinkAndEcho.bin", 0x50000)
     }
   }
 }

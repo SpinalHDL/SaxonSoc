@@ -410,12 +410,13 @@ object VexRiscvConfigs {
   )
 
   object xip{
-    def fast = VexRiscvConfig(
+    def fast: VexRiscvConfig = fast(0x20000000l + (1 MiB).toLong)
+    def fast(resetVector: Long) = VexRiscvConfig(
       withMemoryStage = true,
       withWriteBackStage = true,
       List(
         new IBusCachedPlugin(
-          resetVector = 0x20000000l + (1 MiB).toLong,
+          resetVector = resetVector,
           compressedGen = false,
           prediction = plugin.NONE,
           injectorStage = false,
