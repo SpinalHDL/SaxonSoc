@@ -7,6 +7,8 @@ import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
 import saxon.board.blackice.IceStormInOutWrapper
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
+import spinal.lib.com.jtag.sim.JtagTcp
+import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 
 class TinyFpgaBxSocArduinoSystem extends BmbApbVexRiscvGenerator{
   //Add components
@@ -40,10 +42,10 @@ class TinyFpgaBxSocArduino extends Generator{
   val clocking = add task new Area{
     val CLOCK_16 = in Bool()
 
-    val pll = TinyFpgaBxPll()
-    pll.clock_in := CLOCK_16
+    //val pll = TinyFpgaBxPll()
+    //pll.clock_in := CLOCK_16
 
-    clockCtrl.clock.load(pll.clock_out)
+    clockCtrl.clock.load(CLOCK_16)
   }
 }
 
@@ -131,3 +133,49 @@ object TinyFpgaBxSocArduino {
   }
 }
 
+object TinyFpgaBxSocArduinoSystemSim {
+  import spinal.core.sim._
+
+  def main(args: Array[String]): Unit = {
+
+    val simConfig = SimConfig
+    simConfig.allOptimisation
+    simConfig.withWave
+    simConfig.compile(new TinyFpgaBxSocArduinoSystem(){
+      val clockCtrl = ClockDomainGenerator()
+      this.onClockDomain(clockCtrl.clockDomain)
+      clockCtrl.makeExternal(ResetSensitivity.HIGH)
+      clockCtrl.powerOnReset.load(true)
+      clockCtrl.clkFrequency.load(12 MHz)
+
+      TinyFpgaBxSocArduinoSystem.default(this, clockCtrl)
+    }.toComponent()).doSimUntilVoid("test", 42){dut =>
+      val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
+      val jtagClkPeriod = systemClkPeriod*4
+      val uartBaudRate = 115200
+      val uartBaudPeriod = (1e12/uartBaudRate).toLong
+
+      val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
+      clockDomain.forkStimulus(systemClkPeriod)
+
+
+      val tcpJtag = JtagTcp(
+        jtag = dut.cpu.jtag,
+        jtagClkPeriod = jtagClkPeriod
+      )
+
+      val uartTx = UartDecoder(
+        uartPin =  dut.uartA.uart.txd,
+        baudPeriod = uartBaudPeriod
+      )
+
+      val uartRx = UartEncoder(
+        uartPin = dut.uartA.uart.rxd,
+        baudPeriod = uartBaudPeriod
+      )
+
+      val flash = new FlashModel(dut.spiA.phy, clockDomain)
+      flash.loadBinary("software/standalone/blinkAndEcho/build/blinkAndEcho.bin", 0x100000)
+    }
+  }
+}
