@@ -1,17 +1,17 @@
-VERILOG = ../../../../netlist/TinyFpgaBxSocArduino.v tinyfpgabx_pll.v
+VERILOG = ../../netlist/TinyFpgaBxSocArduino.v tinyfpgabx_pll.v
 
 generate :
-	(cd ../../../../..; sbt "runMain saxon.board.tinyfpgabx.TinyFpgaBxSocArduino")
+	(cd ../../..; sbt "runMain saxon.board.tinyfpgabx.TinyFpgaBxSocArduino")
 
 ../../../../netlist/TinyFpgaBxSocArduino.v :
-	(cd ../../../../..; sbt "runMain saxon.board.tinyfpgabx.TinyFpgaBxcArduino")
+	(cd ../../..; sbt "runMain saxon.board.tinyfpgabx.TinyFpgaBxcArduino")
 
-../../../../netlist/TinyFpgaBxSocArduino.v*.bin:
+../../netlist/TinyFpgaBxSocArduino.v*.bin:
 
-bin/toplevel.json : ${VERILOG} ../../../../netlist/TinyFpgaBxSocArduino.v*.bin
+bin/toplevel.json : ${VERILOG} ../../netlist/TinyFpgaBxSocArduino.v*.bin
 	mkdir -p bin
 	rm -f TinyFpgaBxSocArduino.v*.bin
-	cp ../../../../netlist/TinyFpgaBxSocArduino.v*.bin . | true
+	cp ../../netlist/TinyFpgaBxSocArduino.v*.bin . | true
 	yosys -v3 -p "synth_ice40 -top TinyFpgaBxSocArduino -json bin/toplevel.json" ${VERILOG}
 
 bin/toplevel.asc : tinyfpgabx.pcf bin/toplevel.json
@@ -29,7 +29,7 @@ prog : bin/toplevel.bin
 	tinyprog -p bin/toplevel.bin
 
 tinyfpgabx_pll.v   :
-	`icepll -i 100 -o 40 -f blackice_pll.v -m -n blackice_pll
+	icepll -i 16 -o 20 -f tinyfpgabx_pll.v -m -n tinyfpgabx_pll
 clean :
 	rm -rf bin
 	rm -f TinyFpgaBxSocArduino.v*.bin

@@ -18,4 +18,9 @@ set_io system_gpioA_gpio_5 E2
 set_io system_gpioA_gpio_6 D1
 set_io system_gpioA_gpio_7 D2
 
+# XIP
 
+set_io  system_spiA_spi_sclk G7
+set_io  system_spiA_spi_ss_0 F7
+set_io  system_spiA_spi_data_0 G6
+set_io  system_spiA_spi_data_1 H7

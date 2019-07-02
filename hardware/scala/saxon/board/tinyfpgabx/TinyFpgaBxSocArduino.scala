@@ -13,14 +13,17 @@ class TinyFpgaBxSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val ramA = BmbOnChipRamGenerator(0x80000000l)
   val uartA = Apb3UartGenerator(0x10000)
   val gpioA = Apb3GpioGenerator(0x00000)
-  val spiFlash = Apb3SpiGenerator(0x30000)
+  val spiA = Apb3SpiGenerator(0x20000, xipOffset = 0x20000000)
+  val machineTimer = Apb3MachineTimerGenerator(0x08000)
 
   ramA.dataWidth.load(32)
 
   //Interconnect specification
+  val bridge = BmbBridgeGenerator()
   interconnect.addConnection(
-    cpu.iBus -> List(ramA.bmb),
-    cpu.dBus -> List(ramA.bmb, peripheralBridge.input)
+    cpu.iBus -> List(bridge.bmb),
+    cpu.dBus -> List(bridge.bmb),
+    bridge.bmb -> List(ramA.bmb, peripheralBridge.input)
   )
 }
 
@@ -28,7 +31,6 @@ class TinyFpgaBxSocArduinoSystem extends BmbApbVexRiscvGenerator{
 class TinyFpgaBxSocArduino extends Generator{
   val clockCtrl = ClockDomainGenerator()
   clockCtrl.resetHoldDuration.load(255)
-  clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
   clockCtrl.clkFrequency.load(20 MHz)
 
@@ -37,13 +39,11 @@ class TinyFpgaBxSocArduino extends Generator{
 
   val clocking = add task new Area{
     val CLOCK_16 = in Bool()
-    val GRESET = in Bool()
 
     val pll = TinyFpgaBxPll()
     pll.clock_in := CLOCK_16
 
     clockCtrl.clock.load(pll.clock_out)
-    clockCtrl.reset.load(GRESET)
   }
 }
 
@@ -51,10 +51,10 @@ object TinyFpgaBxSocArduinoSystem{
   def default(g : TinyFpgaBxSocArduinoSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
 
-    cpu.config.load(VexRiscvConfigs.minimal)
+    cpu.config.load(VexRiscvConfigs.xip.fast)
     cpu.enableJtag(clockCtrl)
 
-    ramA.size.load(12 KiB)
+    ramA.size.load(8 KiB)
     //ramA.hexInit.load("software/standalone/blinkAndEcho/build/blinkAndEcho.hex")
     ramA.hexInit.load(null)
 
@@ -66,14 +66,18 @@ object TinyFpgaBxSocArduinoSystem{
 
     gpioA.parameter load Gpio.Parameter(width = 8)
 
-    spiFlash.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
+    spiA.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
       SpiXdrMasterCtrl.Parameters(
         dataWidth = 8,
         timerWidth = 0,
-        spi = SpiXdrParameter(2, 2, 1)
-      ).addFullDuplex(0,2,false).addHalfDuplex(id=1, rate=2, ddr=false, spiWidth=2),
-      cmdFifoDepth = 1,
-      rspFifoDepth = 1,
+        spi = SpiXdrParameter(
+          dataWidth = 2,
+          ioRate= 2,
+          ssWidth = 1
+        )
+      ).addFullDuplex(id = 0, rate = 2).addHalfDuplex(id=1, rate=2, ddr=false, spiWidth=2),
+      cmdFifoDepth = 64,
+      rspFifoDepth = 64,
       cpolInit = false,
       cphaInit = false,
       modInit = 0,
@@ -85,14 +89,25 @@ object TinyFpgaBxSocArduinoSystem{
       xipEnableInit = true,
       xipInstructionEnableInit = true,
       xipInstructionModInit = 0,
-      xipAddressModInit = 0,
+      xipAddressModInit = 1,
       xipDummyModInit = 0,
       xipPayloadModInit = 1,
       xipInstructionDataInit = 0x3B,
       xipDummyCountInit = 0,
-      xipDummyDataInit = 0xFF,
-      xip = SpiXdrMasterCtrl.XipBusParameters(addressWidth = 24, lengthWidth = 2)
+      xipDummyDataInit = 0xFF
     )
+    spiA.withXip.load(true)
+    cpu.hardwareBreakpointCount.load(4)
+
+    interconnect.addConnection(
+      bridge.bmb -> List(spiA.bmb)
+    )
+
+    //Cut dBus address path
+    interconnect.setConnector(bridge.bmb){(m,s) =>
+      m.cmd >-> s.cmd
+      m.rsp << s.rsp
+    }
 
     g
   }
@@ -104,13 +119,15 @@ object TinyFpgaBxSocArduino {
   def default(g : TinyFpgaBxSocArduino) = g{
     import g._
     TinyFpgaBxSocArduinoSystem.default(system, clockCtrl)
-    clockCtrl.resetSensitivity load(ResetSensitivity.FALL)
+    clockCtrl.resetSensitivity load(ResetSensitivity.NONE)
+    system.spiA.inferSpiIce40()
     g
   }
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
     val report = SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new TinyFpgaBxSocArduino()).toComponent()))
-    BspGenerator("TinyFpgaBxSocArduino", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)  }
+    BspGenerator("TinyFpgaBxSocArduino", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
+  }
 }
 
