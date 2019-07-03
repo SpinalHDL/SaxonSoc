@@ -17,6 +17,7 @@ class TinyFpgaBxSocArduinoSystem extends BmbApbVexRiscvGenerator{
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000, xipOffset = 0x20000000)
   val machineTimer = Apb3MachineTimerGenerator(0x08000)
+  val usbOff = TinyFpgaBxUsbOffGenerator()
 
   ramA.dataWidth.load(32)
 

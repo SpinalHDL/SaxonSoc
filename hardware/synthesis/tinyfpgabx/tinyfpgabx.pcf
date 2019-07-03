@@ -24,3 +24,5 @@ set_io  system_spiA_spi_sclk G7
 set_io  system_spiA_spi_ss_0 F7
 set_io  system_spiA_spi_data_0 G6
 set_io  system_spiA_spi_data_1 H7
+
+set_io system_usbOff_usbPu A3
