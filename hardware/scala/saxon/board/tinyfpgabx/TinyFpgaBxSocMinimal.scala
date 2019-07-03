@@ -56,8 +56,7 @@ object TinyFpgaBxSocMinimalSystem{
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(12 KiB)
-    ramA.hexInit.load("software/standalone/blinkAndEcho/build/blinkAndEcho.hex")
-    //ramA.hexInit.load(null)
+    ramA.hexInit.load("software/standalone/readFlash/build/readFlash.hex")
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
