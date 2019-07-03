@@ -29,6 +29,9 @@ case class Apb3UartGenerator(apbOffset : BigInt)
   val apb = produce(logic.io.apb)
   val logic = add task Apb3UartCtrl(parameter)
 
+  val txd = uart.produce(uart.txd)
+  val rxd = uart.produce(uart.rxd)
+
   @dontName var interruptCtrl : InterruptCtrl = null
   var interruptId = 0
   def connectInterrupt(ctrl : InterruptCtrl, id : Int): Unit = {
@@ -123,6 +126,7 @@ case class  Apb3GpioGenerator(apbOffset : BigInt)
     interruptCtrl = ctrl
     interruptOffsetId = offsetId
   }
+  def pin(id : Int) = gpio.produce(gpio.get.setAsDirectionLess.apply(id))
 
   decoder.addSlave(apb, apbOffset)
 
