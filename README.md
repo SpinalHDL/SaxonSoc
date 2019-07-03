@@ -5,6 +5,24 @@ This repo experiment multiple things at once :
 - A hardware description paradigm made of generators and depedancies which should be able to solve SoC toplevel hell
 - Linux on VexRiscv
 
+## De1SocLinux
+
+Build buildroot/linux :
+
+```
+git clone https://github.com/SpinalHDL/buildroot.git -b saxon buildroot
+git clone https://github.com/SpinalHDL/linux.git -b vexriscv --depth 100 linux
+cd buildroot
+make spinal_saxon_default_defconfig
+make linux-rebuild all -j$(nproc)
+output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
+dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts
+```
+
+
+
+
+
 ## Various commands
 
 openocd =>
@@ -38,9 +56,9 @@ git clone https://github.com/SpinalHDL/buildroot.git -b saxon buildroot
 git clone https://github.com/SpinalHDL/linux.git -b vexriscv --depth 100 linux
 cd buildroot
 make spinal_saxon_default_defconfig
-make linux-rebuild all -j$(nproc);
-output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image;
-dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts;
+make linux-rebuild all -j$(nproc)
+output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
+dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts
 ```
 
 //clean all target files
@@ -148,11 +166,16 @@ network={
 wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant.conf -D nl80211
 udhcpc -i wlan0
 
+#### connect to close wifi
+https://www.linuxbabe.com/command-line/ubuntu-server-16-04-wifi-wpa-supplicant
 
+echo 4 > /proc/sys/kernel/printk
+ifconfig wlan0 up
+iwlist wlan0 scan | grep ESSID
+wpa_passphrase yourESSID password | tee /etc/wpa_supplicant.conf
+wpa_supplicant -c /etc/wpa_supplicant.conf -i wlan0 &
+udhcpc -i wlan0
 
-nano wilc_wpa_supplicant.conf
-ctrl_interface=/var/run/wpa_supplicant
-update_config=1
 
 
 

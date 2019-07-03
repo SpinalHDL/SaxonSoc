@@ -136,14 +136,13 @@ case class SdramSdrBmbGenerator(address: BigInt)
   val bmb   = produce(logic.io.bmb)
   val sdram = produceIo(logic.io.sdram)
 
-  layout.produce{
-    interconnect.addSlave(
-      capabilities = BmbSdramCtrl.bmbCapabilities(layout),
-      requirements = requirements,
-      bus = bmb,
-      mapping = SizeMapping(address, layout.capacity)
-    )
-  }
+
+  interconnect.addSlave(
+    capabilities = layout.produce(BmbSdramCtrl.bmbCapabilities(layout)),
+    requirements = requirements,
+    bus = bmb,
+    mapping = layout.produce(SizeMapping(address, layout.capacity))
+  )
 
   val logic = add task BmbSdramCtrl(
     bmbParameter = requirements,
