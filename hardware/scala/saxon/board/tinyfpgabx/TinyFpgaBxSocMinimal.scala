@@ -6,12 +6,15 @@ import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
 import saxon.board.blackice.IceStormInOutWrapper
+import saxon.board.blackice.peripheral._
+import spinal.lib.com.spi._
 
 class TinyFpgaBxSocMinimalSystem extends BmbApbVexRiscvGenerator{
   //Add components
   val ramA = BmbOnChipRamGenerator(0x80000000l)
   val uartA = Apb3UartGenerator(0x10000)
   val gpioA = Apb3GpioGenerator(0x00000)
+  val spiA = Apb3SpiMasterGenerator(0x20000)
 
   ramA.dataWidth.load(32)
 
@@ -54,6 +57,7 @@ object TinyFpgaBxSocMinimalSystem{
 
     ramA.size.load(12 KiB)
     ramA.hexInit.load("software/standalone/blinkAndEcho/build/blinkAndEcho.hex")
+    //ramA.hexInit.load(null)
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
@@ -62,6 +66,15 @@ object TinyFpgaBxSocMinimalSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(width = 8)
+
+    // Configure spi
+    spiA.parameter load SpiMasterCtrlMemoryMappedConfig(
+      SpiMasterCtrlGenerics(
+        dataWidth = 8,
+        timerWidth = 32,
+        ssWidth = 1
+      )
+    )
 
     g
   }
