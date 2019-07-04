@@ -1,7 +1,7 @@
 package saxon
 
 import spinal.core.{Area, log2Up}
-import spinal.lib.bus.bmb.{Bmb, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
+import spinal.lib.bus.bmb.{Bmb, BmbIce40Spram, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
 import spinal.lib.bus.misc.{DefaultMapping, SizeMapping}
 import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection}
 import spinal.lib.memory.sdram.{BmbSdramCtrl, SdramLayout, SdramTimings}
@@ -175,6 +175,28 @@ case class BmbOnChipRamGenerator(address: BigInt)
     size = size,
     hexOffset = address,
     hexInit = hexInit
+  )
+}
+
+
+
+case class BmbIce40SpramGenerator(address: BigInt)
+                                 (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+  val size = Handle[BigInt]
+  val requirements = createDependency[BmbParameter]
+  val bmb = produce(logic.io.bus)
+
+
+  interconnect.addSlave(
+    capabilities = size.produce(BmbIce40Spram.busCapabilities(size)),
+    requirements = requirements,
+    bus = bmb,
+    mapping = size.produce(SizeMapping(address, BigInt(1) << log2Up(size)))
+  )
+
+
+  val logic = add task BmbIce40Spram(
+    p = requirements
   )
 }
 

@@ -33,7 +33,7 @@ prog : bin/toplevel.bin
 
 clean :
 	rm -rf bin
-	rm -f ${BINARY}
+	rm -f *.bin
 
 .SECONDARY:
 .PHONY: all prog clean
