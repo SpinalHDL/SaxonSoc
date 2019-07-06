@@ -23,15 +23,15 @@ object IS42S16100H {
   def timingGrade7 = SdramTimings(
     bootRefreshCount =   8,
     tPOW             = 100 us,
-    tREF             =  64 ms,
-    tRC              =  60 ns,
-    tRFC             =  60 ns,
-    tRAS             =  37 ns,
-    tRP              =  15 ns,
-    tRCD             =  15 ns,
+    tREF             =  32 ms,
+    tRC              =  63 ns,
+    tRFC             =  63 ns,
+    tRAS             =  42 ns,
+    tRP              =  21 ns,
+    tRCD             =  21 ns,
     cMRD             =   2,
-    tWR              =  10 ns,
-    cWR              =   1
+    tWR              =   0 ns,
+    cWR              =   2
   )
 }
 
