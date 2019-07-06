@@ -1,4 +1,4 @@
-VERILOG = ../../netlist/BlackiceMxSocSdram.v blackice_mx_pll.v
+VERILOG = ../../netlist/BlackiceMxSocSdram.v
 
 generate :
 	(cd ../../..; sbt "runMain saxon.board.blackicemx.BlackiceMxSocSdram")

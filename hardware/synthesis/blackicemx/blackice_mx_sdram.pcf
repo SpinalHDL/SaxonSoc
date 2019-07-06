@@ -1,12 +1,12 @@
 set_io clk_25M 60
 
-set_io system_uartA_uart_txd 61
-set_io system_uartA_uart_rxd 62
+set_io system_uartA_uart_txd 34
+set_io system_uartA_uart_rxd 33
 
 set_io system_cpu_tms 38
 set_io system_cpu_tdi 37
-set_io system_cpu_tdo 34
-set_io system_cpu_tck 33
+set_io system_cpu_tdo 32
+set_io system_cpu_tck 31
 
 set_io system_gpioA_gpio_0 16
 set_io system_gpioA_gpio_1 15
@@ -56,6 +56,7 @@ set_io system_sdramA_sdram_CASn 110
 set_io system_sdramA_sdram_RASn 112
 set_io system_sdramA_sdram_CSn 113
 set_io system_sdramA_sdram_CKE 128
-set_io -nowarn clk 129
+
+set_io sdramClk 129
 
 

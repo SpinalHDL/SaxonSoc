@@ -61,15 +61,21 @@ class BlackiceMxSocSdram extends Generator{
   val clockCtrl = ClockDomainGenerator()
   clockCtrl.resetHoldDuration.load(255)
   clockCtrl.powerOnReset.load(true)
-  clockCtrl.clkFrequency.load(25 MHz)
+  clockCtrl.clkFrequency.load(16 MHz)
 
   val system = new BlackiceMxSocSdramSystem
   system.onClockDomain(clockCtrl.clockDomain)
 
   val clocking = add task new Area{
     val clk_25M = in Bool()
+    val sdramClk = out Bool
 
-    clockCtrl.clock.load(clk_25M)
+    val pll = BlackiceMxPll()
+    pll.clock_in := clk_25M
+
+    sdramClk := pll.sdram_clock_out
+
+    clockCtrl.clock.load(pll.clock_out)
   }
 }
 
