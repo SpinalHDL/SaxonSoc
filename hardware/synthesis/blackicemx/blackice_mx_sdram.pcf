@@ -8,14 +8,14 @@ set_io system_cpu_tdi 37
 set_io system_cpu_tdo 32
 set_io system_cpu_tck 31
 
-set_io system_gpioA_gpio_0 16
-set_io system_gpioA_gpio_1 15
-set_io system_gpioA_gpio_2 10
-set_io system_gpioA_gpio_3 9
-set_io system_gpioA_gpio_4 49
-set_io system_gpioA_gpio_5 52
-set_io system_gpioA_gpio_6 55
-set_io system_gpioA_gpio_7 56
+set_io system_gpioA_gpio_0 49
+set_io system_gpioA_gpio_1 52
+set_io system_gpioA_gpio_2 55
+set_io system_gpioA_gpio_3 56
+set_io system_gpioA_gpio_4 16
+set_io system_gpioA_gpio_5 15
+set_io system_gpioA_gpio_6 10
+set_io system_gpioA_gpio_7 9
 
 # SRAM
 set_io system_sdramA_sdram_ADDR[0] 117

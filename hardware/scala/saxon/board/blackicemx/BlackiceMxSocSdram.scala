@@ -87,7 +87,8 @@ object BlackiceMxSocSdramSystem{
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(8 KiB)
-    ramA.hexInit.load("software/standalone/blinkAndEcho/build/blinkAndEcho.hex")
+    //ramA.hexInit.load("software/standalone/blinkAndEcho/build/blinkAndEcho.hex")
+    ramA.hexInit.load("software/standalone/memTest/build/memTest.hex")
 
     sdramA.layout.load(IS42S16100H.layout)
     sdramA.timings.load(IS42S16100H.timingGrade7)

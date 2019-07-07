@@ -10,20 +10,20 @@ void main() {
     GPIO_A->OUTPUT_ENABLE = 0x000000FF;
 
     // Set the Blue led to indicate test in progress
-    GPIO_A->OUTPUT = 0x000000E0;
+    GPIO_A->OUTPUT = 0x0000000E;
     
     for(int i=0;i<MAX_WORDS;i++) mem[i] = i;
 
     for(int i=0;i<MAX_WORDS;i++) {
       if (mem[i] != i) {
         // Set the Red led for failure
-        GPIO_A->OUTPUT = 0x00000070;
+        GPIO_A->OUTPUT = 0x00000007;
         while(1){}
       }
     }
 
     // Set the Green led for success
-    GPIO_A->OUTPUT = 0x000000D0;
+    GPIO_A->OUTPUT = 0x0000000D;
     while(1){}
 }
 
