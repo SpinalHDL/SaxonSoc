@@ -3,7 +3,7 @@
 #include "saxon.h"
 
 #define mem ((volatile uint32_t*)0x90000000)
-#define MAX_WORDS (512 * 1014)
+#define MAX_WORDS (512 * 1024)
 
 void main() {
 
@@ -16,13 +16,13 @@ void main() {
 
     for(int i=0;i<MAX_WORDS;i++) {
       if (mem[i] != i) {
-        // Set the Red leed for failure
+        // Set the Red led for failure
         GPIO_A->OUTPUT = 0x00000070;
         while(1){}
       }
     }
 
-    // Set the green Led for success
+    // Set the Green led for success
     GPIO_A->OUTPUT = 0x000000D0;
     while(1){}
 }
