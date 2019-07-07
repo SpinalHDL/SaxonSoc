@@ -13,7 +13,7 @@ extern void trap_entry();
 
 static int c, cnt, pos, val, len;
 static char *cp;
-static void *base_addr = 0x90000000;
+static void *base_addr = (void *) 0x90000000;
 static int state;
 static int echo = 0;
 
@@ -56,7 +56,7 @@ void trap() {
 void main() {
   // set 4 output bits for LEDs
   GPIO_A->OUTPUT_ENABLE = 0x0000000F;
-  GPIO_A->OUTPUT = 0x00000000;
+  GPIO_A->OUTPUT = 0x0000000F;
 
   machineTimer_setCmp(MACHINE_TIMER, 0x7FFFFFFFFFFFFFFF);
 
