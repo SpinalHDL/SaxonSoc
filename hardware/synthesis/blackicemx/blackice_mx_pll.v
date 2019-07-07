@@ -27,10 +27,7 @@ SB_PLL40_2F_CORE #(
 	.DIVR(4'b0000),		// DIVR =  0
 	.DIVF(7'b0101000),	// DIVF = 40
 	.DIVQ(3'b110),		// DIVQ =  6
-	.FILTER_RANGE(3'b010),	// FILTER_RANGE = 2
-        .DIVF(7'b0000000),
-        .DIVQ(3'b101),
-        .FILTER_RANGE(3'b111)
+	.FILTER_RANGE(3'b010)	// FILTER_RANGE = 2
     ) pll (
         .REFERENCECLK   (clock_in),
         .PLLOUTGLOBALA  (clock_out),
