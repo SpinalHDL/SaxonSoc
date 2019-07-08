@@ -9,8 +9,8 @@ import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import saxon.board.blackice._
 import saxon.board.blackice.peripheral._
-import spinal.lib.memory.sdram._
-import spinal.lib.memory.sdram.sim.SdramModel
+import spinal.lib.memory.sdram.sdr._
+import spinal.lib.memory.sdram.sdr.sim.SdramModel
 import spinal.lib.misc.plic.PlicMapping
 
 class BlackiceMxArduinoSystem extends BmbApbVexRiscvGenerator{
