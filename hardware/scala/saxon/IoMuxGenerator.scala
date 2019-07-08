@@ -44,8 +44,8 @@ abstract class IoMuxGenerator extends Generator {
   }
 
   def addOutput(source: Handle[Bool], sink: IoGenerator, enable : Handle[Bool]) : Unit = {
-//    source.setAsDirectionLess()
-    addConnection(source, sink.write, enable)
+    val pin = source.produce(source.setAsDirectionLess)
+    addConnection(pin, sink.write, enable)
     addConnection(Handle(True), sink.writeEnable, enable)
   }
 
