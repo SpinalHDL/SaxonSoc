@@ -8,8 +8,8 @@ import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
-import spinal.lib.memory.sdram.IS42x320D
-import spinal.lib.memory.sdram.sim.SdramModel
+import spinal.lib.memory.sdram.sdr._
+import spinal.lib.memory.sdram.sdr.sim.SdramModel
 
 
 
@@ -114,6 +114,8 @@ object De1SocLinuxSystem{
       rspFifoDepth = 256
     )
     spiB.inferSpiSdrIo()
+    spiB.produce(RegNext(spiB.phy.sclk.write(0)).asOutput.setName("system_spiB_spi_sclk2"))
+
 
 
     g
@@ -186,9 +188,6 @@ object De1SocLinuxSystemSim {
           sleep(systemClkPeriod*100)
         }
       }
-
-
-
 
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,

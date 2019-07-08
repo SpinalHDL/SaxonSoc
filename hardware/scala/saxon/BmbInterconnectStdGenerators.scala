@@ -4,7 +4,7 @@ import spinal.core.{Area, log2Up}
 import spinal.lib.bus.bmb.{Bmb, BmbIce40Spram, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
 import spinal.lib.bus.misc.{DefaultMapping, SizeMapping}
 import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection}
-import spinal.lib.memory.sdram.{BmbSdramCtrl, SdramLayout, SdramTimings}
+import spinal.lib.memory.sdram.sdr._
 
 
 object BmbInterconnectStdGenerators {

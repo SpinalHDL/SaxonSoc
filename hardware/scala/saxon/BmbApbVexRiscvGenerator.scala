@@ -2,7 +2,7 @@ package saxon
 
 import spinal.lib.generator._
 import spinal.lib.io.Gpio
-import spinal.lib.memory.sdram.IS42x320D
+import spinal.lib.memory.sdram.sdr.IS42x320D
 import spinal.lib.misc.plic.PlicMapping
 
 class BmbApbVexRiscvGenerator  extends Generator {

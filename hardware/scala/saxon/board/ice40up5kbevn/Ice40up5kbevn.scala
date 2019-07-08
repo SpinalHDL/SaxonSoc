@@ -22,16 +22,12 @@ class Ice40up5kbevnSystem extends BmbApbVexRiscvGenerator{
   plic.addTarget(cpu.externalInterrupt)
 
   val uartA = Apb3UartGenerator(0x10000)
-  uartA.connectInterrupt(plic, 1)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000, xipOffset = 0x20000000)
   val machineTimer = Apb3MachineTimerGenerator(0x08000)
+
   cpu.setTimerInterrupt(machineTimer.interrupt)
-
-
-
-//  ramA.dataWidth.load(32)
-
+  uartA.connectInterrupt(plic, 1)
 
   //Interconnect specification
   val bridge = BmbBridgeGenerator()
@@ -125,12 +121,6 @@ object Ice40up5kbevnSystem{
       m.rsp << s.rsp
     }
 
-    //Cut Xip rsp path
-    //    interconnect.setConnector(spiA.bmb){(m,s) =>
-    //      m.cmd >> s.cmd
-    //      m.rsp <-< s.rsp
-    //    }
-
     g
   }
 }
@@ -198,7 +188,7 @@ object Ice40up5kbevnSystemSim {
       )
 
       val flash = new FlashModel(dut.spiA.phy, clockDomain)
-//      flash.loadBinary("software/standalone/blinkAndEcho/build/blinkAndEcho.bin", 0x100000)
+      flash.loadBinary("software/standalone/blinkAndEcho/build/blinkAndEcho.bin", 0x100000)
     }
   }
 }
