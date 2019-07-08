@@ -17,6 +17,16 @@ set_io system_gpioA_gpio_5 15
 set_io system_gpioA_gpio_6 10
 set_io system_gpioA_gpio_7 9
 
+# IO mux
+set_io system_pinA 141
+set_io system_pinB 142
+set_io system_pinC 138
+set_io system_pinD 139
+set_io system_pinE 143
+set_io system_pinF 144
+set_io system_pinG 3
+set_io system_pinH 4
+
 # SRAM
 set_io system_sdramA_sdram_ADDR[0] 117
 set_io system_sdramA_sdram_ADDR[1] 119

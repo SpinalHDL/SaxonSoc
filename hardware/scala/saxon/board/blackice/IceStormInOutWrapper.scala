@@ -31,18 +31,31 @@ object IceStormInOutWrapper {
     c.rework {
       for ((dataParent, count) <- dataParents) {
         dataParent match {
-          case bundle: TriState[Bits]   if bundle.writeEnable.isOutput  => {
-            for(i <- 0 until bundle.read.getBitsWidth) {
-              val newIo = inout(Analog(Bool)).setWeakName(bundle.getName() + "_" + i)
+          case bundle: TriState[Data]   if bundle.writeEnable.isOutput  => {
+            if (bundle.read.isInstanceOf[Bits]) {
+              val bitsBundle = bundle.asInstanceOf[TriState[Bits]]
+              for(i <- 0 until bitsBundle.read.getBitsWidth) {
+                val newIo = inout(Analog(Bool)).setWeakName(bitsBundle.getName() + "_" + i)
+                val sbio = SB_IO("101001")
+                sbio.PACKAGE_PIN := newIo
+                sbio.OUTPUT_ENABLE := bitsBundle.writeEnable
+                sbio.D_OUT_0 := bitsBundle.write.asBits(i)
+                bitsBundle.read(i) := sbio.D_IN_0
+                println("set_io " + bitsBundle.getName() + "_" + i)
+              }
+            } else if (bundle.read.isInstanceOf[Bool]) {
+              val boolBundle = bundle.asInstanceOf[TriState[Bool]]
+              val newIo = inout(Analog(Bool)).setWeakName(boolBundle.getName())
               val sbio = SB_IO("101001")
               sbio.PACKAGE_PIN := newIo
-              sbio.OUTPUT_ENABLE := bundle.writeEnable
-              sbio.D_OUT_0 := bundle.write.asBits(i)
-              bundle.read(i) := sbio.D_IN_0
-              println("set_io " + bundle.getName() + "_" + i)
+              sbio.OUTPUT_ENABLE := boolBundle.writeEnable
+              sbio.D_OUT_0 := boolBundle.write
+              boolBundle.read := sbio.D_IN_0
+              println("set_io " + boolBundle.getName())
             }
             bundle.setAsDirectionLess.unsetName().allowDirectionLessIo
-          }
+          }          
+
           case bundle : TriStateOutput[_] if bundle.isOutput => {
             val newIo = inout(Analog(bundle.dataType)).setWeakName(bundle.getName())
             bundle.setAsDirectionLess.unsetName().allowDirectionLessIo

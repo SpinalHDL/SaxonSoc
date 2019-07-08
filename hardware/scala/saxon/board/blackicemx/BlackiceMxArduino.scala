@@ -22,6 +22,24 @@ class BlackiceMxArduinoSystem extends BmbApbVexRiscvGenerator{
   val machineTimer = Apb3MachineTimerGenerator(0x08000)
   val plic = Apb3PlicGenerator(0xC00000)
 
+  // Create 8 IO Mux pins
+  val pinA, pinB, pinC, pinD, pinE, pinF, pinG, pinH = IoGenerator()
+  val pinMux = Apb3IoMuxGenerator(0x40000)
+
+  // Create a seven segment display using the mux pins
+  val sevenSegmentA = Apb3SevenSegmentGenerator(0x20000)
+  val sevenSegmentAEnable = pinMux.createEnable(id=0)
+
+  pinMux.addOutput(sevenSegmentA.segPins, 0, pinE, sevenSegmentAEnable)
+  pinMux.addOutput(sevenSegmentA.segPins, 1, pinF, sevenSegmentAEnable)
+  pinMux.addOutput(sevenSegmentA.segPins, 2, pinG, sevenSegmentAEnable)
+  pinMux.addOutput(sevenSegmentA.segPins, 3, pinA, sevenSegmentAEnable)
+  pinMux.addOutput(sevenSegmentA.segPins, 4, pinB, sevenSegmentAEnable)
+  pinMux.addOutput(sevenSegmentA.segPins, 5, pinC, sevenSegmentAEnable)
+  pinMux.addOutput(sevenSegmentA.segPins, 6, pinD, sevenSegmentAEnable)
+
+  pinMux.addOutput(sevenSegmentA.digitPin, pinH, sevenSegmentAEnable)
+
   //Interconnect specification
   interconnect.addConnection(
     cpu.iBus -> List(ramA.bmb, sdramA.bmb),

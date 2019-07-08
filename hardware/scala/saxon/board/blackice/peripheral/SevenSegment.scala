@@ -87,5 +87,8 @@ case class  Apb3SevenSegmentGenerator(apbOffset : BigInt)
   val apb = produce(logic.io.apb)
   val logic = add task Apb3SevenSegmentCtrl()
 
+  val digitPin = sevenSegment.produce(sevenSegment.digitPin)
+  val segPins = sevenSegment.produce(sevenSegment.segPins)
+
   decoder.addSlave(apb, apbOffset)
 }
