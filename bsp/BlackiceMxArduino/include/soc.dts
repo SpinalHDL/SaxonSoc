@@ -15,6 +15,11 @@ system_apbDecoder_input@10000000 {
     reg = <0x0 0x1000>;
   
   }
+  system_gpioB_apb: gpio@1000 {
+    compatible = "spinal-lib,gpio-1.0";
+    reg = <0x1000 0x1000>;
+  
+  }
   system_plic_apb: interrupt-controller@c00000 {
     compatible = "sifive,plic-1.0.0", "sifive,fu540-c000-plic";
     #interrupt-cells = <1>;

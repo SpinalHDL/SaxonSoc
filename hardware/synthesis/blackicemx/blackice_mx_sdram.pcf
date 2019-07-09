@@ -26,6 +26,14 @@ set_io system_pinE 143
 set_io system_pinF 144
 set_io system_pinG 3
 set_io system_pinH 4
+set_io system_pinI 136
+set_io system_pinJ 137
+set_io system_pinK 134
+set_io system_pinL 135
+set_io system_pinM 1
+set_io system_pinN 2
+set_io system_pinO 7
+set_io system_pinP 8
 
 # SRAM
 set_io system_sdramA_sdram_ADDR[0] 117

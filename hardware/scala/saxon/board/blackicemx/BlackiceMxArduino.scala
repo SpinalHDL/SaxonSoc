@@ -18,16 +18,19 @@ class BlackiceMxArduinoSystem extends BmbApbVexRiscvGenerator{
   val ramA = BmbOnChipRamGenerator(0x80000000l)
   val uartA = Apb3UartGenerator(0x10000)
   val gpioA = Apb3GpioGenerator(0x00000)
+  val gpioB = Apb3GpioGenerator(0x01000)
   val sdramA = SdramSdrBmbGenerator(0x90000000l)
   val machineTimer = Apb3MachineTimerGenerator(0x08000)
   val plic = Apb3PlicGenerator(0xC00000)
-
+  val sevenSegmentA = Apb3SevenSegmentGenerator(0x20000)
+  val pwm = Apb3PwmGenerator(0x30000)
+ 
   // Create 8 IO Mux pins
   val pinA, pinB, pinC, pinD, pinE, pinF, pinG, pinH = IoGenerator()
+  val pinI, pinJ, pinK, pinL, pinM, pinN, pinO, pinP = IoGenerator()
   val pinMux = Apb3IoMuxGenerator(0x40000)
 
   // Create a seven segment display using the mux pins
-  val sevenSegmentA = Apb3SevenSegmentGenerator(0x20000)
   val sevenSegmentAEnable = pinMux.createEnable(id=0)
 
   pinMux.addOutput(sevenSegmentA.segPins, 0, pinE, sevenSegmentAEnable)
@@ -39,6 +42,28 @@ class BlackiceMxArduinoSystem extends BmbApbVexRiscvGenerator{
   pinMux.addOutput(sevenSegmentA.segPins, 6, pinD, sevenSegmentAEnable)
 
   pinMux.addOutput(sevenSegmentA.digitPin, pinH, sevenSegmentAEnable)
+
+  val gpioBEnable = pinMux.createEnable(id=1)
+  pinMux.addConnection(gpioB.gpio, 0, pinA, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 1, pinB, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 2, pinC, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 3, pinD, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 4, pinE, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 5, pinF, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 6, pinG, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 7, pinH, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 8, pinI, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 9, pinJ, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 10, pinK, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 11, pinL, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 12, pinM, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 13, pinN, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 14, pinO, gpioBEnable)
+  pinMux.addConnection(gpioB.gpio, 15, pinP, gpioBEnable)
+
+  // PWM pins
+  val pwmEnable = pinMux.createEnable(id = 2)
+  pinMux.addOutput(pwm.pins, 0, pinA, pwmEnable)
 
   //Interconnect specification
   interconnect.addConnection(
@@ -109,6 +134,10 @@ object BlackiceMxArduinoSystem{
 
     // Configure gpio
     gpioA.parameter load Gpio.Parameter(width = 8)
+    gpioB.parameter load Gpio.Parameter(width = 16)
+
+    // Configure PWM
+    pwm.width.load(1)
 
     g
   }

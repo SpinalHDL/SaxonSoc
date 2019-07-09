@@ -59,5 +59,7 @@ case class  Apb3PwmGenerator(apbOffset : BigInt)
   val apb = produce(logic.io.apb)
   val logic = add task Apb3PwmCtrl(width)
 
+  val pins = produce(pwm.pins)
+
   decoder.addSlave(apb, apbOffset)
 }
