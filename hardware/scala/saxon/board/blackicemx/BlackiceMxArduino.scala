@@ -24,6 +24,7 @@ class BlackiceMxArduinoSystem extends BmbApbVexRiscvGenerator{
   val plic = Apb3PlicGenerator(0xC00000)
   val sevenSegmentA = Apb3SevenSegmentGenerator(0x20000)
   val pwm = Apb3PwmGenerator(0x30000)
+  val quadrature = Apb3QuadratureGenerator(0x50000)
  
   // Create 8 IO Mux pins
   val pinA, pinB, pinC, pinD, pinE, pinF, pinG, pinH = IoGenerator()
@@ -64,6 +65,11 @@ class BlackiceMxArduinoSystem extends BmbApbVexRiscvGenerator{
   // PWM pins
   val pwmEnable = pinMux.createEnable(id = 2)
   pinMux.addOutput(pwm.pins, 0, pinA, pwmEnable)
+
+  // Quadrature pins
+  val quadratureEnable = pinMux.createEnable(id = 3)
+  pinMux.addInput(quadrature.quadA, pinA, quadratureEnable)
+  pinMux.addInput(quadrature.quadB, pinB, quadratureEnable)
 
   //Interconnect specification
   interconnect.addConnection(
@@ -138,6 +144,9 @@ object BlackiceMxArduinoSystem{
 
     // Configure PWM
     pwm.width.load(1)
+
+    // Configure Quadrature
+    quadrature.width.load(8)
 
     g
   }

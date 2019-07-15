@@ -1,4 +1,4 @@
-package board.blackice.peripheral
+package saxon.board.blackice.peripheral
 
 import spinal.core._
 import spinal.lib._
@@ -65,12 +65,15 @@ case class Apb3QuadratureCtrl(width: Int) extends Component {
   quadratureCtrl.driveFrom(busCtrl)()
 }
 
-case class  Apb3QuadratureGenerator(apbOffset : BigInt)
+case class Apb3QuadratureGenerator(apbOffset : BigInt)
                              (implicit decoder: Apb3DecoderGenerator) extends Generator{
   val width = createDependency[Int]
   val quadrature = produceIo(logic.io.quadrature)
   val apb = produce(logic.io.apb)
   val logic = add task Apb3QuadratureCtrl(width)
+
+  val quadA = produce(quadrature.quadA)
+  val quadB = produce(quadrature.quadB)
 
   decoder.addSlave(apb, apbOffset)
 }
