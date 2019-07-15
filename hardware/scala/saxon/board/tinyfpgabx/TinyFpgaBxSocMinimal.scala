@@ -8,6 +8,8 @@ import spinal.lib.io.{Gpio, InOutWrapper}
 import saxon.board.blackice.IceStormInOutWrapper
 import saxon.board.blackice.peripheral._
 import spinal.lib.com.spi._
+import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
+import spinal.lib.com.jtag.sim.JtagTcp
 
 class TinyFpgaBxSocMinimalSystem extends BmbApbVexRiscvGenerator{
   //Add components
@@ -93,6 +95,47 @@ object TinyFpgaBxSocMinimal {
   def main(args: Array[String]): Unit = {
     val report = SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new TinyFpgaBxSocMinimal()).toComponent()))
     BspGenerator("TinyFpgaBxSocMinimal", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
-}
+  }
 }
 
+object TinyFpgaBxSocMinimalSystemSim {
+  import spinal.core.sim._
+
+  def main(args: Array[String]): Unit = {
+
+    val simConfig = SimConfig
+    simConfig.allOptimisation
+    simConfig.withWave
+    simConfig.compile(new TinyFpgaBxSocMinimalSystem(){
+      val clockCtrl = ClockDomainGenerator()
+      this.onClockDomain(clockCtrl.clockDomain)
+      clockCtrl.makeExternal(ResetSensitivity.FALL)
+      clockCtrl.powerOnReset.load(true)
+      clockCtrl.clkFrequency.load(16 MHz)
+      TinyFpgaBxSocMinimalSystem.default(this, clockCtrl)
+    }.toComponent()).doSimUntilVoid("test", 42){dut =>
+      val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
+      val jtagClkPeriod = systemClkPeriod*4
+      val uartBaudRate = 115200
+      val uartBaudPeriod = (1e12/uartBaudRate).toLong
+
+      val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
+      clockDomain.forkStimulus(systemClkPeriod)
+
+      val tcpJtag = JtagTcp(
+        jtag = dut.cpu.jtag,
+        jtagClkPeriod = jtagClkPeriod
+      )
+
+      val uartTx = UartDecoder(
+        uartPin =  dut.uartA.uart.txd,
+        baudPeriod = uartBaudPeriod
+      )
+
+      val uartRx = UartEncoder(
+        uartPin = dut.uartA.uart.rxd,
+        baudPeriod = uartBaudPeriod
+      )
+    }
+  }
+}
