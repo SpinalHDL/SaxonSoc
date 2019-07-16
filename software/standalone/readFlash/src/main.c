@@ -7,35 +7,42 @@
 
 volatile char globalC = 'b';
 
+void print_hex(uint32_t val, uint32_t digits)
+{
+	for (int i = (4*digits)-4; i >= 0; i -= 4)
+		uart_write(UART_A, "0123456789ABCDEF"[(val >> i) % 16]);
+}
+
 void flash_init () {
-  write_u32(SPI_FLASH_SETUP, 500);
-  write_u32(SPI_FLASH_HOLD, 500);
-  write_u32(SPI_FLASH_DISABLE, 500);
+  write_u32(500, SPI_FLASH_SETUP);
+  write_u32(500, SPI_FLASH_HOLD);
+  write_u32(500, SPI_FLASH_DISABLE);
 }
 
 void flash_divider(uint32_t divider) {
-  write_u32(SPI_FLASH_DIVIDER, divider);
+  write_u32(divider, SPI_FLASH_DIVIDER);
 }
 
 void flash_mode(uint32_t mode) {
-  write_u32(SPI_FLASH_DATAMODE, mode);
+  write_u32(mode, SPI_FLASH_DATAMODE);
 }
 
 void flash_begin() {
-  write_u32(SPI_FLASH_XFER, 0x11000000);
+  write_u32(0x11000000, SPI_FLASH_XFER);
 }
 
 void flash_end() {
-  write_u32(SPI_FLASH_XFER, 0x10000000);
+ write_u32(0x10000000, SPI_FLASH_XFER);
 }
 
 uint8_t flash_xfer(uint8_t data) {
-  write_u32(SPI_FLASH_XFER, data | 0x01000000);
+  write_u32(data | 0x01000000, SPI_FLASH_XFER);
 
-  while(1) {
+  for(int i=0;i<1000;i++) {
     uint32_t r = read_u32(SPI_FLASH_XFER);
-    if (!(r & SPI_FLASH_RX_VALID)) return r & 0xff;
+    if ((r & SPI_FLASH_RX_VALID)) return r & 0xff;
   }
+  return 0xFF;
 }
 
 void flash_read(uint32_t addr, uint8_t *data, int n) {
@@ -55,12 +62,6 @@ void flash_wake() {
   flash_end();
 }
 
-void print_hex(uint32_t val, uint32_t digits)
-{
-	for (int i = (4*digits)-4; i >= 0; i -= 4)
-		uart_write(UART_A, "0123456789ABCDEF"[(val >> i) % 16]);
-}
-
 uint8_t data[4];
 
 void main() {
@@ -73,6 +74,7 @@ void main() {
 
     for (int i=0; i<100;i++) {
       flash_read(0x50000 + i*4 , data, 4);
+      uart_writeStr(UART_A, "Data : ");
       print_hex((uint32_t) *((uint32_t *) data), 8);
       uart_write(UART_A, '\n');
     }

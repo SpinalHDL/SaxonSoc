@@ -1,8 +1,9 @@
 set_io CLOCK_16 B2
-set_io GRESET B1
+set_io -nowarn GRESET B1
 
-set_io system_uartA_uart_txd A1
-set_io system_uartA_uart_rxd A2
+set_io -nowarn system_usbOff_usbPu A3
+set_io system_uartA_uart_txd A2
+set_io system_uartA_uart_rxd A1
 
 set_io system_cpu_tms H9
 set_io system_cpu_tdi D9
@@ -20,9 +21,20 @@ set_io system_gpioA_gpio_7 D2
 
 # XIP
 
-set_io  system_spiA_spi_sclk G7
-set_io  system_spiA_spi_ss_0 F7
-set_io  system_spiA_spi_data_0 G6
-set_io  system_spiA_spi_data_1 H7
+set_io system_spiA_spi_sclk G7
+set_io -nowarn system_spiA_spi_ss_0 F7
+set_io -nowarn system_spiA_spi_ss F7
+set_io -nowarn system_spiA_spi_data_0 G6
+set_io -nowarn system_spiA_spi_mosi G6
+set_io -nowarn system_spiA_spi_data_1 H7
+set_io -nowarn system_spiA_spi_miso H7
 
-set_io system_usbOff_usbPu A3
+# External pins for diagnostics
+#set_io system_spiA_spi_sclk A9
+#set_io -nowarn system_spiA_spi_ss_0 B8
+#set_io -nowarn system_spiA_spi_ss B8
+#set_io -nowarn system_spiA_spi_mosi A8
+#set_io -nowarn system_spiA_spi_data_0 A8
+#set_io -nowarn system_spiA_spi_miso B7
+#set_io -nowarn system_spiA_spi_data_1 B7
+

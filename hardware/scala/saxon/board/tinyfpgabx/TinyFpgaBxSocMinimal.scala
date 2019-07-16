@@ -33,7 +33,7 @@ class TinyFpgaBxSocMinimal extends Generator{
   clockCtrl.resetHoldDuration.load(255)
   clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
-  clockCtrl.clkFrequency.load(20 MHz)
+  clockCtrl.clkFrequency.load(16 MHz)
 
   val system = new TinyFpgaBxSocMinimalSystem
   system.onClockDomain(clockCtrl.clockDomain)
@@ -42,10 +42,11 @@ class TinyFpgaBxSocMinimal extends Generator{
     val CLOCK_16 = in Bool()
     val GRESET = in Bool()
 
-    val pll = TinyFpgaBxPll()
-    pll.clock_in := CLOCK_16
+    //val pll = TinyFpgaBxPll()
+    //pll.clock_in := CLOCK_16
 
-    clockCtrl.clock.load(pll.clock_out)
+    //clockCtrl.clock.load(pll.clock_out)
+    clockCtrl.clock.load(CLOCK_16)
     clockCtrl.reset.load(GRESET)
   }
 }
