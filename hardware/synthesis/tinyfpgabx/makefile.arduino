@@ -18,7 +18,7 @@ bin/toplevel.asc : tinyfpgabx.pcf bin/toplevel.json
 	nextpnr-ice40 --freq 18 --lp8k --package cm81 --json bin/toplevel.json --pcf tinyfpgabx.pcf --asc bin/toplevel.asc --opt-timing --placer heap
 
 bin/toplevel.bin : bin/toplevel.asc
-	icepack bin/toplevel.asc bin/toplevel.bin
+	icepack -s bin/toplevel.asc bin/toplevel.bin
 
 compile : bin/toplevel.bin
 
