@@ -11,6 +11,7 @@ import saxon.board.blackice._
 import saxon.board.blackice.peripheral._
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
+import spinal.lib.com.spi._
 
 object IS42S16100H {
   def layout = SdramLayout(
@@ -40,6 +41,7 @@ class BlackiceMxSocSdramSystem extends BmbApbVexRiscvGenerator{
   val ramA = BmbOnChipRamGenerator(0x80000000l)
   val uartA = Apb3UartGenerator(0x10000)
   val gpioA = Apb3GpioGenerator(0x00000)
+  val spiA = Apb3SpiMasterGenerator(0x20000)
   val sdramA = SdramSdrBmbGenerator(0x90000000l)
 
   ramA.dataWidth.load(32)
@@ -88,7 +90,8 @@ object BlackiceMxSocSdramSystem{
 
     ramA.size.load(8 KiB)
     //ramA.hexInit.load("software/standalone/blinkAndEcho/build/blinkAndEcho.hex")
-    ramA.hexInit.load("software/standalone/memTest/build/memTest.hex")
+    //ramA.hexInit.load("software/standalone/memTest/build/memTest.hex")
+    ramA.hexInit.load("software/standalone/writeFlash/build/writeFlash.hex")
 
     sdramA.layout.load(IS42S16100H.layout)
     sdramA.timings.load(IS42S16100H.timingGrade7)
@@ -100,6 +103,15 @@ object BlackiceMxSocSdramSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(width = 8)
+
+    // Configure spi
+    spiA.parameter load SpiMasterCtrlMemoryMappedConfig(
+      SpiMasterCtrlGenerics(
+        dataWidth = 8,
+        timerWidth = 32,
+        ssWidth = 1
+      )
+    )
 
     g
   }
