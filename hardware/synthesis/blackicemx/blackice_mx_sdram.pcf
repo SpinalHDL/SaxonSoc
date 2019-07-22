@@ -1,21 +1,25 @@
+# System clock
 set_io clk_25M 60
 
+# Uart
 set_io system_uartA_uart_txd 34
 set_io system_uartA_uart_rxd 33
 
+# Jtag
 set_io system_cpu_tms 38
 set_io system_cpu_tdi 37
 set_io system_cpu_tdo 32
 set_io system_cpu_tck 31
 
-set_io system_gpioA_gpio_0 49
-set_io system_gpioA_gpio_1 52
-set_io system_gpioA_gpio_2 55
-set_io system_gpioA_gpio_3 56
-set_io system_gpioA_gpio_4 16
-set_io system_gpioA_gpio_5 15
-set_io system_gpioA_gpio_6 10
-set_io system_gpioA_gpio_7 9
+# GPIO
+set_io system_gpioA_gpio_0 16
+set_io system_gpioA_gpio_1 15
+set_io system_gpioA_gpio_2 10
+set_io system_gpioA_gpio_3 9
+set_io system_gpioA_gpio_4 49
+set_io system_gpioA_gpio_5 52
+set_io system_gpioA_gpio_6 55
+set_io system_gpioA_gpio_7 56
 
 # IO mux
 set_io -nowarn system_pinA 141
@@ -34,6 +38,12 @@ set_io -nowarn system_pinM 1
 set_io -nowarn system_pinN 2
 set_io -nowarn system_pinO 7
 set_io -nowarn system_pinP 8
+
+# SPI
+set_io -nowarn system_spiA_spi_ss 71
+set_io -nowarn system_spiA_spi_sclk 70
+set_io -nowarn system_spiA_spi_mosi 67
+set_io -nowarn system_spiA_spi_miso 68
 
 # SRAM
 set_io system_sdramA_sdram_ADDR[0] 117
