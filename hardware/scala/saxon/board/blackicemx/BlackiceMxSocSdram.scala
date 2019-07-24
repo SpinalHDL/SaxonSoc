@@ -46,6 +46,7 @@ class BlackiceMxSocSdramSystem extends BmbApbVexRiscvGenerator{
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiMasterGenerator(0x20000)
   val sdramA = SdramSdrBmbGenerator(0x90000000l)
+  val warmBoot = Apb3WarmbootGenerator(0x30000)
 
   ramA.dataWidth.load(32)
 
