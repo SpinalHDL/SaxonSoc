@@ -17,3 +17,11 @@ set_io system_gpioA_gpio_5 52
 set_io system_gpioA_gpio_6 55
 set_io system_gpioA_gpio_7 56
 
+set_io -nowarn system_spiA_spi_ss 71
+set_io -nowarn system_spiA_spi_ss_0 71
+set_io -nowarn system_spiA_spi_sclk 70
+set_io -nowarn system_spiA_spi_mosi 67
+set_io -nowarn system_spiA_spi_data_0 67
+set_io -nowarn system_spiA_spi_miso 68
+set_io -nowarn system_spiA_spi_data_1 68
+
