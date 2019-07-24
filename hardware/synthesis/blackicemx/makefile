@@ -1,24 +1,24 @@
-VERILOG = ../../netlist/BlackiceMxSocSdram.v blackice_mx_pll.v
+VERILOG = ../../netlist/BlackiceMxSocMinimal.v
 
 generate :
-	(cd ../../..; sbt "runMain saxon.board.blackicemx.BlackiceMxSocSdram")
+	(cd ../../..; sbt "runMain saxon.board.blackicemx.BlackiceMxSocMinimal")
 
-../../netlist/BlackiceMxSocSdram.v :
-	(cd ../../..; sbt "runMain saxon.board.blackicemx.BlackiceMxSocSdram")
+../../netlist/BlackiceMxSocMinimal.v :
+	(cd ../../..; sbt "runMain saxon.board.blackicemx.BlackiceMxSocMinimal")
 
-../../netlist/BlackiceMxSocSdram.v*.bin:
+../../netlist/BlackiceMxSocMinimal.v*.bin:
 
-bin/toplevel.json : ${VERILOG} ../../netlist/BlackiceMxSocSdram.v*.bin
+bin/toplevel.json : ${VERILOG} ../../netlist/BlackiceMxSocMinimal.v*.bin
 	mkdir -p bin
-	rm -f BlackiceMxSocSdram.v*.bin
-	cp ../../netlist/BlackiceMxSocSdram.v*.bin . | true
-	yosys -v3 -p "synth_ice40 -top BlackiceMxSocSdram -json bin/toplevel.json" ${VERILOG}
+	rm -f BlackiceMxSocMinimal.v*.bin
+	cp ../../netlist/BlackiceMxSocMinimal.v*.bin . | true
+	yosys -v3 -p "synth_ice40 -top BlackiceMxSocMinimal -json bin/toplevel.json" ${VERILOG}
 
-bin/toplevel.asc : blackice_mx_sdram.pcf bin/toplevel.json
-	nextpnr-ice40 --freq 25 --hx8k --package tq144:4k --json bin/toplevel.json --pcf blackice_mx_sdram.pcf --asc bin/toplevel.asc --opt-timing --placer heap
+bin/toplevel.asc : blackice.pcf bin/toplevel.json
+	nextpnr-ice40 --freq 25 --hx8k --package tq144:4k --json bin/toplevel.json --pcf blackice.pcf --asc bin/toplevel.asc --opt-timing --placer heap
 
 bin/toplevel.bin : bin/toplevel.asc
-	icepack bin/toplevel.asc bin/toplevel.bin
+	icepack -s bin/toplevel.asc bin/toplevel.bin
 
 compile : bin/toplevel.bin
 
@@ -31,4 +31,4 @@ prog : bin/toplevel.bin
 
 clean :
 	rm -rf bin
-	rm -f BlackiceMxSocSdram.v*.bin
+	rm -f BlackiceMxSocMinimal.v*.bin

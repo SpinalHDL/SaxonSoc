@@ -18,7 +18,7 @@ bin/toplevel.asc : blackice.pcf bin/toplevel.json
 	nextpnr-ice40 --freq 25 --hx8k --package tq144:4k --json bin/toplevel.json --pcf blackice.pcf --asc bin/toplevel.asc --opt-timing --placer heap
 
 bin/toplevel.bin : bin/toplevel.asc
-	icepack bin/toplevel.asc bin/toplevel.bin
+	icepack -s bin/toplevel.asc bin/toplevel.bin
 
 compile : bin/toplevel.bin
 

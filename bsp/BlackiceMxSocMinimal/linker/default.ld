@@ -1,25 +1,29 @@
+
 OUTPUT_ARCH( "riscv" )
 
 ENTRY( _start )
 
 MEMORY
 {
-  ram  (wxai!r) : ORIGIN = 0x80000000, LENGTH = 8k
+  flash(rxai!w) : ORIGIN = 0x20050000, LENGTH = 704k
+  ram  (wxa!ri) : ORIGIN = 0x80000000, LENGTH = 8k
 }
 
 PHDRS
 {
-  ram PT_LOAD;
+  flash PT_LOAD;
+  ram_init PT_LOAD;
+  ram PT_NULL;
 }
 
 SECTIONS
 {
-  __stack_size = DEFINED(__stack_size) ? __stack_size : 1K;
+  __stack_size = DEFINED(__stack_size) ? __stack_size : 2K;
 
   .init           :
   {
     KEEP (*(SORT_NONE(.init)))
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .text           :
   {
@@ -28,12 +32,12 @@ SECTIONS
     *(.text .text.*)
     *(.gnu.linkonce.t.*)
     *(.note.gnu.build-id)
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .fini           :
   {
     KEEP (*(SORT_NONE(.fini)))
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   PROVIDE (__etext = .);
   PROVIDE (_etext = .);
@@ -46,7 +50,7 @@ SECTIONS
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP (*(.preinit_array))
     PROVIDE_HIDDEN (__preinit_array_end = .);
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .init_array     :
   {
@@ -54,7 +58,7 @@ SECTIONS
     KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
     KEEP (*(.init_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .ctors))
     PROVIDE_HIDDEN (__init_array_end = .);
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .fini_array     :
   {
@@ -62,7 +66,7 @@ SECTIONS
     KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
     KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
     PROVIDE_HIDDEN (__fini_array_end = .);
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .ctors          :
   {
@@ -84,7 +88,7 @@ SECTIONS
     KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
     KEEP (*(SORT(.ctors.*)))
     KEEP (*(.ctors))
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .dtors          :
   {
@@ -93,19 +97,19 @@ SECTIONS
     KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
     KEEP (*(SORT(.dtors.*)))
     KEEP (*(.dtors))
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .lalign         :
   {
     . = ALIGN(4);
     PROVIDE( _data_lma = . );
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .dalign         :
   {
     . = ALIGN(4);
     PROVIDE( _data = . );
-  } >ram AT>ram :ram
+  } >ram AT>flash :ram_init
 
   .data          :
   {
@@ -115,7 +119,7 @@ SECTIONS
     *(.data .data.*)
     *(.gnu.linkonce.d.*)
     . = ALIGN(8);
-    PROVIDE( __global_pointer$ = . + 0x7F0 );
+    PROVIDE( __global_pointer$ = . + 0x800 );
     *(.sdata .sdata.*)
     *(.gnu.linkonce.s.*)
     . = ALIGN(8);
@@ -124,7 +128,7 @@ SECTIONS
     *(.srodata.cst4)
     *(.srodata.cst2)
     *(.srodata .srodata.*)
-  } >ram AT>ram :ram
+  } >ram AT>flash :ram_init
 
   . = ALIGN(4);
   PROVIDE( _edata = . );
@@ -146,7 +150,6 @@ SECTIONS
   PROVIDE( _end = . );
   PROVIDE( end = . );
 
-  . = ALIGN(16); /* RISC-V stack is 16 byte aligned*/
   .stack /*ORIGIN(ram) + LENGTH(ram) - __stack_size*/ :
   {
     PROVIDE( _heap_end = . );

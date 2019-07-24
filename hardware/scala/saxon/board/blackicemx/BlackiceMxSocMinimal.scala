@@ -9,19 +9,23 @@ import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import saxon.board.blackice._
 import saxon.board.blackice.peripheral._
+import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 
 class BlackiceMxSocMinimalSystem extends BmbApbVexRiscvGenerator{
   //Add components
   val ramA = BmbOnChipRamGenerator(0x80000000l)
   val uartA = Apb3UartGenerator(0x10000)
   val gpioA = Apb3GpioGenerator(0x00000)
+  val spiA = Apb3SpiGenerator(0x20000, xipOffset = 0x20000000)
 
   ramA.dataWidth.load(32)
 
   //Interconnect specification
+  val bridge = BmbBridgeGenerator()
   interconnect.addConnection(
-    cpu.iBus -> List(ramA.bmb),
-    cpu.dBus -> List(ramA.bmb, peripheralBridge.input)
+    cpu.iBus -> List(bridge.bmb),
+    cpu.dBus -> List(bridge.bmb),
+    bridge.bmb -> List(ramA.bmb, peripheralBridge.input)
   )
 }
 
@@ -46,11 +50,13 @@ object BlackiceMxSocMinimalSystem{
   def default(g : BlackiceMxSocMinimalSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
 
-    cpu.config.load(VexRiscvConfigs.minimal)
+    cpu.config.load(VexRiscvConfigs.xip.fast(0x20050000))
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(8 KiB)
-    ramA.hexInit.load("software/standalone/blinkAndEcho/build/blinkAndEcho.hex")
+
+    //ramA.hexInit.load("software/standalone/writeFlash/build/writeFlash.hex")
+    ramA.hexInit.load(null)
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
@@ -59,6 +65,49 @@ object BlackiceMxSocMinimalSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(width = 8)
+
+    spiA.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
+      SpiXdrMasterCtrl.Parameters(
+        dataWidth = 8,
+        timerWidth = 0,
+        spi = SpiXdrParameter(
+          dataWidth = 2,
+          ioRate= 2,
+          ssWidth = 1
+        )
+      ).addFullDuplex(id = 0, rate = 2).addHalfDuplex(id=1, rate=2, ddr=false, spiWidth=2),
+      cmdFifoDepth = 64,
+      rspFifoDepth = 64,
+      cpolInit = false,
+      cphaInit = false,
+      modInit = 0,
+      sclkToogleInit = 0,
+      ssSetupInit = 0,
+      ssHoldInit = 0,
+      ssDisableInit = 0,
+      xipConfigWritable = false,
+      xipEnableInit = true,
+      xipInstructionEnableInit = true,
+      xipInstructionModInit = 0,
+      xipAddressModInit = 0,
+      xipDummyModInit = 0,
+      xipPayloadModInit = 1,
+      xipInstructionDataInit = 0x3B,
+      xipDummyCountInit = 0,
+      xipDummyDataInit = 0xFF
+    )
+    spiA.withXip.load(true)
+    cpu.hardwareBreakpointCount.load(4)
+
+    interconnect.addConnection(
+      bridge.bmb -> List(spiA.bmb)
+    )
+
+    //Cut dBus address path
+    interconnect.setConnector(bridge.bmb){(m,s) =>
+      m.cmd >-> s.cmd
+      m.rsp << s.rsp
+    }
 
     g
   }
@@ -71,6 +120,8 @@ object BlackiceMxSocMinimal {
     import g._
     BlackiceMxSocMinimalSystem.default(system, clockCtrl)
     clockCtrl.resetSensitivity load(ResetSensitivity.NONE)
+    system.spiA.inferSpiIce40()
+
     g
   }
 
