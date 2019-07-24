@@ -182,7 +182,9 @@ void main() {
 
     flash_end();
    
-    print("\nWriting flash memory at 0x50000\n");
+    print("\nWriting flash memory at 0x");
+    print_hex(addr, 8);
+    print("\n");
     
     uint32_t rem = len;
     uint32_t written = 0;
@@ -220,6 +222,9 @@ void main() {
       }
     }
     print("\n");
+
+    // Boot to the user configuration
+    (*(volatile uint32_t *) SYSTEM_WARM_BOOT_APB) = 1;
     
     GPIO_A->OUTPUT_ENABLE = 0x000000FF;
     GPIO_A->OUTPUT = 0x00000000;
