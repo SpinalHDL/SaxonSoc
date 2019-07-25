@@ -41,9 +41,12 @@ set_io -nowarn system_pinP 8
 
 # SPI
 set_io -nowarn system_spiA_spi_ss 71
+set_io -nowarn system_spiA_spi_ss_0 71
 set_io -nowarn system_spiA_spi_sclk 70
 set_io -nowarn system_spiA_spi_mosi 67
+set_io -nowarn system_spiA_spi_data_0 67
 set_io -nowarn system_spiA_spi_miso 68
+set_io -nowarn system_spiA_spi_data_1 68
 
 # SRAM
 set_io system_sdramA_sdram_ADDR[0] 117
