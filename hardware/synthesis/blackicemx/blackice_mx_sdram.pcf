@@ -2,8 +2,8 @@
 set_io clk_25M 60
 
 # Uart
-set_io system_uartA_uart_txd 34
-set_io system_uartA_uart_rxd 33
+set_io system_uartA_uart_txd 62
+set_io system_uartA_uart_rxd 61
 
 # Jtag
 set_io system_cpu_tms 38
@@ -48,46 +48,55 @@ set_io -nowarn system_spiA_spi_data_0 67
 set_io -nowarn system_spiA_spi_miso 68
 set_io -nowarn system_spiA_spi_data_1 68
 
+# SD card
+set_io -nowarn system_spiB_spi_ss 101
+set_io -nowarn system_spiB_spi_ss_0 101
+set_io -nowarn system_spiB_spi_sclk 104
+set_io -nowarn system_spiB_spi_mosi 102
+set_io -nowarn system_spiB_spi_data_0 102
+set_io -nowarn system_spiB_spi_miso 105
+set_io -nowarn system_spiB_spi_data_1 105
+
 # SRAM
-set_io system_sdramA_sdram_ADDR[0] 117
-set_io system_sdramA_sdram_ADDR[1] 119
-set_io system_sdramA_sdram_ADDR[2] 121
-set_io system_sdramA_sdram_ADDR[3] 124
-set_io system_sdramA_sdram_ADDR[4] 130
-set_io system_sdramA_sdram_ADDR[5] 125
-set_io system_sdramA_sdram_ADDR[6] 122
-set_io system_sdramA_sdram_ADDR[7] 120
-set_io system_sdramA_sdram_ADDR[8] 118
-set_io system_sdramA_sdram_ADDR[9] 116
-set_io system_sdramA_sdram_ADDR[10] 115
+set_io -nowarn system_sdramA_sdram_ADDR[0] 117
+set_io -nowarn system_sdramA_sdram_ADDR[1] 119
+set_io -nowarn system_sdramA_sdram_ADDR[2] 121
+set_io -nowarn system_sdramA_sdram_ADDR[3] 124
+set_io -nowarn system_sdramA_sdram_ADDR[4] 130
+set_io -nowarn system_sdramA_sdram_ADDR[5] 125
+set_io -nowarn system_sdramA_sdram_ADDR[6] 122
+set_io -nowarn system_sdramA_sdram_ADDR[7] 120
+set_io -nowarn system_sdramA_sdram_ADDR[8] 118
+set_io -nowarn system_sdramA_sdram_ADDR[9] 116
+set_io -nowarn system_sdramA_sdram_ADDR[10] 115
 
-set_io system_sdramA_sdram_BA 114
+set_io -nowarn system_sdramA_sdram_BA 114
 
-set_io system_sdramA_sdram_DQ_0 78
-set_io system_sdramA_sdram_DQ_1 79
-set_io system_sdramA_sdram_DQ_2 80
-set_io system_sdramA_sdram_DQ_3 81
-set_io system_sdramA_sdram_DQ_4 82
-set_io system_sdramA_sdram_DQ_5 83
-set_io system_sdramA_sdram_DQ_6 84
-set_io system_sdramA_sdram_DQ_7 85
-set_io system_sdramA_sdram_DQ_8 87
-set_io system_sdramA_sdram_DQ_9 88
-set_io system_sdramA_sdram_DQ_10 90
-set_io system_sdramA_sdram_DQ_11 91
-set_io system_sdramA_sdram_DQ_12 95
-set_io system_sdramA_sdram_DQ_13 96
-set_io system_sdramA_sdram_DQ_14 97
-set_io system_sdramA_sdram_DQ_15 98
+set_io -nowarn system_sdramA_sdram_DQ_0 78
+set_io -nowarn system_sdramA_sdram_DQ_1 79
+set_io -nowarn system_sdramA_sdram_DQ_2 80
+set_io -nowarn system_sdramA_sdram_DQ_3 81
+set_io -nowarn system_sdramA_sdram_DQ_4 82
+set_io -nowarn system_sdramA_sdram_DQ_5 83
+set_io -nowarn system_sdramA_sdram_DQ_6 84
+set_io -nowarn system_sdramA_sdram_DQ_7 85
+set_io -nowarn system_sdramA_sdram_DQ_8 87
+set_io -nowarn system_sdramA_sdram_DQ_9 88
+set_io -nowarn system_sdramA_sdram_DQ_10 90
+set_io -nowarn system_sdramA_sdram_DQ_11 91
+set_io -nowarn system_sdramA_sdram_DQ_12 95
+set_io -nowarn system_sdramA_sdram_DQ_13 96
+set_io -nowarn system_sdramA_sdram_DQ_14 97
+set_io -nowarn system_sdramA_sdram_DQ_15 98
 
-set_io system_sdramA_sdram_DQM[1] 94
-set_io system_sdramA_sdram_DQM[0] 93
-set_io system_sdramA_sdram_WEn 107
-set_io system_sdramA_sdram_CASn 110
-set_io system_sdramA_sdram_RASn 112
-set_io system_sdramA_sdram_CSn 113
-set_io system_sdramA_sdram_CKE 128
+set_io -nowarn system_sdramA_sdram_DQM[1] 94
+set_io -nowarn system_sdramA_sdram_DQM[0] 93
+set_io -nowarn system_sdramA_sdram_WEn 107
+set_io -nowarn system_sdramA_sdram_CASn 110
+set_io -nowarn system_sdramA_sdram_RASn 112
+set_io -nowarn system_sdramA_sdram_CSn 113
+set_io -nowarn system_sdramA_sdram_CKE 128
 
-set_io sdramClk 129
+set_io -nowarn sdramClk 129
 
 
