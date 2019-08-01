@@ -14,8 +14,8 @@ bin/toplevel.json : ${VERILOG} ../../netlist/BlackiceMxSocMinimal.v*.bin
 	cp ../../netlist/BlackiceMxSocMinimal.v*.bin . | true
 	yosys -v3 -p "synth_ice40 -top BlackiceMxSocMinimal -json bin/toplevel.json" ${VERILOG}
 
-bin/toplevel.asc : blackice.pcf bin/toplevel.json
-	nextpnr-ice40 --freq 25 --hx8k --package tq144:4k --json bin/toplevel.json --pcf blackice.pcf --asc bin/toplevel.asc --opt-timing --placer heap
+bin/toplevel.asc : blackice_mx_sdram.pcf bin/toplevel.json
+	nextpnr-ice40 --freq 25 --hx8k --package tq144:4k --json bin/toplevel.json --pcf blackice_mx_sdram.pcf --asc bin/toplevel.asc --opt-timing --placer heap
 
 bin/toplevel.bin : bin/toplevel.asc
 	icepack -s bin/toplevel.asc bin/toplevel.bin
