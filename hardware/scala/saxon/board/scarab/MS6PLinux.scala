@@ -12,13 +12,11 @@ import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
 
 class MS6PLinuxSystem extends SaxonSocLinux{
-  //Add components
+
   val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000, xipOffset = 0x20000000)
-  val spiB = Apb3SpiGenerator(0x21000)
 
-  //Interconnect specification
   val bridge = BmbBridgeGenerator()
   interconnect.addConnection(
     cpu.iBus -> List(bridge.bmb),
@@ -62,11 +60,11 @@ case class MS6PLinuxPll() extends BlackBox{
   val locked = out Bool()
 }
 
-
 object MS6PLinuxSystem{
   def default(g : MS6PLinuxSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
 
+    //cpu.config.load(VexRiscvConfigs.linux(0x80000000l))
     cpu.config.load(VexRiscvConfigs.linux(0x20100000l))
     cpu.enableJtag(clockCtrl)
 
@@ -94,8 +92,8 @@ object MS6PLinuxSystem{
           ioRate = 1,
           ssWidth = 1
         )
-      ) .addFullDuplex(id = 0, rate = 1)
-.addHalfDuplex(id=1, rate=1, ddr=false, spiWidth=2),
+      ).addFullDuplex(id = 0, rate = 1).addHalfDuplex(
+      	id = 1, rate = 1, ddr = false, spiWidth = 2),
       cmdFifoDepth = 256,
       rspFifoDepth = 256,
       cpolInit = false,
@@ -123,29 +121,11 @@ object MS6PLinuxSystem{
       bridge.bmb -> List(spiA.bmb)
     )
 
-    //Cut dBus address path
+    //dBus address path
     interconnect.setConnector(bridge.bmb){(m,s) =>
       m.cmd >-> s.cmd
       m.rsp << s.rsp
     }
-
-    spiB.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
-      SpiXdrMasterCtrl.Parameters(
-        dataWidth = 8,
-        timerWidth = 12,
-        spi = SpiXdrParameter(
-          dataWidth = 2,
-          ioRate = 1,
-          ssWidth = 0
-        )
-      ) .addFullDuplex(id = 0),
-      cmdFifoDepth = 256,
-      rspFifoDepth = 256
-    )
-    spiB.inferSpiSdrIo()
-    spiB.produce(RegNext(spiB.phy.sclk.write(0)).asOutput.setName("system_spiB_spi_sclk2"))
-
-
 
     g
   }
@@ -153,7 +133,7 @@ object MS6PLinuxSystem{
 
 
 object MS6PLinux {
-  //Function used to configure the SoC
+  //Configure the SoC
   def default(g : MS6PLinux) = g{
     import g._
     clockCtrl.clkFrequency.load(50 MHz)
@@ -193,8 +173,8 @@ object MS6PLinuxSystemSim {
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
-      fork{
 
+      fork{
         while(true){
           disableSimWave()
           sleep(systemClkPeriod*500000)
@@ -223,7 +203,7 @@ object MS6PLinuxSystemSim {
         clockDomain)
 
       flash.loadBinary("software/standalone/machineModeSbi/build/machineModeSbi.bin", 0x00100000)
-      //flash.loadBinary("../u-boot/u-boot.bin", 0x00200000)
+      //flash.loadBinary("../u-boot/spl/u-boot-spl.bin", 0x00200000)
 
       val sdram = SdramModel(
         io = dut.sdramA.sdram,
@@ -231,7 +211,9 @@ object MS6PLinuxSystemSim {
         clockDomain = clockDomain
       )
 
+      //sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       val linuxPath = "../buildroot/output/images/"
+      //sdram.loadBin(0x00200000, "../u-boot/spl/u-boot-spl.bin")
       sdram.loadBin(0x00200000, "../u-boot/u-boot.bin")
       sdram.loadBin(0x003fffc0, linuxPath + "uImage")
       sdram.loadBin(0x00ff0000, linuxPath + "dtb")

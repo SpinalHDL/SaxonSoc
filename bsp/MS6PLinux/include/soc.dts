@@ -30,11 +30,5 @@ system_apbDecoder_input@10000000 {
     #size-cells = <0>;
     reg = <0x20000 0x1000>;
   }
-  system_spiB_apb: spi@21000 {
-    compatible = "spinal-lib,spi-1.0";
-    #address-cells = <1>;
-    #size-cells = <0>;
-    reg = <0x21000 0x1000>;
-  }
 
 };
