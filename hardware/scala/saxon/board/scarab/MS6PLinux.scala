@@ -15,13 +15,16 @@ class MS6PLinuxSystem extends SaxonSocLinux{
   //Add components
   val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
-  val spiA = Apb3SpiGenerator(0x20000)
+  val spiA = Apb3SpiGenerator(0x20000, xipOffset = 0x20000000)
   val spiB = Apb3SpiGenerator(0x21000)
 
   //Interconnect specification
+  val bridge = BmbBridgeGenerator()
   interconnect.addConnection(
-    cpu.iBus -> List(sdramA.bmb),
-    cpu.dBus -> List(sdramA.bmb, peripheralBridge.input)
+    cpu.iBus -> List(bridge.bmb),
+    cpu.dBus -> List(bridge.bmb),
+    bridge.bmb -> List(sdramA.bmb,
+      peripheralBridge.input)
   )
 }
 
@@ -64,7 +67,7 @@ object MS6PLinuxSystem{
   def default(g : MS6PLinuxSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
 
-    cpu.config.load(VexRiscvConfigs.linux)
+    cpu.config.load(VexRiscvConfigs.linux(0x20100000l))
     cpu.enableJtag(clockCtrl)
 
     sdramA.layout.load(W9825G6JH6.layout)
@@ -89,13 +92,42 @@ object MS6PLinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 0
+          ssWidth = 1
         )
-      ) .addFullDuplex(id = 0),
+      ) .addFullDuplex(id = 0, rate = 1)
+.addHalfDuplex(id=1, rate=1, ddr=false, spiWidth=2),
       cmdFifoDepth = 256,
-      rspFifoDepth = 256
+      rspFifoDepth = 256,
+      cpolInit = false,
+      cphaInit = false,
+      modInit = 0,
+      sclkToogleInit = 0,
+      ssSetupInit = 0,
+      ssHoldInit = 0,
+      ssDisableInit = 0,
+      xipConfigWritable = false,
+      xipEnableInit = true,
+      xipInstructionEnableInit = true,
+      xipInstructionModInit = 0,
+      xipAddressModInit = 0,
+      xipDummyModInit = 0,
+      xipPayloadModInit = 1,
+      xipInstructionDataInit = 0x3B,
+      xipDummyCountInit = 0,
+      xipDummyDataInit = 0xFF
     )
-    spiA.inferSpiSdrIo()
+
+    spiA.withXip.load(true)
+
+    interconnect.addConnection(
+      bridge.bmb -> List(spiA.bmb)
+    )
+
+    //Cut dBus address path
+    interconnect.setConnector(bridge.bmb){(m,s) =>
+      m.cmd >-> s.cmd
+      m.rsp << s.rsp
+    }
 
     spiB.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
       SpiXdrMasterCtrl.Parameters(
@@ -127,6 +159,7 @@ object MS6PLinux {
     clockCtrl.clkFrequency.load(50 MHz)
     clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
     MS6PLinuxSystem.default(system, clockCtrl)
+    system.spiA.inferSpiSdrIo()
     g
   }
 
@@ -185,6 +218,13 @@ object MS6PLinuxSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
+      val flash = new FlashModel(
+        dut.spiA.phy,
+        clockDomain)
+
+      flash.loadBinary("software/standalone/machineModeSbi/build/machineModeSbi.bin", 0x00100000)
+      //flash.loadBinary("../u-boot/u-boot.bin", 0x00200000)
+
       val sdram = SdramModel(
         io = dut.sdramA.sdram,
         layout = dut.sdramA.logic.layout,
@@ -192,7 +232,6 @@ object MS6PLinuxSystemSim {
       )
 
       val linuxPath = "../buildroot/output/images/"
-      sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       sdram.loadBin(0x00200000, "../u-boot/u-boot.bin")
       sdram.loadBin(0x003fffc0, linuxPath + "uImage")
       sdram.loadBin(0x00ff0000, linuxPath + "dtb")

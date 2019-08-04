@@ -11,12 +11,13 @@ object VexRiscvConfigs {
     val hardwareBreakpointsCount  = 0
     val bootloaderBin : String = null
 
-    def linux = VexRiscvConfig(
+    def linux: VexRiscvConfig = linux(0x80000000l)
+    def linux(resetVector: Long) = VexRiscvConfig(
       withMemoryStage = true,
       withWriteBackStage = true,
       List(
         new IBusCachedPlugin(
-          resetVector = 0x80000000l,
+          resetVector = resetVector,
           compressedGen = false,
           prediction = STATIC,
           injectorStage = false,

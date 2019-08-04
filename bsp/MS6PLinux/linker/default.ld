@@ -4,12 +4,15 @@ ENTRY( _start )
 
 MEMORY
 {
-  ram  (wxai!r) : ORIGIN = 0x80000000, LENGTH = 32M
+  flash(rxai!w) : ORIGIN = 0x20100000, LENGTH = 3M
+  ram  (wxai!r) : ORIGIN = 0x80000000, LENGTH = 16M
 }
 
 PHDRS
 {
-  ram PT_LOAD;
+  flash PT_LOAD;
+  ram_init PT_LOAD;
+  ram PT_NULL;
 }
 
 SECTIONS
@@ -19,7 +22,7 @@ SECTIONS
   .init           :
   {
     KEEP (*(SORT_NONE(.init)))
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .text           :
   {
@@ -28,12 +31,12 @@ SECTIONS
     *(.text .text.*)
     *(.gnu.linkonce.t.*)
     *(.note.gnu.build-id)
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .fini           :
   {
     KEEP (*(SORT_NONE(.fini)))
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   PROVIDE (__etext = .);
   PROVIDE (_etext = .);
@@ -46,7 +49,7 @@ SECTIONS
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP (*(.preinit_array))
     PROVIDE_HIDDEN (__preinit_array_end = .);
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .init_array     :
   {
@@ -54,7 +57,7 @@ SECTIONS
     KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
     KEEP (*(.init_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .ctors))
     PROVIDE_HIDDEN (__init_array_end = .);
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .fini_array     :
   {
@@ -62,7 +65,7 @@ SECTIONS
     KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
     KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
     PROVIDE_HIDDEN (__fini_array_end = .);
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .ctors          :
   {
@@ -84,7 +87,7 @@ SECTIONS
     KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
     KEEP (*(SORT(.ctors.*)))
     KEEP (*(.ctors))
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .dtors          :
   {
@@ -93,19 +96,19 @@ SECTIONS
     KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
     KEEP (*(SORT(.dtors.*)))
     KEEP (*(.dtors))
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .lalign         :
   {
     . = ALIGN(4);
     PROVIDE( _data_lma = . );
-  } >ram AT>ram :ram
+  } >flash AT>flash :flash
 
   .dalign         :
   {
     . = ALIGN(4);
     PROVIDE( _data = . );
-  } >ram AT>ram :ram
+  } >ram AT>flash :ram_init
 
   .data          :
   {
@@ -124,7 +127,7 @@ SECTIONS
     *(.srodata.cst4)
     *(.srodata.cst2)
     *(.srodata .srodata.*)
-  } >ram AT>ram :ram
+  } >ram AT>flash :ram_init
 
   . = ALIGN(4);
   PROVIDE( _edata = . );
