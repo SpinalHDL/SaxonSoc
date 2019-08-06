@@ -5,12 +5,32 @@
 #include "flash.h"
 #include "io.h"
 
-volatile char globalC = 'b';
-
 void print_hex(uint32_t val, uint32_t digits)
 {
 	for (int i = (4*digits)-4; i >= 0; i -= 4)
 		uart_write(UART_A, "0123456789ABCDEF"[(val >> i) % 16]);
+}
+
+void print(uint8_t * data) {
+  uart_writeStr(UART_A, data);
+}
+
+uint32_t readUInt() {
+  uint32_t r = 0;
+
+  for(int i=0;i<4;i++) {
+    while(!(UART_A->STATUS >> 24));
+    uint8_t c = UART_A->DATA;
+    r <<= 8;
+    r |= c;
+  }
+
+  return r;
+}
+
+uint8_t readChar() {
+    while(!(UART_A->STATUS >> 24));
+    return UART_A->DATA;
 }
 
 void flash_init () {
@@ -65,34 +85,51 @@ void flash_wake() {
 uint8_t data[4];
 
 void main() {
-    uart_writeStr(UART_A, "\nFlash memory at 0x50000\n\n");
+    GPIO_A->OUTPUT_ENABLE = 0x000000FF;
+    GPIO_A->OUTPUT = 0x00000000;
+
+    uint8_t cmd = readChar();
+    uint32_t addr = readUInt();
+    uint32_t len = readUInt();
 
     flash_init();
     flash_divider(1);
     flash_mode(0);
     flash_wake();
-
-    for (int i=0; i<100;i++) {
-      flash_read(0x50000 + i*4 , data, 4);
-      uart_writeStr(UART_A, "Data : ");
-      print_hex((uint32_t) *((uint32_t *) data), 8);
-      uart_write(UART_A, '\n');
-    }
     
-    GPIO_A->OUTPUT_ENABLE = 0x000000FF;
-    GPIO_A->OUTPUT = 0x00000000;
+    if (cmd == 'd') { // Hex dump of flash
+      print("\nFlash memory at 0x");
+      print_hex(addr, 6);
+      print("\n\n");
 
-    globalC+=1;
-    UART_A->DATA = globalC;
+      for (int i=0; i<((len + 3)/4);i++) {
+        flash_read(addr + (i*4) , data, 4);
+
+        if ((i % 8) == 0) {
+          print_hex(i << 2, 6);
+          print(" ");
+        }
+
+        print_hex(*((uint32_t *) data), 8);
+
+        if ((i % 8) == 7) {
+          print("\n");
+        } else {
+          print(" ");
+        }
+      }
+    } else if (cmd == 'r') { // Copy flash to uart
+      for(int i=0;i<len;i++) {
+        flash_read(addr + i , data, 1);
+        uart_write(UART_A, data[0]);
+      }
+    }
 
     uint32_t counter = 0;
     while(1){
         if(counter++ == 10000){
             GPIO_A->OUTPUT = GPIO_A->OUTPUT + 1;
             counter = 0;
-        }
-        while(UART_A->STATUS >> 24){ //UART RX interrupt
-            UART_A->DATA = (UART_A->DATA) & 0xFF;
         }
     }
 }
