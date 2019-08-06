@@ -5,8 +5,6 @@
 #include "flash.h"
 #include "io.h"
 
-volatile char globalC = 'b';
-
 void print_hex(uint32_t val, uint32_t digits)
 {
 	for (int i = (4*digits)-4; i >= 0; i -= 4)
@@ -146,17 +144,22 @@ void main() {
     print("\nLength:");
     print_hex(len, 8);
     print("\n");
-
+   
     for(int i=0;i<len;i++ ) {
-      while(!(UART_A->STATUS >> 24));
-
+      while(!(UART_A->STATUS >> 24)) {}
       data[i] = UART_A->DATA;
     }
 
     print("\nData:\n\n");
 
     for (int i=0; i<(len/4);i++) {
+      if ((i % 8) == 0) {
+        print_hex(i << 2, 6);
+        print(" ");
+      } 
+
       print_hex(((uint32_t *) data)[i], 8);
+
       if ((i % 8) == 7) {
         print("\n");  
       } else {
@@ -168,6 +171,7 @@ void main() {
     flash_divider(1);
     flash_mode(0);
     flash_wake();
+    flash_wait();
 
     // read flash id
     flash_begin();
@@ -175,8 +179,14 @@ void main() {
 
     print("\n\nFlash id: ");
 
-    for (int i = 0; i < 3; i++)
-        print_hex(flash_xfer(0x00), 2);
+    for (int i = 0; i < 3; i++) {
+        uint8_t c = flash_xfer(0x00);
+        if (c == 0xFF) {
+          print("Cannot access flash\n");
+          while(1);
+        }
+        print_hex(c, 2);
+    }
 	
     print("\n");
 
@@ -214,13 +224,21 @@ void main() {
 
     for (int i=0; i<((len + 3)/4);i++) {
       flash_read(addr + (i*4) , data, 4);
+      
+      if ((i % 8) == 0) {
+        print_hex(i << 2, 6);
+        print(" ");
+      } 
+
       print_hex(*((uint32_t *) data), 8);
+      
       if ((i % 8) == 7) {
         print("\n");  
       } else {
         print(" ");
       }
     }
+
     print("\n");
 
     // Boot to the user configuration
@@ -228,9 +246,6 @@ void main() {
     
     GPIO_A->OUTPUT_ENABLE = 0x000000FF;
     GPIO_A->OUTPUT = 0x00000000;
-
-    globalC+=1;
-    UART_A->DATA = globalC;
 
     uint32_t counter = 0;
     while(1){
