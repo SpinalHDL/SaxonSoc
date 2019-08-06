@@ -11,7 +11,7 @@ import saxon.board.blackice._
 import saxon.board.blackice.peripheral._
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 
-class BlackiceMxSocMinimalSystem extends BmbApbVexRiscvGenerator{
+class BlackiceMxXipSystem extends BmbApbVexRiscvGenerator{
   //Add components
   val ramA = BmbOnChipRamGenerator(0x80000000l)
   val uartA = Apb3UartGenerator(0x10000)
@@ -30,13 +30,13 @@ class BlackiceMxSocMinimalSystem extends BmbApbVexRiscvGenerator{
 }
 
 
-class BlackiceMxSocMinimal extends Generator{
+class BlackiceMxXip extends Generator{
   val clockCtrl = ClockDomainGenerator()
   clockCtrl.resetHoldDuration.load(255)
   clockCtrl.powerOnReset.load(true)
   clockCtrl.clkFrequency.load(25 MHz)
 
-  val system = new BlackiceMxSocMinimalSystem
+  val system = new BlackiceMxXipSystem
   system.onClockDomain(clockCtrl.clockDomain)
 
   val clocking = add task new Area{
@@ -46,8 +46,8 @@ class BlackiceMxSocMinimal extends Generator{
   }
 }
 
-object BlackiceMxSocMinimalSystem{
-  def default(g : BlackiceMxSocMinimalSystem, clockCtrl : ClockDomainGenerator) = g {
+object BlackiceMxXipSystem{
+  def default(g : BlackiceMxXipSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.xip.fast(0x20050000))
@@ -114,11 +114,11 @@ object BlackiceMxSocMinimalSystem{
 }
 
 
-object BlackiceMxSocMinimal {
+object BlackiceMxXip {
   //Function used to configure the SoC
-  def default(g : BlackiceMxSocMinimal) = g{
+  def default(g : BlackiceMxXip) = g{
     import g._
-    BlackiceMxSocMinimalSystem.default(system, clockCtrl)
+    BlackiceMxXipSystem.default(system, clockCtrl)
     clockCtrl.resetSensitivity load(ResetSensitivity.NONE)
     system.spiA.inferSpiIce40()
 
@@ -127,12 +127,12 @@ object BlackiceMxSocMinimal {
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    val report = SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new BlackiceMxSocMinimal()).toComponent()))
-    BspGenerator("BlackiceMxSocMinimal", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
+    val report = SpinalRtlConfig.generateVerilog(IceStormInOutWrapper(default(new BlackiceMxXip()).toComponent()))
+    BspGenerator("BlackiceMxXip", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
   }
 }
 
-object BlackiceMxSocMinimalSystemSim {
+object BlackiceMxXipSystemSim {
   import spinal.core.sim._
 
   def main(args: Array[String]): Unit = {
@@ -140,13 +140,13 @@ object BlackiceMxSocMinimalSystemSim {
     val simConfig = SimConfig
     simConfig.allOptimisation
     simConfig.withWave
-    simConfig.compile(new BlackiceMxSocMinimalSystem(){
+    simConfig.compile(new BlackiceMxXipSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
       clockCtrl.makeExternal(ResetSensitivity.FALL)
       clockCtrl.powerOnReset.load(true)
       clockCtrl.clkFrequency.load(25 MHz)
-      BlackiceMxSocMinimalSystem.default(this, clockCtrl)
+      BlackiceMxXipSystem.default(this, clockCtrl)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
