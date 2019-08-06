@@ -102,8 +102,8 @@ object BlackiceMxSocSdramSystem{
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
-      txFifoDepth = 1,
-      rxFifoDepth = 1
+      txFifoDepth = 32,
+      rxFifoDepth = 32
     )
 
     gpioA.parameter load Gpio.Parameter(width = 8)
