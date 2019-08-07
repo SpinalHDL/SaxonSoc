@@ -133,11 +133,14 @@ void print(uint8_t * data) {
 #define data ((uint8_t *) 0x90000000)
 
 void main() {
-    print("\nProgram Flash memory\n\n");
+    GPIO_A->OUTPUT_ENABLE = 0x000000FF;
+    GPIO_A->OUTPUT = 0x00000000;
 
     uint32_t addr = readUInt();
     uint32_t len = readUInt();
     
+    print("\nProgram Flash memory\n\n");
+
     print("Address: ");
     print_hex(addr,8);
 
@@ -244,9 +247,6 @@ void main() {
     // Boot to the user configuration
     (*(volatile uint32_t *) SYSTEM_WARM_BOOT_APB) = 1;
     
-    GPIO_A->OUTPUT_ENABLE = 0x000000FF;
-    GPIO_A->OUTPUT = 0x00000000;
-
     uint32_t counter = 0;
     while(1){
         if(counter++ == 10000){
