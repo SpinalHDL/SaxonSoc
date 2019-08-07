@@ -53,7 +53,7 @@ object BlackiceMxMinimalSystem{
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(8 KiB)
-    ramA.hexInit.load("software/standalone/readFlash/build/readFlash.hex")
+    ramA.hexInit.load("software/standalone/readSdcard/build/readSdcard.hex")
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
