@@ -2,6 +2,11 @@ package saxon.board.blackice.peripheral
 
 import spinal.core._
 import spinal.lib._
+import spinal.lib.bus.amba3.apb._
+import spinal.lib.bus.misc._
+
+import spinal.lib.generator.Generator
+import saxon.Apb3DecoderGenerator
 
 case class Ili9341() extends Bundle with IMasterSlave {
   val nReset = Reg(Bool)
@@ -252,7 +257,7 @@ class BlinkingIli9341() extends Component{
     pixelCounter := pixelCounter + 1
   }
 
-  when (pixelCounter === 76800) {
+  when (pixelCounter === 76799) {
     colorCounter := colorCounter.rotateLeft(1)
     pixelCounter := 0
   }
@@ -262,6 +267,144 @@ object BlinkingIli9341 {
   def main(args: Array[String]) {
     SpinalVerilog(new BlinkingIli9341())
   }
+}
+
+class StripedIli9341() extends Component{
+  val io = new Bundle{
+    val ili9341 = master(Ili9341())
+    val leds = out Bits(8 bits)
+  }
+
+  val colors = Vec(Bits(16 bits), 4)
+  colors(0) := 0xffff
+  colors(1) := 0x001f
+  colors(2) := 0x07e0
+  colors(3) := 0xf800
+
+  val rowCounter = Reg(UInt(8 bits)) init 0
+  val columnCounter = Reg(UInt(9 bits)) init 0
+
+  val ctrl = new Ili9341Ctrl()
+  ctrl.io.resetCursor := False
+  ctrl.io.pixels.valid := True
+  ctrl.io.pixels.payload := colors(columnCounter(4 downto 3))
+  ctrl.io.ili9341 <> io.ili9341
+  io.leds := ctrl.io.diag
+
+  when (ctrl.io.pixels.ready) {
+    columnCounter := columnCounter + 1
+    when (columnCounter === 319) {
+      columnCounter := 0
+      rowCounter := rowCounter + 1
+      
+      when (rowCounter === 239) {
+        rowCounter := 0
+      }
+    }
+  }
+}
+
+object StripedIli9341 {
+  def main(args: Array[String]) {
+    SpinalVerilog(new StripedIli9341())
+  }
+}
+
+case class TiledIli9341() extends Component{
+  val io = new Bundle{
+    val ili9341 = master(Ili9341())
+    val writeEnable = in Bool
+    val texture = in Bool
+    val offset = in UInt(12 bits)
+    val value = in UInt(8 bits)
+  }
+
+  val tile = Mem(UInt(6 bits), 1200)
+  val texture = Mem(UInt(3 bits), 4096)
+
+  for(i <- 0 until 1) {
+    texture(i) := 4
+  }
+
+  when (io.writeEnable) {
+    when(io.texture) {
+      texture(io.offset) := io.value(2 downto 0)
+    } otherwise {
+      tile(io.offset(10 downto 0)) := io.value
+    }
+  }
+
+  val rowCounter = Reg(UInt(8 bits)) init 0
+  val columnCounter = Reg(UInt(9 bits)) init 0
+
+  val colors = Vec(Bits(16 bits), 8)
+  colors(0) := 0x0000
+  colors(1) := 0x001f
+  colors(2) := 0x07ff
+  colors(3) := 0x0770
+  colors(4) := 0xff70
+  colors(5) := 0xf81f
+  colors(6) := 0xf800
+  colors(7) := 0xffff
+
+  val color = texture(tile((rowCounter(7 downto 3) * 40) + columnCounter(8 downto 3)) @@ rowCounter(2 downto 0) @@ columnCounter(2 downto 0))
+
+  val ctrl = new Ili9341Ctrl()
+  ctrl.io.resetCursor := False
+  ctrl.io.pixels.valid := True
+  ctrl.io.pixels.payload := colors(color)
+  ctrl.io.ili9341 <> io.ili9341
+
+  when (ctrl.io.pixels.ready) {
+    columnCounter := columnCounter + 1
+    when (columnCounter === 319) {
+      columnCounter := 0
+      rowCounter := rowCounter + 1
+      
+      when (rowCounter === 239) {
+        rowCounter := 0
+      }
+    }
+  }
+
+  def driveFrom(busCtrl : BusSlaveFactory, baseAddress : Int = 0) () = new Area {
+    val busEnable  = False
+
+    busCtrl.drive(io.texture, baseAddress + 0, bitOffset=0)
+    busCtrl.drive(io.offset, baseAddress + 4)
+    busCtrl.drive(io.value, baseAddress + 8)
+
+    busEnable setWhen(busCtrl.isWriting(baseAddress + 0))
+
+    io.writeEnable := busEnable
+  }
+}
+
+/*
+ * texture  -> 0x00 Write register for tile/texture 0=tile, 1=texture
+ * offset   -> 0x04 Write register for offset in tile or texture memory
+ * value    -> 0x08 Write register for value of tile or texture
+ **/
+case class Apb3Ili9341Ctrl() extends Component {
+  val io = new Bundle {
+    val apb = slave(Apb3(Apb3Config(addressWidth = 8, dataWidth = 32)))
+    val ili9341 = master(Ili9341())
+  }
+
+  val busCtrl = Apb3SlaveFactory(io.apb)
+  val ili9341Ctrl = TiledIli9341()
+  io.ili9341 <> ili9341Ctrl.io.ili9341
+
+  ili9341Ctrl.driveFrom(busCtrl)()
+}
+
+case class  Apb3Ili9341Generator(apbOffset : BigInt)
+                             (implicit decoder: Apb3DecoderGenerator) extends Generator{
+  val ili9341 = produceIo(logic.io.ili9341)
+  val apb = produce(logic.io.apb)
+  val logic = add task Apb3Ili9341Ctrl()
+
+  decoder.addSlave(apb, apbOffset)
 }
 
 object BlinkingIli9341Sim {
