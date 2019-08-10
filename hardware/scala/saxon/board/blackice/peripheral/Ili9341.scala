@@ -106,7 +106,6 @@ case class Ili9341Ctrl() extends Component {
   val cursorSeq = Vec(Bits(9 bits), cursorSeqLen)
 
   io.diag := B"000" ## sendingPixel ## txReady ## state
-  //io.diag := initSeqCounter.asBits.resized
 
   initSeq(0)  := CD_CMD ## DISPLAYOFF
   initSeq(1)  := CD_CMD ## POWERCONTROL1
@@ -237,43 +236,14 @@ case class Ili9341Ctrl() extends Component {
   }
 }
 
-class BlinkingIli9341() extends Component{
-  val io = new Bundle{
-    val ili9341 = master(Ili9341())
-    val leds = out Bits(8 bits)
-  }
-
-  val colorCounter = Reg(UInt(16 bits)) init 31
-  val pixelCounter = Reg(UInt(17 bits)) init 0
-
-  val ctrl = new Ili9341Ctrl()
-  ctrl.io.resetCursor := False
-  ctrl.io.pixels.valid := True
-  ctrl.io.pixels.payload := colorCounter.asBits
-  ctrl.io.ili9341 <> io.ili9341
-  io.leds := ctrl.io.diag
-
-  when (ctrl.io.pixels.ready) {
-    pixelCounter := pixelCounter + 1
-  }
-
-  when (pixelCounter === 76799) {
-    colorCounter := colorCounter.rotateLeft(1)
-    pixelCounter := 0
-  }
-}
-
-object BlinkingIli9341 {
-  def main(args: Array[String]) {
-    SpinalVerilog(new BlinkingIli9341())
-  }
-}
-
 class StripedIli9341() extends Component{
   val io = new Bundle{
     val ili9341 = master(Ili9341())
     val leds = out Bits(8 bits)
+    val led = out Bool
   }
+
+  io.led := True
 
   val colors = Vec(Bits(16 bits), 4)
   colors(0) := 0xffff
@@ -316,22 +286,19 @@ case class TiledIli9341() extends Component{
     val writeEnable = in Bool
     val texture = in Bool
     val offset = in UInt(12 bits)
-    val value = in UInt(8 bits)
+    val value = in UInt(6 bits)
+    val diag = out UInt(32 bits)
   }
 
   val tile = Mem(UInt(6 bits), 1200)
   val texture = Mem(UInt(3 bits), 4096)
 
-  for(i <- 0 until 1) {
-    texture(i) := 4
+  when (io.writeEnable && io.texture) {
+    texture(io.offset) := io.value(2 downto 0)
   }
 
-  when (io.writeEnable) {
-    when(io.texture) {
-      texture(io.offset) := io.value(2 downto 0)
-    } otherwise {
-      tile(io.offset(10 downto 0)) := io.value
-    }
+  when (io.writeEnable && !io.texture) {
+    tile(io.offset(10 downto 0)) := io.value
   }
 
   val rowCounter = Reg(UInt(8 bits)) init 0
@@ -347,7 +314,11 @@ case class TiledIli9341() extends Component{
   colors(6) := 0xf800
   colors(7) := 0xffff
 
-  val color = texture(tile((rowCounter(7 downto 3) * 40) + columnCounter(8 downto 3)) @@ rowCounter(2 downto 0) @@ columnCounter(2 downto 0))
+  val t = RegNext(tile((rowCounter(7 downto 3) * 40)  + columnCounter(8 downto 3)))
+  val idx = t @@ rowCounter(2 downto 0) @@ columnCounter(2 downto 0)
+  val color = RegNext(texture(idx))
+
+  io.diag := 0
 
   val ctrl = new Ili9341Ctrl()
   ctrl.io.resetCursor := False
@@ -370,9 +341,10 @@ case class TiledIli9341() extends Component{
   def driveFrom(busCtrl : BusSlaveFactory, baseAddress : Int = 0) () = new Area {
     val busEnable  = False
 
-    busCtrl.drive(io.texture, baseAddress + 0, bitOffset=0)
+    busCtrl.drive(io.texture, baseAddress + 0)
     busCtrl.drive(io.offset, baseAddress + 4)
     busCtrl.drive(io.value, baseAddress + 8)
+    busCtrl.read(io.diag, baseAddress + 12)
 
     busEnable setWhen(busCtrl.isWriting(baseAddress + 0))
 
@@ -384,6 +356,7 @@ case class TiledIli9341() extends Component{
  * texture  -> 0x00 Write register for tile/texture 0=tile, 1=texture
  * offset   -> 0x04 Write register for offset in tile or texture memory
  * value    -> 0x08 Write register for value of tile or texture
+ * diag     -> 0x0C Read register for diagnostics
  **/
 case class Apb3Ili9341Ctrl() extends Component {
   val io = new Bundle {
@@ -407,11 +380,11 @@ case class  Apb3Ili9341Generator(apbOffset : BigInt)
   decoder.addSlave(apb, apbOffset)
 }
 
-object BlinkingIli9341Sim {
+object StripedIli9341Sim {
   import spinal.core.sim._
 
   def main(args: Array[String]) {
-    SimConfig.withWave.compile(new BlinkingIli9341()).doSim{ dut =>
+    SimConfig.withWave.compile(new StripedIli9341()).doSim{ dut =>
       dut.clockDomain.forkStimulus(100)
 
       dut.clockDomain.waitSampling(100000)

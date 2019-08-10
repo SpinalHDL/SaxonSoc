@@ -1,14 +1,14 @@
-VERILOG = ../../../BlinkingIli9341.v
+VERILOG = ../../../StripedIli9341.v
 
 generate :
-	(cd ../../..; sbt "runMain saxon.board.blackice.peripheral.BlinkingIli9341")
+	(cd ../../..; sbt "runMain saxon.board.blackice.peripheral.StripedIli9341")
 
-../../../../../BlinkingIli9341.v :
-	(cd ../../..; sbt "runMain saxon.board.blackice.peripheral.BlinkingIli9341")
+../../../../../StripedIli9341.v :
+	(cd ../../..; sbt "runMain saxon.board.blackice.peripheral.StripedIli9341")
 
 bin/toplevel.json : ${VERILOG}
 	mkdir -p bin
-	yosys -v3 -p "synth_ice40 -top BlinkingIli9341 -json bin/toplevel.json" ${VERILOG}
+	yosys -v3 -p "synth_ice40 -top StripedIli9341 -json bin/toplevel.json" ${VERILOG}
 
 bin/toplevel.asc : ili9341.pcf bin/toplevel.json
 	nextpnr-ice40 --freq 18 --lp8k --package cm81 --json bin/toplevel.json --pcf ili9341.pcf --asc bin/toplevel.asc --opt-timing --placer heap
