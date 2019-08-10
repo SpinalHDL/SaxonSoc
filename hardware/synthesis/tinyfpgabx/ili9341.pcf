@@ -1,5 +1,7 @@
 set_io clk B2
-set_io reset B6
+set_io reset A7
+
+set_io io_led B3
 
 # Left side of board
 set_io io_ili9341_dout[0]  A2    # pin 1
