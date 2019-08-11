@@ -213,8 +213,8 @@ object MS6PLinuxSystemSim {
 
       //sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       val linuxPath = "../buildroot/output/images/"
-      //sdram.loadBin(0x00200000, "../u-boot/spl/u-boot-spl.bin")
-      sdram.loadBin(0x00200000, "../u-boot/u-boot.bin")
+      sdram.loadBin(0x00200000, "../u-boot/spl/u-boot-spl.bin")
+      //sdram.loadBin(0x00200000, "../u-boot/u-boot.bin")
       sdram.loadBin(0x003fffc0, linuxPath + "uImage")
       sdram.loadBin(0x00ff0000, linuxPath + "dtb")
       sdram.loadBin(0x007fffc0, linuxPath + "rootfs.cpio.uboot")
