@@ -30,6 +30,10 @@ SECTIONS
     *(.text.unlikely .text.unlikely.*)
     *(.text.startup .text.startup.*)
     *(.text .text.*)
+    *(.rodata)         /* .rodata sections (constants, strings, etc.) */
+    *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
+    *(.srodata)         /* .rodata sections (constants, strings, etc.) */
+    *(.srodata*)        /* .rodata* sections (constants, strings, etc.) */
     *(.gnu.linkonce.t.*)
     *(.note.gnu.build-id)
   } >flash AT>flash :flash
@@ -114,7 +118,6 @@ SECTIONS
   .data          :
   {
     *(.rdata)
-    *(.rodata .rodata.*)
     *(.gnu.linkonce.r.*)
     *(.data .data.*)
     *(.gnu.linkonce.d.*)
@@ -127,7 +130,6 @@ SECTIONS
     *(.srodata.cst8)
     *(.srodata.cst4)
     *(.srodata.cst2)
-    *(.srodata .srodata.*)
   } >ram AT>flash :ram_init
 
   . = ALIGN(4);
