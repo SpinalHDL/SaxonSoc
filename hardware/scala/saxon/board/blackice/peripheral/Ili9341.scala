@@ -84,14 +84,14 @@ case class Ili9341Ctrl() extends Component {
   val secPerTick = (1.0 / txClkFreq)
   val ms120 = (0.120 / secPerTick).toInt
   val ms50  = (0.050 / secPerTick).toInt
-  val ms10   = (0.005 / secPerTick).toInt
+  val ms10  = (0.005 / secPerTick).toInt
   val ms5   = (0.005 / secPerTick).toInt
   val ms500 = (0.500 / secPerTick).toInt
 
   // Simulation only
   //val ms120 = 120
   //val ms50  = 50
-  //val ms10   = 10
+  //val ms10  = 10
   //val ms5   = 5
   //val ms500 = 500
 
@@ -306,12 +306,12 @@ case class TiledIli9341() extends Component{
 
   val colors = Vec(Bits(16 bits), 8)
   colors(0) := 0x0000
-  colors(1) := 0x001f
-  colors(2) := 0x07ff
-  colors(3) := 0x0770
-  colors(4) := 0xff70
+  colors(1) := 0xf800
+  colors(2) := 0x0770
+  colors(3) := 0xff70
+  colors(4) := 0x001f
   colors(5) := 0xf81f
-  colors(6) := 0xf800
+  colors(6) := 0x07ff
   colors(7) := 0xffff
 
   val t = RegNext(tile((rowCounter(7 downto 3) * 40)  + columnCounter(8 downto 3)))
