@@ -1,0 +1,21 @@
+set_io clk_48M F4
+
+set_io system_rgbA_rgbLed_red C5
+set_io system_rgbA_rgbLed_green B5
+set_io system_rgbA_rgbLed_blue A5
+
+set_io system_gpioA_gpio_0 E4
+set_io system_gpioA_gpio_1 D5
+set_io system_gpioA_gpio_2 E5
+set_io system_gpioA_gpio_3 F5
+
+set_io -nowarn spi_mosi F1
+set_io -nowarn spi_miso E1
+set_io -nowarn spi_clk D1
+set_io -nowarn spi_io2 F2
+set_io -nowarn spi_io3 B1
+set_io -nowarn spi_cs C1
+
+set_io -nowarn usb_dn A2
+set_io -nowarn usb_dp A1
+set_io -nowarn usb_dp_pu A4
