@@ -21,7 +21,7 @@ bin/toplevel.asc : ${PCF} bin/toplevel.json ${CONSTRAINT}
 	nextpnr-ice40 --${DEVICE} --package ${PACKAGE} --json bin/toplevel.json ${PCF_CMD} --asc bin/toplevel.asc --pre-pack ${CONSTRAINT} --opt-timing --placer heap
 
 bin/toplevel.bin : bin/toplevel.asc
-	icepack bin/toplevel.asc bin/toplevel.bin
+	icepack -s bin/toplevel.asc bin/toplevel.bin
 
 compile : bin/toplevel.bin
 
