@@ -22,13 +22,15 @@ case class ClockDomainGenerator() extends Generator {
   val clock, reset = Handle[Bool]
   val resetSensitivity = Handle[ResetSensitivity]
   val resetSynchronous = Handle[Boolean]
-  val resetHoldDuration = Handle[Int]
+  val resetHoldDuration = createDependency[Int]
   val powerOnReset = Handle[Boolean]
   val resetBuffer : Handle[Bool => Bool] = Handle(defaultBuffer)
 
   def defaultBuffer(input : Bool) = input
   dependencies += resetBuffer
 
+
+  noClockDomain()
 
   val clockDomain = produce(
     ClockDomain(

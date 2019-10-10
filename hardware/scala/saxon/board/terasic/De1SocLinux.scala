@@ -157,6 +157,7 @@ object De1SocLinuxSystemSim {
       clockCtrl.makeExternal(ResetSensitivity.HIGH)
       clockCtrl.powerOnReset.load(true)
       clockCtrl.clkFrequency.load(100 MHz)
+      clockCtrl.resetHoldDuration.load(15)
       De1SocLinuxSystem.default(this, clockCtrl)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
