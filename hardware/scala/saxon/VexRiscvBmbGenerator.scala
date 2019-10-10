@@ -24,7 +24,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   def setTimerInterrupt(that: Handle[Bool]) = Dependable(that, timerInterrupt){timerInterrupt := that}
 
   def enableJtag(implicit clockCtrl: ClockDomainGenerator) : Unit = {
-    this.debugClockDomain.merge(clockCtrl.controlClockDomain())
+    this.debugClockDomain.merge(clockCtrl.controlClockDomain)
     debugAskReset.merge(clockCtrl.doSystemReset)
     withJtag.load(true)
   }

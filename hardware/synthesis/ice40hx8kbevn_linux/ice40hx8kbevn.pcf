@@ -1,0 +1,26 @@
+## iCE40-hx8k breakout board
+
+set_io clk_12M  J3
+
+set_io system_cpu_tck H16
+set_io system_cpu_tdi G15
+set_io system_cpu_tdo G16
+set_io system_cpu_tms F15
+
+set_io system_uartA_uart_txd B12
+set_io system_uartA_uart_rxd B10
+
+set_io system_gpioA_gpio_0 B5
+set_io system_gpioA_gpio_1 B4
+set_io system_gpioA_gpio_2 A2
+set_io system_gpioA_gpio_3 A1
+set_io system_gpioA_gpio_4 C5
+set_io system_gpioA_gpio_5 C4
+set_io system_gpioA_gpio_6 B3
+set_io system_gpioA_gpio_7 C3
+
+#XIP
+set_io system_spiA_spi_sclk R11
+set_io system_spiA_spi_ss_0 R12
+set_io system_spiA_spi_data_0 P12
+set_io system_spiA_spi_data_1 P11

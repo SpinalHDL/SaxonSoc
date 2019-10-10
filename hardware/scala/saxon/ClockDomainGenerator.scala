@@ -1,6 +1,7 @@
 package saxon
 
 import spinal.core._
+import spinal.lib.blackbox.xilinx.s7.BUFG
 import spinal.lib.{BufferCC, ResetCtrl}
 import spinal.lib.generator._
 
@@ -23,8 +24,11 @@ case class ClockDomainGenerator() extends Generator {
   val resetSynchronous = Handle[Boolean]
   val resetHoldDuration = Handle[Int]
   val powerOnReset = Handle[Boolean]
+  val resetBuffer : Handle[Bool => Bool] = Handle(defaultBuffer)
 
-  noClockDomain()
+  def defaultBuffer(input : Bool) = input
+  dependencies += resetBuffer
+
 
   val clockDomain = produce(
     ClockDomain(
@@ -59,9 +63,8 @@ case class ClockDomainGenerator() extends Generator {
 
     this
   }
-  def clockTree(input: Bool): Bool = input
 
-  def controlClockDomain() = produce(resetCtrlClockDomain.get(clockDomain.copy(clock = clockDomain.clock, reset = clockTree(RegNext(logic.resetUnbuffered)))))
+  lazy val controlClockDomain = produce(resetCtrlClockDomain.get(clockDomain.copy(clock = clockDomain.clock, reset = resetBuffer.get(RegNext(logic.resetUnbuffered)))))
 
 
   val resetCtrlClockDomain = add task ClockDomain(
@@ -102,6 +105,19 @@ case class ClockDomainGenerator() extends Generator {
 
     //Create all reset used later in the design
     val resetRequest = False
-    val systemReset = clockTree(RegNext(resetUnbuffered || BufferCC(resetRequest)))
+    val systemResetBeforeBuffer = RegNext(resetUnbuffered || BufferCC(resetRequest))
+    val systemReset = resetBuffer.get(systemResetBeforeBuffer)
+  }
+}
+
+case class Arty7BufgGenerator() extends Generator{
+  val input = createDependency[ClockDomain]
+  val output = produce{
+    input.copy(
+      clock = if(input.clock != null) BUFG.on(input.clock ) else input.clock ,
+      reset = if(input.reset != null) BUFG.on(input.reset ) else input.reset ,
+      clockEnable = if(input.clockEnable != null) BUFG.on(input.clockEnable ) else input.clockEnable ,
+      softReset = if(input.softReset != null) BUFG.on(input.softReset ) else input.softReset
+    )//.setSynchronousWith(input)
   }
 }

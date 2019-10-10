@@ -1,0 +1,27 @@
+system_apbDecoder_input@10000000 {
+  compatible = "simple-bus";
+  #address-cells = <0x1>;
+  #size-cells = <0x1>;
+  ranges = <0x0 0x10000000 0x1000000>;
+                
+  system_plic_apb: interrupt-controller@c00000 {
+    compatible = "sifive,plic-1.0.0", "sifive,fu540-c000-plic";
+    #interrupt-cells = <1>;
+    interrupt-controller;
+    interrupts-extended = <&L1 11 &L1 9>;
+    reg = <0xc00000 0x400000>;
+    riscv,ndev = <1>;
+  }
+  system_uartA_apb: tty@10000 {
+    compatible = "spinal-lib,uart-1.0";
+    reg = <0x10000 0x1000>;
+    interrupt-parent = <&system_plic_apb>
+    interrupts = <1>;
+  }
+  system_gpioA_apb: gpio@0 {
+    compatible = "spinal-lib,gpio-1.0";
+    reg = <0x0 0x1000>;
+  
+  }
+
+};

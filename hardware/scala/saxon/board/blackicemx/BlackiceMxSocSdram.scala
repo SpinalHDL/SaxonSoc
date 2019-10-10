@@ -9,11 +9,14 @@ import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import saxon.board.blackice._
 import saxon.board.blackice.peripheral._
+import spinal.lib.memory.sdram.SdramGeneration.SDR
+import spinal.lib.memory.sdram.SdramLayout
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
 
 object IS42S16100H {
   def layout = SdramLayout(
+    generation = SDR,
     bankWidth   = 1,
     columnWidth = 8,
     rowWidth    = 11,

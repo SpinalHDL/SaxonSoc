@@ -3,7 +3,7 @@ package saxon
 import spinal.core._
 import vexriscv.ip.{DataCacheConfig, InstructionCacheConfig}
 import vexriscv.{VexRiscvConfig, plugin}
-import vexriscv.plugin.{BranchPlugin, CsrAccess, CsrPlugin, CsrPluginConfig, DBusCachedPlugin, DBusSimplePlugin, DecoderSimplePlugin, FullBarrelShifterPlugin, HazardSimplePlugin, IBusCachedPlugin, IBusSimplePlugin, IntAluPlugin, LightShifterPlugin, MmuPlugin, MmuPortConfig, MulDivIterativePlugin, MulPlugin, RegFilePlugin, STATIC, SrcPlugin, YamlPlugin}
+import vexriscv.plugin.{BranchPlugin, CsrAccess, CsrPlugin, CsrPluginConfig, DBusCachedPlugin, DBusSimplePlugin, DecoderSimplePlugin, FullBarrelShifterPlugin, HazardSimplePlugin, IBusCachedPlugin, IBusSimplePlugin, IntAluPlugin, LightShifterPlugin, MmuPlugin, MmuPortConfig, MulDivIterativePlugin, MulPlugin, RegFilePlugin, STATIC, SrcPlugin, StaticMemoryTranslatorPlugin, YamlPlugin}
 
 object VexRiscvConfigs {
     val withMemoryStage = false
@@ -101,6 +101,191 @@ object VexRiscvConfigs {
       )
     )
 
+  def linuxTest(resetVector : BigInt = 0x80000000l) = VexRiscvConfig(
+    withMemoryStage = true,
+    withWriteBackStage = true,
+    List(
+      new IBusCachedPlugin(
+        resetVector = resetVector,
+        compressedGen = false,
+        prediction = vexriscv.plugin.NONE,
+        injectorStage = true,
+        relaxedPcCalculation = false,
+        config = InstructionCacheConfig(
+          cacheSize = 4096*1,
+          bytePerLine = 32,
+          wayCount = 1,
+          addressWidth = 32,
+          cpuDataWidth = 32,
+          memDataWidth = 32,
+          catchIllegalAccess = true,
+          catchAccessFault = true,
+          asyncTagMemory = false,
+          twoCycleRam = true,
+          twoCycleCache = true
+        ),
+        memoryTranslatorPortConfig = MmuPortConfig(
+          portTlbSize = 4
+        )
+      ),
+      new DBusCachedPlugin(
+        dBusCmdMasterPipe = true,
+        dBusCmdSlavePipe = true,
+        dBusRspSlavePipe = true,
+        relaxedMemoryTranslationRegister = true,
+        config = new DataCacheConfig(
+          cacheSize         = 4096*1,
+          bytePerLine       = 32,
+          wayCount          = 1,
+          addressWidth      = 32,
+          cpuDataWidth      = 32,
+          memDataWidth      = 32,
+          catchAccessError  = true,
+          catchIllegal      = true,
+          catchUnaligned    = true,
+          withLrSc = true,
+          withAmo = true,
+          earlyWaysHits = true
+          //          )
+        ),
+        memoryTranslatorPortConfig = MmuPortConfig(
+          portTlbSize = 4
+        )
+      ),
+      new DecoderSimplePlugin(
+        catchIllegalInstruction = true
+      ),
+      new RegFilePlugin(
+        regFileReadyKind = plugin.ASYNC,
+        zeroBoot = true,
+        x0Init = false
+      ),
+      new IntAluPlugin,
+      new SrcPlugin(
+        separatedAddSub = true
+      ),
+      new FullBarrelShifterPlugin(earlyInjection = false),
+      new HazardSimplePlugin(
+        bypassExecute           = true,
+        bypassMemory            = true,
+        bypassWriteBack         = true,
+        bypassWriteBackBuffer   = true,
+        pessimisticUseSrc       = false,
+        pessimisticWriteRegFile = false,
+        pessimisticAddressMatch = false
+      ),
+      new MulPlugin(
+        inputBuffer = true
+      ),
+      new MulDivIterativePlugin(
+        genMul = false,
+        genDiv = true,
+        mulUnrollFactor = 32,
+        divUnrollFactor = 1
+      ),
+      new CsrPlugin(CsrPluginConfig.linuxMinimal(null).copy(ebreakGen = false)),
+
+      new BranchPlugin(
+        earlyBranch = false,
+        catchAddressMisaligned = true,
+        fenceiGenAsAJump = false
+      ),
+      new MmuPlugin(
+        ioRange = (x => x(31 downto 28) === 0x1)
+      ),
+      new YamlPlugin("cpu0.yaml")
+    )
+  )
+
+  def cachedTest(resetVector : BigInt = 0x80000000l) = VexRiscvConfig(
+    withMemoryStage = true,
+    withWriteBackStage = true,
+    List(
+      new IBusCachedPlugin(
+        resetVector = resetVector,
+        compressedGen = false,
+        prediction = vexriscv.plugin.NONE,
+        injectorStage = true,
+        relaxedPcCalculation = false,
+        config = InstructionCacheConfig(
+          cacheSize = 4096*1,
+          bytePerLine = 32,
+          wayCount = 1,
+          addressWidth = 32,
+          cpuDataWidth = 32,
+          memDataWidth = 32,
+          catchIllegalAccess = true,
+          catchAccessFault = true,
+          asyncTagMemory = false,
+          twoCycleRam = true,
+          twoCycleCache = true
+        )
+      ),
+      new DBusCachedPlugin(
+        dBusCmdMasterPipe = true,
+        dBusCmdSlavePipe = true,
+        dBusRspSlavePipe = true,
+        relaxedMemoryTranslationRegister = true,
+        config = new DataCacheConfig(
+          cacheSize         = 4096*1,
+          bytePerLine       = 32,
+          wayCount          = 1,
+          addressWidth      = 32,
+          cpuDataWidth      = 32,
+          memDataWidth      = 32,
+          catchAccessError  = true,
+          catchIllegal      = true,
+          catchUnaligned    = true,
+          withLrSc = true,
+          withAmo = true,
+          earlyWaysHits = true
+          //          )
+        )
+      ),
+      new DecoderSimplePlugin(
+        catchIllegalInstruction = true
+      ),
+      new RegFilePlugin(
+        regFileReadyKind = plugin.ASYNC,
+        zeroBoot = true,
+        x0Init = false
+      ),
+      new IntAluPlugin,
+      new SrcPlugin(
+        separatedAddSub = true
+      ),
+      new FullBarrelShifterPlugin(earlyInjection = false),
+      new HazardSimplePlugin(
+        bypassExecute           = true,
+        bypassMemory            = true,
+        bypassWriteBack         = true,
+        bypassWriteBackBuffer   = true,
+        pessimisticUseSrc       = false,
+        pessimisticWriteRegFile = false,
+        pessimisticAddressMatch = false
+      ),
+      new MulPlugin(
+        inputBuffer = true
+      ),
+      new MulDivIterativePlugin(
+        genMul = false,
+        genDiv = true,
+        mulUnrollFactor = 32,
+        divUnrollFactor = 1
+      ),
+      new CsrPlugin(CsrPluginConfig.small(null).copy(ebreakGen = false, mtvecAccess         = CsrAccess.WRITE_ONLY)),
+
+      new BranchPlugin(
+        earlyBranch = false,
+        catchAddressMisaligned = true,
+        fenceiGenAsAJump = false
+      ),
+      new StaticMemoryTranslatorPlugin(
+        ioRange      = _(31 downto 28) === 0x1
+      ),
+      new YamlPlugin("cpu0.yaml")
+    )
+  )
   def linuxIce40 = VexRiscvConfig(
     withMemoryStage = true,
     withWriteBackStage = true,

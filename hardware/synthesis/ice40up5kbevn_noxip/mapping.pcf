@@ -1,0 +1,18 @@
+## iCE40-hx8k breakout board
+# src/openocd -f tcl/interface/ftdi/c232hm_ddhsl_0.cfg -c 'set CPU0_YAML ../SaxonSoc.git/cpu0.yaml' -f tcl/target/saxon_xip.cfg
+
+set_io clk_12M  35
+
+set_io system_cpu_tck 10  # IOB_18A
+set_io system_cpu_tdi 11  # IOB_20A
+set_io system_cpu_tdo 18  # IOB_31B
+set_io system_cpu_tms 19  # IOB_29B
+
+set_io system_uartA_uart_txd 6 # IOT_13B
+set_io system_uartA_uart_rxd 9 # IOT_16A
+
+set_io system_gpioA_gpio_0 23
+set_io system_gpioA_gpio_1 25
+set_io system_gpioA_gpio_2 34
+set_io system_gpioA_gpio_3 43
+

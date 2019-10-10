@@ -1,10 +1,17 @@
 package saxon
 
-import spinal.core.{Area, log2Up}
+import spinal.core._
+import spinal.lib.IMasterSlave
+import spinal.lib.bus.amba3.apb.{Apb3, Apb3CC, Apb3Config, Apb3SlaveFactory}
 import spinal.lib.bus.bmb.{Bmb, BmbIce40Spram, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
 import spinal.lib.bus.misc.{DefaultMapping, SizeMapping}
 import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection}
+import spinal.lib.memory.sdram.SdramLayout
 import spinal.lib.memory.sdram.sdr._
+import spinal.lib.memory.sdram.xdr.{BmbPortParameter, CoreParameter, CtrlParameter, CtrlWithPhy, CtrlWithoutPhy, Phy, PhyParameter}
+import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
+
+import scala.collection.mutable.ArrayBuffer
 
 
 object BmbInterconnectStdGenerators {
@@ -153,6 +160,88 @@ case class SdramSdrBmbGenerator(address: BigInt)
 }
 
 
+case class SdramXdrBmbGenerator(memoryAddress: BigInt)
+                               (implicit interconnect: BmbInterconnectGenerator/*, decoder: Apb3DecoderGenerator*/) extends Generator {
+
+  val phyParameter = createDependency[PhyParameter]
+  val coreParameter = createDependency[CoreParameter]
+  val portsParameter = ArrayBuffer[Handle[BmbPortParameter]]()
+  val phyPort = produce(logic.io.phy)
+  val apb = produce(logic.io.apb)
+
+//  decoder.addSlave(apb, configAddress)
+
+  def addPort() = new Generator {
+    val requirements = createDependency[BmbParameter]
+    val portId = portsParameter.length
+    val bmb = SdramXdrBmbGenerator.this.produce(logic.io.bmb(portId))
+
+    portsParameter += SdramXdrBmbGenerator.this.createDependency[BmbPortParameter]
+
+    interconnect.addSlave(
+      capabilities = phyParameter.produce(CtrlWithPhy.bmbCapabilities(phyParameter)),
+      requirements = requirements,
+      bus = bmb,
+      mapping = phyParameter.produce(SizeMapping(memoryAddress, phyParameter.sdram.capacity))
+    )
+
+    add task {
+      portsParameter(portId).load(
+        BmbPortParameter(
+          bmb = requirements,
+          clockDomain = ClockDomain.current,
+          cmdBufferSize = 16,
+          rspBufferSize = 16
+        )
+      )
+    }
+  }
+
+
+
+
+  val logic = add task new CtrlWithoutPhy(
+    p =  CtrlParameter(
+      core = coreParameter,
+      ports = portsParameter.map(_.get)
+    ),
+    pl = phyParameter
+  )
+}
+
+
+case class XilinxS7PhyGenerator(configAddress : BigInt)(implicit decoder: Apb3DecoderGenerator) extends Generator{
+  val sdramLayout = createDependency[SdramLayout]
+  val apb = produce(logic.apb)
+  val sdram = produceIo(logic.phy.io.memory)
+  val clk90 = createDependency[ClockDomain]
+  val serdesClk0 = createDependency[ClockDomain]
+  val serdesClk90 = createDependency[ClockDomain]
+
+  decoder.addSlave(apb, configAddress)
+
+  val logic = add task new Area{
+    val apb = Apb3(12, 32)
+    val phy = XilinxS7Phy(
+      sl = sdramLayout,
+      clkRatio = 2,
+      clk90 = clk90,
+      serdesClk0 = serdesClk0,
+      serdesClk90 = serdesClk90
+    )
+    phy.driveFrom(Apb3SlaveFactory(apb))
+  }
+
+  def connect(ctrl : SdramXdrBmbGenerator): Unit = {
+    this.produce{
+      ctrl.phyParameter.load(logic.phy.pl)
+    }
+    ctrl.produce{
+      ctrl.logic.io.phy <> logic.phy.io.ctrl
+    }
+  }
+}
+
 case class BmbOnChipRamGenerator(address: BigInt)
                            (implicit interconnect: BmbInterconnectGenerator) extends Generator {
   val size      = Handle[BigInt]
@@ -228,8 +317,6 @@ case class BmbBridgeGenerator()
   )
 
   interconnect.addMaster(requirements, bmb)
-
-
 }
 
 
@@ -265,4 +352,30 @@ case class  BmbToApb3Decoder(address : BigInt)
 
 
   tags += new MemoryConnection(input, apbDecoder.input, 0)
+}
+
+
+
+case class  Apb3CCGenerator() extends Generator {
+  val inputClockDomain, outputClockDomain = createDependency[ClockDomain]
+  val apbConfig = createDependency[Apb3Config]
+
+  val input = produce(logic.io.input)
+  val output = produce(logic.io.output)
+
+  val logic = add task Apb3CC(
+    config = apbConfig,
+    inputClock = inputClockDomain,
+    outputClock = outputClockDomain
+  )
+
+  tags += new MemoryConnection(input, output, 0)
+
+  def mapAt(apbOffset : BigInt)(implicit apbDecoder : Apb3DecoderGenerator) = apbDecoder.addSlave(input, apbOffset)
+  def setOutput(apb : Handle[Apb3]): Unit = {
+    apb.produce(apbConfig.load(apb.config))
+    Dependable(apb, output){
+      output >> apb
+    }
+  }
 }

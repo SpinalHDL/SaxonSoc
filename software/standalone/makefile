@@ -3,6 +3,7 @@ SUBDIRS := 	dhrystone \
 			machineModeSbi \
 			bootHex \
 			timerAndGpioInterruptDemo \
+			arty7Sdram \
 
 
 all:
