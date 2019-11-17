@@ -65,8 +65,8 @@ object Ulx3sLinuxSystem{
     cpu.config.load(VexRiscvConfigs.linux)
     cpu.enableJtag(clockCtrl)
 
-    sdramA.layout.load(IS42x320D.layout)
-    sdramA.timings.load(IS42x320D.timingGrade7)
+    sdramA.layout.load(MT48LC16M16A2.layout)
+    sdramA.timings.load(MT48LC16M16A2.timingGrade7)
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
