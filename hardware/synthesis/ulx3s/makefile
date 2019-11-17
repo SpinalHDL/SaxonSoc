@@ -1,0 +1,34 @@
+VERILOG = ../../netlist/Ulx3sMinimal.v
+
+IDCODE ?= 0x21111043 # 12f
+
+compile : bin/toplevel.bit
+
+prog: bin/toplevel.bit
+	ujprog $<
+
+generate:
+	(cd ../../..; sbt "runMain saxon.board.ulx3s.Ulx3sMinimal")
+
+bin/toplevel.json: ${VERILOG}
+	mkdir -p bin
+	rm -f Ulx3sMinimal.v*.bin
+	cp ../../netlist/Ulx3sMinimal.v*.bin . | true
+	yosys \
+		-p "synth_ecp5 -json $@" \
+		$<
+
+bin/toplevel.config: bin/toplevel.json
+	nextpnr-ecp5 \
+		--json $< \
+		--textcfg $@ \
+		--lpf ulx3s_v20.lpf \
+		--25k \
+		--package CABGA381 \
+		--lpf-allow-unconstrained
+
+bin/toplevel.bit: bin/toplevel.config
+	ecppack --idcode $(IDCODE) $< $@
+
+clean:
+	$(RM) -rf bin *.bin
