@@ -1,7 +1,6 @@
-    .section .init
     .globl trapEntry
     .type trapEntry,@function
-
+    .align 2 
 trapEntry:
 	csrrw sp, mscratch, sp
 	sw x1,   1*4(sp)
