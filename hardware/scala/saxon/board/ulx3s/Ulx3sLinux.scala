@@ -16,7 +16,9 @@ import spinal.lib.memory.sdram.sdr.sim.SdramModel
 
 class Ulx3sLinuxSystem extends SaxonSocLinux{
   //Add components
-  val sdramA = SdramSdrBmbGenerator(0x80000000l)
+  val ramA = BmbOnChipRamGenerator(0x80000000l) 
+  val sdramA = SdramSdrBmbGenerator(0x90000000l)
+  //val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
   val spiB = Apb3SpiGenerator(0x21000)
@@ -24,8 +26,10 @@ class Ulx3sLinuxSystem extends SaxonSocLinux{
 
   //Interconnect specification
   interconnect.addConnection(
-    cpu.iBus -> List(sdramA.bmb),
-    cpu.dBus -> List(sdramA.bmb, peripheralBridge.input)
+    cpu.iBus -> List(sdramA.bmb, ramA.bmb),
+    //cpu.iBus -> List(sdramA.bmb),
+    cpu.dBus -> List(sdramA.bmb, ramA.bmb, peripheralBridge.input)
+    //cpu.dBus -> List(sdramA.bmb, peripheralBridge.input)
   )
 }
 
@@ -65,8 +69,15 @@ object Ulx3sLinuxSystem{
     cpu.config.load(VexRiscvConfigs.linux)
     cpu.enableJtag(clockCtrl)
 
+    // Configure ram
+    ramA.dataWidth.load(32)
+    ramA.size.load(8 KiB)
+    ramA.hexInit.load("software/standalone/machineModeSbi/build/machineModeSbi.hex")
+
     sdramA.layout.load(MT48LC16M16A2.layout)
     sdramA.timings.load(MT48LC16M16A2.timingGrade7)
+    //sdramA.layout.load(IS42x320D.layout)
+    //sdramA.timings.load(IS42x320D.timingGrade7)
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
@@ -146,6 +157,7 @@ object Ulx3sLinuxSystemSim {
     val simConfig = SimConfig
     simConfig.allOptimisation
     simConfig.withWave
+    simConfig.addSimulatorFlag("-Wno-CMPCONST")
     simConfig.compile(new Ulx3sLinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
@@ -190,11 +202,13 @@ object Ulx3sLinuxSystemSim {
         jtagClkPeriod = jtagClkPeriod
       )
 
+      clockDomain.waitSampling(10)
+
       val uartTx = UartDecoder(
         uartPin =  dut.uartA.uart.txd,
         baudPeriod = uartBaudPeriod
       )
-
+      
       val uartRx = UartEncoder(
         uartPin = dut.uartA.uart.rxd,
         baudPeriod = uartBaudPeriod
@@ -208,10 +222,13 @@ object Ulx3sLinuxSystemSim {
 
 
       val linuxPath = "../buildroot/output/images/"
-      sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      sdram.loadBin(0x00400000, linuxPath + "Image")
-      sdram.loadBin(0x00BF0000, linuxPath + "dtb")
-      sdram.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
+      //sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+      //sdram.loadBin(0x00400000, linuxPath + "Image")
+      sdram.loadBin(0x00000000, linuxPath + "Image")
+      //sdram.loadBin(0x009F0000, linuxPath + "dtb")
+      sdram.loadBin(0x005F0000, linuxPath + "dtb")
+      //sdram.loadBin(0x00A00000, linuxPath + "rootfs.cpio")
+      sdram.loadBin(0x00600000, linuxPath + "rootfs.cpio")
 
 
 //      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
