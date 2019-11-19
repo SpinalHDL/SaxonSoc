@@ -45,16 +45,18 @@ class Ulx3sLinux extends Generator{
   val clocking = add task new Area{
     val clk_25mhz = in Bool()
     val sdram_clk = out Bool()
+    val resetn = in Bool()
 
     val pll = Ulx3sLinuxPll()
     pll.clkin := clk_25mhz
-    sdram_clk := pll.clkout1
-    clockCtrl.clock.load(pll.clkout0)
+    sdram_clk := pll.clkout0
+    clockCtrl.clock.load(pll.clkout1)
+    clockCtrl.reset.load(resetn)
   }
 }
 
 case class Ulx3sLinuxPll() extends BlackBox{
-  setDefinitionName("pll")
+  setDefinitionName("pll_linux")
   val clkin = in Bool()
   val clkout0 = out Bool()
   val clkout1 = out Bool()
@@ -133,8 +135,8 @@ object Ulx3sLinux {
   //Function used to configure the SoC
   def default(g : Ulx3sLinux) = g{
     import g._
-    clockCtrl.clkFrequency.load(50 MHz)
-    clockCtrl.resetSensitivity.load(ResetSensitivity.NONE)
+    clockCtrl.clkFrequency.load(40 MHz)
+    clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
     Ulx3sLinuxSystem.default(system, clockCtrl)
     g
   }

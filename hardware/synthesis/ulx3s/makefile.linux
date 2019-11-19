@@ -1,4 +1,4 @@
-VERILOG = ../../netlist/Ulx3sLinux.v pll.v
+VERILOG = ../../netlist/Ulx3sLinux.v pll_linux.v
 
 IDCODE ?= 0x21111043 # 12f
 
@@ -34,10 +34,10 @@ bin/toplevel.bit: bin/toplevel.config
 pll:
 	ecppll \
                 -i 25 \
-                -o 50 \
-		--clkout1 50 \
+                -o 40 \
+		--clkout1 40 \
 		--phase1 90 \
-                -n  pll\
-                -f pll.v
+                -n  pll_linux\
+                -f pll_linux.v
 clean:
 	$(RM) -rf bin *.bin
