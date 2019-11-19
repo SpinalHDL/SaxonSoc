@@ -36,7 +36,7 @@ pll:
                 -i 25 \
                 -o 40 \
                 --clkout1 40 \
-                --phase1 90 \
+                --phase1 45 \
                 -n  pll_sdram\
                 -f pll_sdram.v
 
