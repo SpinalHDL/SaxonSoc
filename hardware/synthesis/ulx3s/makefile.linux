@@ -10,6 +10,9 @@ prog: bin/toplevel.bit
 generate:
 	(cd ../../..; sbt "runMain saxon.board.ulx3s.Ulx3sLinux")
 
+sim:
+	(cd ../../..; sbt "runMain saxon.board.ulx3s.Ulx3sLinuxSystemSim")
+
 bin/toplevel.json: ${VERILOG}
 	mkdir -p bin
 	rm -f Ulx3sLinux.v*.bin
@@ -36,7 +39,7 @@ pll:
                 -i 25 \
                 -o 40 \
 		--clkout1 40 \
-		--phase1 90 \
+		--phase1 45 \
                 -n  pll_linux\
                 -f pll_linux.v
 clean:

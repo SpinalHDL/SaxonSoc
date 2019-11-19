@@ -6,7 +6,7 @@ module pll_linux
 (
     input clkin, // 25 MHz, 0 deg
     output clkout0, // 40 MHz, 0 deg
-    output clkout1, // 40 MHz, 90 deg
+    output clkout1, // 40 MHz, 45 deg
     output locked
 );
 (* FREQUENCY_PIN_CLKI="25" *)
@@ -29,8 +29,8 @@ EHXPLLL #(
         .CLKOP_FPHASE(0),
         .CLKOS_ENABLE("ENABLED"),
         .CLKOS_DIV(15),
-        .CLKOS_CPHASE(10),
-        .CLKOS_FPHASE(6),
+        .CLKOS_CPHASE(8),
+        .CLKOS_FPHASE(7),
         .FEEDBK_PATH("CLKOP"),
         .CLKFB_DIV(8)
     ) pll_i (
