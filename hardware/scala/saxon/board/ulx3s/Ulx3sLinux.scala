@@ -46,6 +46,9 @@ class Ulx3sLinux extends Generator{
     val clk_25mhz = in Bool()
     val sdram_clk = out Bool()
     val resetn = in Bool()
+    val wifi_enable = out Bool()
+
+    wifi_enable := False
 
     val pll = Ulx3sLinuxPll()
     pll.clkin := clk_25mhz
