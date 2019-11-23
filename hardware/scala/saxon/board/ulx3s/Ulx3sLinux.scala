@@ -31,6 +31,23 @@ class Ulx3sLinuxSystem extends SaxonSocLinux{
     cpu.dBus -> List(sdramA.bmb, ramA.bmb, peripheralBridge.input)
     //cpu.dBus -> List(sdramA.bmb, peripheralBridge.input)
   )
+
+  interconnect.setConnector(sdramA.bmb){case (m,s) =>
+    m.cmd >/-> s.cmd
+    m.rsp << s.rsp
+  }
+
+  /*val bridge = BmbBridgeGenerator()
+  interconnect.addConnection(
+    cpu.iBus -> List(bridge.bmb),
+    cpu.dBus -> List(bridge.bmb),
+    bridge.bmb -> List(sdramA.bmb, ramA.bmb, peripheralBridge.input)
+  )
+
+  interconnect.setConnector(bridge.bmb){case (m,s) =>
+    m.cmd >/-> s.cmd
+    m.rsp << s.rsp
+  }*/
 }
 
 class Ulx3sLinux extends Generator{
@@ -46,9 +63,9 @@ class Ulx3sLinux extends Generator{
     val clk_25mhz = in Bool()
     val sdram_clk = out Bool()
     val resetn = in Bool()
-    val wifi_enable = out Bool()
+    //val wifi_en = out Bool()
 
-    wifi_enable := False
+    //wifi_en := False
 
     val pll = Ulx3sLinuxPll()
     pll.clkin := clk_25mhz
@@ -138,7 +155,7 @@ object Ulx3sLinux {
   //Function used to configure the SoC
   def default(g : Ulx3sLinux) = g{
     import g._
-    clockCtrl.clkFrequency.load(40 MHz)
+    clockCtrl.clkFrequency.load(50 MHz)
     clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
     Ulx3sLinuxSystem.default(system, clockCtrl)
     g
