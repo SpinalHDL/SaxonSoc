@@ -37,8 +37,8 @@ bin/toplevel.bit: bin/toplevel.config
 pll:
 	ecppll \
                 -i 25 \
-                -o 40 \
-		--clkout1 40 \
+                -o 50 \
+		--clkout1 50 \
 		--phase1 45 \
                 -n  pll_linux\
                 -f pll_linux.v
