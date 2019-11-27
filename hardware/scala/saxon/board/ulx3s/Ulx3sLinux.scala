@@ -11,33 +11,16 @@ import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
 
-
-
-
 class Ulx3sLinuxSystem extends SaxonSocLinux{
   //Add components
   val ramA = BmbOnChipRamGenerator(0x80000000l) 
   val sdramA = SdramSdrBmbGenerator(0x90000000l)
-  //val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
   val spiB = Apb3SpiGenerator(0x21000)
   val noReset = Ulx3sNoResetGenerator()
 
-  //Interconnect specification
-  interconnect.addConnection(
-    cpu.iBus -> List(sdramA.bmb, ramA.bmb),
-    //cpu.iBus -> List(sdramA.bmb),
-    cpu.dBus -> List(sdramA.bmb, ramA.bmb, peripheralBridge.input)
-    //cpu.dBus -> List(sdramA.bmb, peripheralBridge.input)
-  )
-
-  interconnect.setConnector(sdramA.bmb){case (m,s) =>
-    m.cmd >/-> s.cmd
-    m.rsp << s.rsp
-  }
-
-  /*val bridge = BmbBridgeGenerator()
+  val bridge = BmbBridgeGenerator()
   interconnect.addConnection(
     cpu.iBus -> List(bridge.bmb),
     cpu.dBus -> List(bridge.bmb),
@@ -47,7 +30,7 @@ class Ulx3sLinuxSystem extends SaxonSocLinux{
   interconnect.setConnector(bridge.bmb){case (m,s) =>
     m.cmd >/-> s.cmd
     m.rsp << s.rsp
-  }*/
+  }
 }
 
 class Ulx3sLinux extends Generator{
@@ -63,9 +46,6 @@ class Ulx3sLinux extends Generator{
     val clk_25mhz = in Bool()
     val sdram_clk = out Bool()
     val resetn = in Bool()
-    //val wifi_en = out Bool()
-
-    //wifi_en := False
 
     val pll = Ulx3sLinuxPll()
     pll.clkin := clk_25mhz
@@ -83,7 +63,6 @@ case class Ulx3sLinuxPll() extends BlackBox{
   val locked = out Bool()
 }
 
-
 object Ulx3sLinuxSystem{
   def default(g : Ulx3sLinuxSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
@@ -98,8 +77,6 @@ object Ulx3sLinuxSystem{
 
     sdramA.layout.load(MT48LC16M16A2.layout)
     sdramA.timings.load(MT48LC16M16A2.timingGrade7)
-    //sdramA.layout.load(IS42x320D.layout)
-    //sdramA.timings.load(IS42x320D.timingGrade7)
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
@@ -142,14 +119,10 @@ object Ulx3sLinuxSystem{
       rspFifoDepth = 256
     )
     spiB.inferSpiSdrIo()
-    spiB.produce(RegNext(spiB.phy.sclk.write(0)).asOutput.setName("system_spiB_spi_sclk2"))
-
-
 
     g
   }
 }
-
 
 object Ulx3sLinux {
   //Function used to configure the SoC
@@ -157,6 +130,9 @@ object Ulx3sLinux {
     import g._
     clockCtrl.clkFrequency.load(50 MHz)
     clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
+    g.system.sdramA.logic.produce {
+      g.system.sdramA.logic.ctrl.chip.sdram.addAttribute("syn_useioff")
+    }
     Ulx3sLinuxSystem.default(system, clockCtrl)
     g
   }
@@ -168,14 +144,10 @@ object Ulx3sLinux {
   }
 }
 
-
-
-
 object Ulx3sLinuxSystemSim {
   import spinal.core.sim._
 
   def main(args: Array[String]): Unit = {
-
     val simConfig = SimConfig
     simConfig.allOptimisation
     simConfig.withWave
@@ -196,21 +168,7 @@ object Ulx3sLinuxSystemSim {
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
-//      clockDomain.forkSimSpeedPrinter(4)
-
-//      fork{
-//        while(true){
-//          sleep(systemClkPeriod*1000000)
-//          println("\nsimTime : " + simTime())
-//        }
-//      }
       fork{
-//        disableSimWave()
-//        sleep(0.2e12.toLong)
-//        enableSimWave()
-//        sleep(systemClkPeriod*2000000)
-//        simFailure()
-
         while(true){
           disableSimWave()
           sleep(systemClkPeriod*500000)
@@ -242,26 +200,10 @@ object Ulx3sLinuxSystemSim {
         clockDomain = clockDomain
       )
 
-
       val linuxPath = "../buildroot/output/images/"
-      //sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      //sdram.loadBin(0x00400000, linuxPath + "Image")
       sdram.loadBin(0x00000000, linuxPath + "Image")
-      //sdram.loadBin(0x009F0000, linuxPath + "dtb")
       sdram.loadBin(0x005F0000, linuxPath + "dtb")
-      //sdram.loadBin(0x00A00000, linuxPath + "rootfs.cpio")
       sdram.loadBin(0x00600000, linuxPath + "rootfs.cpio")
-
-
-//      sdram.loadBin(0, "software/standalone/dhrystone/build/dhrystone.bin")
-//      sdram.loadBin(0, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-
-
-//      val linuxPath = "/home/miaou/pro/litex/linux-on-litex-vexriscv/buildroot/"
-//      sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-//      sdram.loadBin(0x00400000, linuxPath + "Image")
-//      sdram.loadBin(0x00BF0000, "../buildroot/output/images/dtb")
-//      sdram.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
     }
   }
 }
