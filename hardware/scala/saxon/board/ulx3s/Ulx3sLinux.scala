@@ -64,7 +64,7 @@ case class Ulx3sLinuxPll() extends BlackBox{
 }
 
 object Ulx3sLinuxSystem{
-  def default(g : Ulx3sLinuxSystem, clockCtrl : ClockDomainGenerator) = g {
+  def default(g : Ulx3sLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.linux)
@@ -103,7 +103,7 @@ object Ulx3sLinuxSystem{
       cmdFifoDepth = 256,
       rspFifoDepth = 256
     )
-    spiA.inferSpiSdrIo()
+    if(inferSpiAPhy) spiA.inferSpiSdrIo()
 
     spiB.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
       SpiXdrMasterCtrl.Parameters(
@@ -152,6 +152,13 @@ object Ulx3sLinuxSystemSim {
     simConfig.allOptimisation
     simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-CMPCONST")
+
+    val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
+    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v", "sd_params.vh", "sd_phy.v", "sd_top.v", "sd_wishbone.v")
+    sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
+    simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
+    simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
+
     simConfig.compile(new Ulx3sLinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
@@ -159,12 +166,16 @@ object Ulx3sLinuxSystemSim {
       clockCtrl.powerOnReset.load(true)
       clockCtrl.clkFrequency.load(50 MHz)
       clockCtrl.resetHoldDuration.load(15)
-      Ulx3sLinuxSystem.default(this, clockCtrl)
+      val sdcard = SdcardEmulatorGenerator()
+      sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
+      Ulx3sLinuxSystem.default(this, clockCtrl, inferSpiAPhy = false)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 115200
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
+
+      //TODO dut.sdcard.io. stuff to do with sdcard
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
