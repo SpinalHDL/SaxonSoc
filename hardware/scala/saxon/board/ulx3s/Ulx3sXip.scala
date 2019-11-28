@@ -8,6 +8,7 @@ import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
+import spinal.lib.com.spi._
 
 class Ulx3sXipSystem extends BmbApbVexRiscvGenerator{
   //Add components
@@ -16,7 +17,6 @@ class Ulx3sXipSystem extends BmbApbVexRiscvGenerator{
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000, xipOffset = 0x20000000)
   val noReset = Ulx3sNoResetGenerator()
-  //val usrMclk = Ulx3sSpiUsrMclkGenerator(spiA)
 
   ramA.dataWidth.load(32)
 
@@ -95,6 +95,15 @@ object Ulx3sXipSystem{
       xipDummyDataInit = 0xFF
     )
     spiA.withXip.load(true)
+    spiA.inferSpiSdrIo()
+    spiA.spi.produce {
+      val sclk = spiA.spi.get.asInstanceOf[SpiHalfDuplexMaster].sclk
+      sclk.setAsDirectionLess()
+      val usrMclk = Ulx3sUsrMclk()
+      usrMclk.USRMCLKTS := False
+      usrMclk.USRMCLKI := sclk
+    }
+    
     cpu.hardwareBreakpointCount.load(4)
 
     interconnect.addConnection(
@@ -118,8 +127,7 @@ object Ulx3sXip {
     import g._
     Ulx3sXipSystem.default(system, clockCtrl)
     clockCtrl.resetSensitivity load(ResetSensitivity.NONE)
-    system.spiA.inferSpiSdrIo()
-
+    
     g
   }
 
