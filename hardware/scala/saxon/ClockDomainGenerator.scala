@@ -55,9 +55,9 @@ case class ClockDomainGenerator() extends Generator {
 
   def makeExternal(resetSensitivity : ResetSensitivity): this.type = {
     this(Dependable(config){
-      clock.load(in Bool())
+      clock.load(in Bool() setCompositeName(this, "external_clk"))
       if(config.useResetPin && resetSensitivity != ResetSensitivity.NONE) {
-        reset.load(in Bool())
+        reset.load(in Bool()  setCompositeName(this, "external_reset"))
         this.resetSensitivity.load(resetSensitivity)
         resetSynchronous.load(false)
       }

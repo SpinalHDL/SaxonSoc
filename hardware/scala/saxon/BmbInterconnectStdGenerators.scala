@@ -8,7 +8,7 @@ import spinal.lib.bus.misc.{DefaultMapping, SizeMapping}
 import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection}
 import spinal.lib.memory.sdram.SdramLayout
 import spinal.lib.memory.sdram.sdr._
-import spinal.lib.memory.sdram.xdr.{BmbPortParameter, CoreParameter, CtrlParameter, CtrlWithPhy, CtrlWithoutPhy, Phy, PhyParameter}
+import spinal.lib.memory.sdram.xdr._
 import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 
 import scala.collection.mutable.ArrayBuffer
@@ -163,7 +163,7 @@ case class SdramSdrBmbGenerator(address: BigInt)
 case class SdramXdrBmbGenerator(memoryAddress: BigInt)
                                (implicit interconnect: BmbInterconnectGenerator/*, decoder: Apb3DecoderGenerator*/) extends Generator {
 
-  val phyParameter = createDependency[PhyParameter]
+  val phyParameter = createDependency[PhyLayout]
   val coreParameter = createDependency[CoreParameter]
   val portsParameter = ArrayBuffer[Handle[BmbPortParameter]]()
   val phyPort = produce(logic.io.phy)
@@ -191,6 +191,7 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
           bmb = requirements,
           clockDomain = ClockDomain.current,
           cmdBufferSize = 16,
+          dataBufferSize = 16,
           rspBufferSize = 16
         )
       )
@@ -213,7 +214,7 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
 case class XilinxS7PhyGenerator(configAddress : BigInt)(implicit decoder: Apb3DecoderGenerator) extends Generator{
   val sdramLayout = createDependency[SdramLayout]
   val apb = produce(logic.apb)
-  val sdram = produceIo(logic.phy.io.memory)
+  val sdram = produceIo(logic.phy.io.sdram)
   val clk90 = createDependency[ClockDomain]
   val serdesClk0 = createDependency[ClockDomain]
   val serdesClk90 = createDependency[ClockDomain]
@@ -370,12 +371,14 @@ case class  Apb3CCGenerator() extends Generator {
   )
 
   tags += new MemoryConnection(input, output, 0)
+//  tags += new SimpleBus(input, BigInt(1) << inputConfig.addressWidth)
 
   def mapAt(apbOffset : BigInt)(implicit apbDecoder : Apb3DecoderGenerator) = apbDecoder.addSlave(input, apbOffset)
   def setOutput(apb : Handle[Apb3]): Unit = {
     apb.produce(apbConfig.load(apb.config))
     Dependable(apb, output){
       output >> apb
+      tags += new MemoryConnection(output, apb, 0)
     }
   }
 }

@@ -1,7 +1,7 @@
 package saxon
 
 import spinal.core._
-import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3SlaveFactory}
+import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3Dummy, Apb3SlaveFactory}
 import spinal.lib.bus.bmb.{Bmb, BmbParameter}
 import spinal.lib.bus.misc.{AddressMapping, BusSlaveFactory, SizeMapping}
 import spinal.lib.com.spi.SpiHalfDuplexMaster
@@ -11,6 +11,7 @@ import spinal.lib.generator._
 import spinal.lib.io.Apb3Gpio2
 import spinal.lib._
 import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
+import spinal.lib.misc.MachineTimer
 import spinal.lib.misc.plic.{PlicGateway, PlicGatewayActiveHigh, PlicMapper, PlicMapping, PlicTarget}
 
 import scala.collection.mutable.ArrayBuffer
@@ -220,6 +221,12 @@ case class Apb3PlicGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderG
   }
 }
 
+case class Apb3DummyGenerator(apbConfig : Apb3Config, apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator{
+  val apb = produce(logic.io.apb)
+  val logic = add task Apb3Dummy(apbConfig)
+  decoder.addSlave(apb, apbOffset)
+}
+
 case class Apb3MachineTimerGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator{
   val interrupt = produce(logic.io.mTimeInterrupt)
   val apb = produce(logic.io.bus)
@@ -229,3 +236,4 @@ case class Apb3MachineTimerGenerator(apbOffset : BigInt) (implicit decoder: Apb3
 
   val hz = export(produce(ClockDomain.current.frequency))
 }
+

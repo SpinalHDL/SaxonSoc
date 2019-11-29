@@ -38,7 +38,28 @@ _start:
 	call __libc_init_array
 	li a0, 0xF0F0
 	li a1, 0xFF00
-	.word (0x0B + ( 10 << 7 ) + ( 10 << 15 ) + ( 11 << 20 ) )
+	.word (0x0B + ( 10 << 7 ) + ( 10 << 15 ) + ( 11 << 20 ) + (0 << 25))
+	nop
+	nop
+	nop
+	nop
+	li a0, 0x2
+	li a1, 0x6
+	.word (0x0B + ( 10 << 7 ) + ( 10 << 15 ) + ( 11 << 20 ) + (1 << 25))
+	nop
+	nop
+	nop
+	nop
+	li a0, 0x3
+	li a1, 0x10
+	.word (0x0B + ( 10 << 7 ) + ( 10 << 15 ) + ( 11 << 20 ) + (2 << 25))
+	nop
+	nop
+	nop
+	nop
+	li a0, 0x4
+	li a1, 0x10
+	.word (0x0B + ( 10 << 7 ) + ( 10 << 15 ) + ( 11 << 20 ) + (2 << 25))
 
 mainDone:
     j mainDone

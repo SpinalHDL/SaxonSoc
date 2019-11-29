@@ -9,8 +9,15 @@ BENCH ?= no
 ifeq ($(RV_M),yes)
 	MARCH := $(MARCH)m
 endif
+ifeq ($(RV_A),yes)
+	MARCH := $(MARCH)a
+endif
 ifeq ($(RV_C),yes)
-	MARCH := $(MARCH)ac
+    ifeq ($(RV_A),yes)
+        MARCH := $(MARCH)c
+    else
+	    MARCH := $(MARCH)ac
+    endif
 endif
 
 ifeq ($(DEBUG),yes)

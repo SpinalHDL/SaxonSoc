@@ -4,7 +4,7 @@ import spinal.core.{Area, assert, log2Up}
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3Decoder}
 import spinal.lib.bus.misc.SizeMapping
 import spinal.lib.generator.{Generator, Handle, MemoryConnection, SimpleBus}
-import vexriscv.plugin.{CfuBus, CfuParameter}
+//import vexriscv.plugin.{CfuBus, CfuParameter}
 
 import scala.collection.mutable.ArrayBuffer
 

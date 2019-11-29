@@ -1,15 +1,18 @@
 package saxon
 
 import org.apache.commons.io.FileUtils
-import spinal.core.{Nameable, SpinalEnumElement}
+import spinal.core._
+import spinal.lib._
 import spinal.core.internals.Misc
-import spinal.lib.generator.{Dts, Export, Generator, Handle, MemoryConnection, SimpleBus, Tag}
+import spinal.lib.generator.{Dependable, Dts, Export, Generator, Handle, MemoryConnection, SimpleBus, Tag}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import java.io._
 
 import spinal.core.ClockDomain.FixedFrequency
+import spinal.lib.bus.wishbone.{Wishbone, WishboneConfig}
+import spinal.lib.com.spi.ddr.SpiXdrMaster
 
 object BspGenerator {
   def apply[T <: Nameable](name : String, root: Generator, memoryView : Handle[T]) {
