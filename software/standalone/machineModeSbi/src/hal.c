@@ -1,6 +1,5 @@
 #include "hal.h"
-#include "config.h"
-
+#include "machineModeSbiConfig.h"
 
 
 #ifdef HARD

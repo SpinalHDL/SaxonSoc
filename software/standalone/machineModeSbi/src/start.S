@@ -2,7 +2,7 @@
     .globl _start
     .type _start,@function
 
-#include "config.h"
+#include "machineModeSbiConfig.h"
 _start:
 /*#ifdef USE_GP
 .option push

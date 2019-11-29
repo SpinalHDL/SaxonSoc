@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include "riscv.h"
-#include "config.h"
+#include "machineModeSbiConfig.h"
 #include "hal.h"
 
 extern const uint32_t _sp;

@@ -73,7 +73,7 @@ object Ulx3sLinuxSystem{
     // Configure ram
     ramA.dataWidth.load(32)
     ramA.size.load(8 KiB)
-    ramA.hexInit.load("software/standalone/machineModeSbi/build/machineModeSbi.hex")
+    ramA.hexInit.load("/home/miaou/Downloads/image/machineModeSbi.hex")
 
     sdramA.layout.load(MT48LC16M16A2.layout)
     sdramA.timings.load(MT48LC16M16A2.timingGrade7)
@@ -215,7 +215,8 @@ object Ulx3sLinuxSystemSim {
         clockDomain = clockDomain
       )
 
-      val linuxPath = "../buildroot/output/images/"
+//      val linuxPath = "../buildroot/output/images/"
+      val linuxPath = "/home/miaou/Downloads/image/"
       sdram.loadBin(0x00000000, linuxPath + "Image")
       sdram.loadBin(0x005F0000, linuxPath + "dtb")
       sdram.loadBin(0x00600000, linuxPath + "rootfs.cpio")
