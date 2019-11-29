@@ -9,16 +9,17 @@ BENCH ?= no
 ifeq ($(RV_M),yes)
 	MARCH := $(MARCH)m
 endif
-ifeq ($(RV_A),yes)
-	MARCH := $(MARCH)a
-endif
+
+#ifeq ($(RV_A),yes)
+#	MARCH := $(MARCH)a
+#else ifeq ($(RV_C),yes)
+#	MARCH := $(MARCH)ac
+#endif
+
 ifeq ($(RV_C),yes)
-    ifeq ($(RV_A),yes)
-        MARCH := $(MARCH)c
-    else
-	    MARCH := $(MARCH)ac
-    endif
+	MARCH := $(MARCH)ac
 endif
+
 
 ifeq ($(DEBUG),yes)
 	CFLAGS += -g3 -Og
