@@ -13,7 +13,7 @@ import spinal.lib.memory.sdram.sdr.sim.SdramModel
 
 class Ulx3sLinuxSystem extends SaxonSocLinux{
   //Add components
-  val ramA = BmbOnChipRamGenerator(0x80000000l) 
+  val ramA = BmbOnChipRamGenerator(0x80000000l)
   val sdramA = SdramSdrBmbGenerator(0x90000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
@@ -73,7 +73,7 @@ object Ulx3sLinuxSystem{
     // Configure ram
     ramA.dataWidth.load(32)
     ramA.size.load(8 KiB)
-    ramA.hexInit.load("/home/miaou/Downloads/image/machineModeSbi.hex")
+    ramA.hexInit.load("software/standalone/machineModeSbi/build/machineModeSbi.hex")
 
     sdramA.layout.load(MT48LC16M16A2.layout)
     sdramA.timings.load(MT48LC16M16A2.timingGrade7)
@@ -203,7 +203,7 @@ object Ulx3sLinuxSystemSim {
         uartPin =  dut.uartA.uart.txd,
         baudPeriod = uartBaudPeriod
       )
-      
+
       val uartRx = UartEncoder(
         uartPin = dut.uartA.uart.rxd,
         baudPeriod = uartBaudPeriod
@@ -215,8 +215,7 @@ object Ulx3sLinuxSystemSim {
         clockDomain = clockDomain
       )
 
-//      val linuxPath = "../buildroot/output/images/"
-      val linuxPath = "/home/miaou/Downloads/image/"
+      val linuxPath = "../buildroot/output/images/"
       sdram.loadBin(0x00000000, linuxPath + "Image")
       sdram.loadBin(0x005F0000, linuxPath + "dtb")
       sdram.loadBin(0x00600000, linuxPath + "rootfs.cpio")
