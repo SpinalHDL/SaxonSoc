@@ -175,7 +175,11 @@ object Ulx3sLinuxSystemSim {
       val uartBaudRate = 115200
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
 
-      //TODO dut.sdcard.io. stuff to do with sdcard
+      val sdcard = SdcardEmulatorIoSpinalSim(
+        io = dut.sdcard.io,
+        nsPeriod = 1000,
+        storagePath = "../sdcard/image"
+      )
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)

@@ -1,5 +1,7 @@
 package saxon
 
+import java.io.RandomAccessFile
+
 import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.wishbone._
@@ -50,7 +52,7 @@ case class sd_top() extends BlackBox{
 
   def toWishbone(): Wishbone ={
     val bus = Wishbone(sd_top.wishboneConfig)
-    bus.CYC <> wbm_clk_o
+    bus.CYC <> wbm_cyc_o
     bus.STB <> wbm_stb_o
     bus.ACK <> wbm_ack_i
     bus.WE <> wbm_we_o
@@ -65,11 +67,54 @@ case class sd_top() extends BlackBox{
 }
 
 
+case class SdcardEmulatorIoSpinalSim(io : SdcardEmulatorIo,
+                                     nsPeriod : Int,
+                                     storagePath : String,
+                                     c50 : Boolean = true,
+                                     c100 : Boolean = false,
+                                     c200 : Boolean = false,
+                                     hs : Boolean = false) {
+  import spinal.core.sim._
+
+  fork{
+    io.reset_n #= true
+    sleep(0)
+    io.reset_n #= false
+    sleep(nsPeriod*100)
+    io.reset_n #= true
+  }
+
+  ClockDomain(io.clk_50).forkStimulus(nsPeriod*20)
+  if(c100) ClockDomain(io.clk_100).forkStimulus(nsPeriod*10)
+  if(c200) ClockDomain(io.clk_200).forkStimulus(nsPeriod*5)
+  io.opt_enable_hs #= hs
+
+  val fs = new RandomAccessFile(storagePath, "rw")
+  var fsAddress = -1l;
+  io.wishbone.ACK #= true
+  ClockDomain(io.wbm_clk_o, io.reset_n, config = ClockDomainConfig(clockEdge = FALLING)).onSamplings{
+    if(io.wishbone.STB.toBoolean){
+      val address = io.wishbone.ADR.toLong
+      if(address != fsAddress) {
+        fs.seek(address)
+        fsAddress = address;
+      }
+      if(io.wishbone.WE.toBoolean){
+        fs.writeInt(io.wishbone.DAT_MOSI.toLong.toInt)
+      } else {
+        io.wishbone.DAT_MISO #= (fs.readInt().toLong) & 0xFFFFFFFF
+      }
+      fsAddress += 4
+    }
+  }
+}
+
 case class SdcardEmulatorIo() extends Bundle {
   val reset_n = in  Bool()
   val clk_50 = in  Bool()
   val clk_100 = in  Bool()
   val clk_200 = in  Bool()
+  val wbm_clk_o = out Bool()
   val wishbone = master(Wishbone(sd_top.wishboneConfig))
   val opt_enable_hs = in Bool()
 }
@@ -84,6 +129,7 @@ case class SdcardEmulatorGenerator() extends Generator{
     io.clk_50 <> ctrl.clk_50
     io.clk_100 <> ctrl.clk_100
     io.clk_200 <> ctrl.clk_200
+    io.wbm_clk_o <> ctrl.wbm_clk_o
     ctrl.toWishbone().connectTo(io.wishbone)
     io.opt_enable_hs <> ctrl.opt_enable_hs
   }
