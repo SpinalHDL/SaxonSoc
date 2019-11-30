@@ -10,10 +10,12 @@ LDFLAGS +=  -nostdlib -lgcc -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCR
 DOT:= .
 
 OBJS := $(SRCS)
+OBJS := $(shell realpath --relative-to // $(OBJS))
+OBJS := $(addprefix //,$(OBJS))
 OBJS := $(OBJS:.c=.o)
 OBJS := $(OBJS:.cpp=.o)
 OBJS := $(OBJS:.S=.o)
-#OBJS := $(subst $(DOT)$(DOT),parent,$(OBJS))
+OBJS := $(OBJS:.s=.o)
 OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
 
 
