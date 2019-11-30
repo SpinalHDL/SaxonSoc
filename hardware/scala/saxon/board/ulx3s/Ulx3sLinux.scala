@@ -154,7 +154,7 @@ object Ulx3sLinuxSystemSim {
     simConfig.addSimulatorFlag("-Wno-CMPCONST")
 
     val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
-    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v", "sd_params.vh", "sd_phy.v", "sd_top.v", "sd_wishbone.v")
+    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v", "sd_phy.v", "sd_top.v", "sd_wishbone.v")
     sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
     simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
     simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")

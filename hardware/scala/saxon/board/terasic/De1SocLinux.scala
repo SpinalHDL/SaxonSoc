@@ -64,7 +64,7 @@ case class De1SocLinuxPll() extends BlackBox{
 
 
 object De1SocLinuxSystem{
-  def default(g : De1SocLinuxSystem, clockCtrl : ClockDomainGenerator) = g {
+  def default(g : De1SocLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.linux)
@@ -98,7 +98,7 @@ object De1SocLinuxSystem{
       cmdFifoDepth = 256,
       rspFifoDepth = 256
     )
-    spiA.inferSpiSdrIo()
+    if(inferSpiAPhy) spiA.inferSpiSdrIo()
 
     spiB.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
       SpiXdrMasterCtrl.Parameters(
@@ -151,6 +151,13 @@ object De1SocLinuxSystemSim {
     val simConfig = SimConfig
     simConfig.allOptimisation
     simConfig.withWave
+
+    val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
+    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v",  "sd_phy.v", "sd_top.v", "sd_wishbone.v")
+    sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
+    simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
+    simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
+
     simConfig.compile(new De1SocLinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
@@ -158,7 +165,9 @@ object De1SocLinuxSystemSim {
       clockCtrl.powerOnReset.load(true)
       clockCtrl.clkFrequency.load(100 MHz)
       clockCtrl.resetHoldDuration.load(15)
-      De1SocLinuxSystem.default(this, clockCtrl)
+      val sdcard = SdcardEmulatorGenerator()
+      sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
+      De1SocLinuxSystem.default(this, clockCtrl,inferSpiAPhy = false)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
@@ -189,6 +198,12 @@ object De1SocLinuxSystemSim {
           sleep(systemClkPeriod*100)
         }
       }
+
+      val sdcard = SdcardEmulatorIoSpinalSim(
+        io = dut.sdcard.io,
+        nsPeriod = 1000,
+        storagePath = "../sdcard/image"
+      )
 
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,
