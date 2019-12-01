@@ -216,9 +216,9 @@ object Ulx3sLinuxSystemSim {
       )
 
       val linuxPath = "../buildroot/output/images/"
-      sdram.loadBin(0x00000000, linuxPath + "Image")
-      sdram.loadBin(0x005F0000, linuxPath + "dtb")
-      sdram.loadBin(0x00600000, linuxPath + "rootfs.cpio")
+      sdram.loadBin(0x00400000, linuxPath + "Image")
+      sdram.loadBin(0x00FF0000, linuxPath + "dtb")
+      //sdram.loadBin(0x00800000, linuxPath + "rootfs.cpio")
     }
   }
 }
