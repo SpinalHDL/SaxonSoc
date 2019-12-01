@@ -13,8 +13,8 @@ import spinal.lib.memory.sdram.sdr.sim.SdramModel
 
 class Ulx3sLinuxSystem extends SaxonSocLinux{
   //Add components
-  val ramA = BmbOnChipRamGenerator(0x80000000l)
-  val sdramA = SdramSdrBmbGenerator(0x90000000l)
+  val ramA = BmbOnChipRamGenerator(0x70000000l) 
+  val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
   val spiB = Apb3SpiGenerator(0x21000)
@@ -67,7 +67,7 @@ object Ulx3sLinuxSystem{
   def default(g : Ulx3sLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
     import g._
 
-    cpu.config.load(VexRiscvConfigs.linux)
+    cpu.config.load(VexRiscvConfigs.linux(0x70000000l))
     cpu.enableJtag(clockCtrl)
 
     // Configure ram
@@ -219,6 +219,74 @@ object Ulx3sLinuxSystemSim {
       sdram.loadBin(0x00000000, linuxPath + "Image")
       sdram.loadBin(0x005F0000, linuxPath + "dtb")
       sdram.loadBin(0x00600000, linuxPath + "rootfs.cpio")
+    }
+  }
+}
+
+object Ulx3sUbootSystemSim {
+  import spinal.core.sim._
+
+  def main(args: Array[String]): Unit = {
+
+    val simConfig = SimConfig
+    simConfig.allOptimisation
+    simConfig.withWave
+    simConfig.addSimulatorFlag("-Wno-CMPCONST")
+    simConfig.compile(new Ulx3sLinuxSystem(){
+      val clockCtrl = ClockDomainGenerator()
+      this.onClockDomain(clockCtrl.clockDomain)
+      clockCtrl.makeExternal(ResetSensitivity.HIGH)
+      clockCtrl.powerOnReset.load(true)
+      clockCtrl.clkFrequency.load(50 MHz)
+      clockCtrl.resetHoldDuration.load(15)
+      Ulx3sLinuxSystem.default(this, clockCtrl)
+    }.toComponent()).doSimUntilVoid("test", 42){dut =>
+      val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
+      val jtagClkPeriod = systemClkPeriod*4
+      val uartBaudRate = 115200
+      val uartBaudPeriod = (1e12/uartBaudRate).toLong
+
+      val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
+      clockDomain.forkStimulus(systemClkPeriod)
+
+      fork{
+        while(true){
+          disableSimWave()
+          sleep(systemClkPeriod*500000)
+          enableSimWave()
+          sleep(systemClkPeriod*100)
+        }
+      }
+
+      val tcpJtag = JtagTcp(
+        jtag = dut.cpu.jtag,
+        jtagClkPeriod = jtagClkPeriod
+      )
+
+      clockDomain.waitSampling(10)
+
+      val uartTx = UartDecoder(
+        uartPin =  dut.uartA.uart.txd,
+        baudPeriod = uartBaudPeriod
+      )
+      
+      val uartRx = UartEncoder(
+        uartPin = dut.uartA.uart.rxd,
+        baudPeriod = uartBaudPeriod
+      )
+
+      val sdram = SdramModel(
+        io = dut.sdramA.sdram,
+        layout = dut.sdramA.logic.layout,
+        clockDomain = clockDomain
+      )
+
+      val linuxPath = "../buildroot/output/images/"
+      //sdram.loadBin(0x00200000, "../u-boot/spl/u-boot-spl.bin")
+      sdram.loadBin(0x00200000, "../u-boot/u-boot.bin")
+      sdram.loadBin(0x003fffc0, linuxPath + "uImage")
+      sdram.loadBin(0x00ff0000, linuxPath + "dtb")
+      sdram.loadBin(0x007fffc0, linuxPath + "rootfs.cpio.uboot")
     }
   }
 }
