@@ -168,6 +168,10 @@ object Ulx3sLinuxSystemSim {
       clockCtrl.resetHoldDuration.load(15)
       val sdcard = SdcardEmulatorGenerator()
       sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
+      spiA.produce(spiA.apb.PENABLE.simPublic())
+      gpioA.produce(gpioA.apb.PENABLE.simPublic())
+      spiA.produce(spiA.apb.PSEL.simPublic())
+      gpioA.produce(gpioA.apb.PSEL.simPublic())
       Ulx3sLinuxSystem.default(this, clockCtrl, inferSpiAPhy = false)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
@@ -178,11 +182,31 @@ object Ulx3sLinuxSystemSim {
       val sdcard = SdcardEmulatorIoSpinalSim(
         io = dut.sdcard.io,
         nsPeriod = 1000,
-        storagePath = "../sdcard/image"
+        storagePath = "/home/miaou/tmp/saxonsoc-ulx3s-bin-master/linux/images/sdimage"
+//        storagePath = "/home/miaou/tmp/saxonsoc-ulx3s-bin-master/linux/images/imageRoman"
       )
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
+
+//      var debugTimer = 0
+//      disableSimWave()
+//      clockDomain.onSamplings{
+//        if(debugTimer != 0) {
+//          debugTimer = debugTimer - 1
+//          if(debugTimer == 0) disableSimWave()
+//        }
+//
+//        if(dut.spiA.apb.PENABLE.toBoolean && dut.spiA.apb.PSEL.toInt != 0 ||
+//          dut.gpioA.apb.PENABLE.toBoolean && dut.gpioA.apb.PSEL.toInt != 0 ||
+//          dut.sdcard.io.wishbone.CYC.toBoolean ||
+//          (dut.gpioA.gpio.writeEnable.toInt & 0x100) != 0 && (dut.gpioA.gpio.write.toInt & 0x100) == 0){
+//          if(debugTimer == 0){
+//            enableSimWave()
+//            debugTimer = 10000
+//          }
+//        }
+//      }
       fork{
         while(true){
           disableSimWave()
@@ -215,10 +239,10 @@ object Ulx3sLinuxSystemSim {
         clockDomain = clockDomain
       )
 
-      val linuxPath = "../buildroot/output/images/"
+      val linuxPath = "/home/miaou/tmp/saxonsoc-ulx3s-bin-master/linux/images/"
       sdram.loadBin(0x00400000, linuxPath + "Image")
       sdram.loadBin(0x00FF0000, linuxPath + "dtb")
-      //sdram.loadBin(0x00800000, linuxPath + "rootfs.cpio")
+      sdram.loadBin(0x00800000, linuxPath + "rootfs.cpio")
     }
   }
 }

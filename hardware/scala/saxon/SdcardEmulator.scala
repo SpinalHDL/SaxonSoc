@@ -91,8 +91,9 @@ case class SdcardEmulatorIoSpinalSim(io : SdcardEmulatorIo,
 
   val fs = new RandomAccessFile(storagePath, "rw")
   var fsAddress = -1l;
-  io.wishbone.ACK #= true
-  ClockDomain(io.wbm_clk_o, io.reset_n, config = ClockDomainConfig(clockEdge = FALLING)).onSamplings{
+  io.wishbone.ACK #= false
+  ClockDomain(io.wbm_clk_o, io.reset_n, config = ClockDomainConfig(clockEdge = FALLING, resetActiveLevel = LOW)).onSamplings{
+    io.wishbone.ACK #= io.wishbone.STB.toBoolean
     if(io.wishbone.STB.toBoolean){
       val address = io.wishbone.ADR.toLong
       if(address != fsAddress) {
@@ -102,7 +103,7 @@ case class SdcardEmulatorIoSpinalSim(io : SdcardEmulatorIo,
       if(io.wishbone.WE.toBoolean){
         fs.writeInt(io.wishbone.DAT_MOSI.toLong.toInt)
       } else {
-        io.wishbone.DAT_MISO #= (fs.readInt().toLong) & 0xFFFFFFFF
+        io.wishbone.DAT_MISO #= (fs.readInt().toLong & 0xFFFFFFFFl)
       }
       fsAddress += 4
     }

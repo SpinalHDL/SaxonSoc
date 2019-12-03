@@ -173,7 +173,7 @@ class Arty7Linux extends Generator{
       val CLKOUT3  = out Bool()
       val CLKOUT4  = out Bool()
 
-      Clock.syncDrive(CLKIN1, CLKOUT0)
+//      Clock.syncDrive(CLKIN1, CLKOUT0)
       Clock.syncDrive(CLKIN1, CLKOUT1)
       Clock.syncDrive(CLKIN1, CLKOUT2)
       Clock.syncDrive(CLKIN1, CLKOUT3)

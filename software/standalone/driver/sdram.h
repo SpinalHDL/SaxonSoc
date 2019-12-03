@@ -72,7 +72,7 @@ inline static SdramTiming sdram_timingsFrom(SdramTiming ps, SdramTiming cycle, u
 	for(uint32_t idx = 0;idx < sizeof(SdramTiming)/sizeof(uint32_t);idx++){
 		uint32_t t1 = (((uint32_t*)&ps)[idx] + corePeriodPs-1)/corePeriodPs;
 		uint32_t t2 = (((uint32_t*)&cycle)[idx] + phyClkRatio -1) / phyClkRatio;
-		((uint32_t*)&config)[idx] = (t1 > t2 ? t1 : t2)-1;
+		((uint32_t*)&config)[idx] = (t1 > t2 ? t1 : t2)-2;
 	}
 	return config;
 }
