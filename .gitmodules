@@ -6,4 +6,4 @@
 	url = https://github.com/SpinalHDL/VexRiscv.git
 [submodule "ext/sd_device"]
 	path = ext/sd_device
-	url = https://github.com/fusesoc/sd_device.git
+	url = https://github.com/SpinalHDL/sd_device.git
