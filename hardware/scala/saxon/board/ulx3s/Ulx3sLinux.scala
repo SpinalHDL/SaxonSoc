@@ -130,9 +130,9 @@ object Ulx3sLinux {
     import g._
     clockCtrl.clkFrequency.load(50 MHz)
     clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
-    g.system.sdramA.logic.produce {
-      g.system.sdramA.logic.ctrl.chip.sdram.addAttribute("syn_useioff")
-    }
+    //g.system.sdramA.logic.produce {
+    //  g.system.sdramA.logic.ctrl.chip.sdram.addAttribute("syn_useioff")
+    //}
     Ulx3sLinuxSystem.default(system, clockCtrl)
     g
   }
