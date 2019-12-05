@@ -4,8 +4,16 @@
 #include <stdint.h>
 #include <io.h>
 
+#ifndef MAX
+#define MAX(a,b)   (((a) > (b)) ? (a) : (b))
+#endif
+#ifndef MIN
+#define MIN(a,b)   (((a) < (b)) ? (a) : (b))
+#endif
+
 #define SDRAM_CONFIG 0x000
-#define SDRAM_CTRL_FLAGS 0x004
+#define SDRAM_PHASE 0x004
+#define SDRAM_LATENCY 0x008
 
 #define SDRAM_SOFT_PUSH 0x100
 #define SDRAM_SOFT_CMD 0x104
@@ -48,71 +56,54 @@
 
 typedef struct
 {
-	uint32_t REF;
-
-	uint32_t RAS;
-	uint32_t RP;
 	uint32_t RFC;
-	uint32_t RRD;
-
+	uint32_t RAS;
+	uint32_t RP ;
 	uint32_t RCD;
-
-	uint32_t RTW;
-	uint32_t RTP;
 	uint32_t WTR;
 	uint32_t WTP;
-
-
+	uint32_t RTP;
+	uint32_t RRD;
+	uint32_t REF;
 	uint32_t FAW;
-	uint32_t ODT;
+
 } SdramTiming;
 
-inline static SdramTiming sdram_timingsFrom(SdramTiming ps, SdramTiming cycle, uint32_t corePeriodPs, uint32_t phyClkRatio){
-	SdramTiming config;
-	for(uint32_t idx = 0;idx < sizeof(SdramTiming)/sizeof(uint32_t);idx++){
-		uint32_t t1 = (((uint32_t*)&ps)[idx] + corePeriodPs-1)/corePeriodPs;
-		uint32_t t2 = (((uint32_t*)&cycle)[idx] + phyClkRatio -1) / phyClkRatio;
-		((uint32_t*)&config)[idx] = (t1 > t2 ? t1 : t2)-2;
-	}
-	return config;
+//inline static SdramTiming sdram_timingsFrom(SdramTiming ps, SdramTiming cycle, uint32_t corePeriodPs, uint32_t phyClkRatio){
+//	SdramTiming config;
+//	for(uint32_t idx = 0;idx < sizeof(SdramTiming)/sizeof(uint32_t);idx++){
+//		uint32_t t1 = (((uint32_t*)&ps)[idx] + corePeriodPs-1)/corePeriodPs;
+//		uint32_t t2 = (((uint32_t*)&cycle)[idx] + phyClkRatio -1) / phyClkRatio;
+//		((uint32_t*)&config)[idx] = (t1 > t2 ? t1 : t2)-2;
+//	}
+//	return config;
+//}
+
+
+static int32_t t2c(int32_t startPhase, int32_t nextPhase, int32_t duration, int32_t sdramPeriod, int32_t phyClkRatio) {
+	return (startPhase + (duration + sdramPeriod - 1)/sdramPeriod - nextPhase + phyClkRatio - 1) / phyClkRatio;
 }
 
+static uint32_t sat(int32_t v) {
+	return MAX(v,0);
+}
 
 const SdramTiming MT41K128M16JT_125_ps = {
-		.REF = 7800000,
-		.RAS =  35000,
-		.RP  =  13750,
-		.RFC = 160000,
-		.RRD =   7500,
-		.RCD =  13750,
-		.RTW =      0,
-		.RTP =   7500,
-		.WTR =   7500,
-		.WTP =  15000,
-		.FAW =  40000,
-		.ODT =      0,
-};
-
-
-const SdramTiming MT41K128M16JT_125_cycle = {
-		.REF = 0,
-		.RAS = 0,
-		.RP  = 0,
-		.RFC = 0,
-		.RRD = 0,
-		.RCD = 4,
-		.RTW = 6,
-		.RTP = 4,
-		.WTR = 8,
-		.WTP = 0,
-		.FAW = 0,
-		.ODT = 6,
+	.REF =  7800000,
+	.RAS =    35000,
+	.RP  =    13750,
+	.RFC =   160000,
+	.RRD =     7500,
+	.RCD =    13750,
+	.RTP =     7500,
+	.WTR =     7500,
+	.WTP =    15000,
+	.FAW =    40000
 };
 
 
 const uint8_t wrToMr[] = {1,2,3,4,-1,5,-1,6,-1,7,-1,0};
-
-
+const uint8_t rlToMr[] = {2,4,6,8,10,12,14,1,3,5};
 
 static void sdram_command(uint32_t core, uint32_t cmd, uint32_t bank, uint32_t address){
 	write_u32_ad(core + SDRAM_SOFT_BA, bank);
@@ -121,71 +112,94 @@ static void sdram_command(uint32_t core, uint32_t cmd, uint32_t bank, uint32_t a
 	write_u32_ad(core + SDRAM_SOFT_PUSH, 0);
 }
 
-void i2x(uint32_t value, char* str){
-	for(uint32_t i = 0;i < 8;i++){
-		uint32_t e = (value >> (i*4)) & 0xF;
-		str[i] = e < 10 ? e + '0' : e-10+'A';
-	}
-}
+//void i2x(uint32_t value, char* str){
+//	for(uint32_t i = 0;i < 8;i++){
+//		uint32_t e = (value >> (i*4)) & 0xF;
+//		str[i] = e < 10 ? e + '0' : e-10+'A';
+//	}
+//}
+//
+//static inline void write_u32_ad_log(uint32_t address, uint32_t data){
+//	char buffer[] = "0xAAAAAAAA 0xDDDDDDDD\n";
+//	i2x(address, buffer+2); i2x(data, buffer+2+8+1+2);
+//	uart_writeStr(UART_A, buffer);
+//	write_u32_ad(address, data);
+//}
 
-static inline void write_u32_ad_log(uint32_t address, uint32_t data){
-	char buffer[] = "0xAAAAAAAA 0xDDDDDDDD\n";
-	i2x(address, buffer+2); i2x(data, buffer+2+8+1+2);
-	uart_writeStr(UART_A, buffer);
-	write_u32_ad(address, data);
-}
+static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, uint32_t bl, SdramTiming timing, uint32_t phyClkRatio, uint32_t sdramPeriod){
+    uint32_t readToDataCycle = (rl+phyClkRatio-1)/phyClkRatio;
+    uint32_t readPhase = readToDataCycle*phyClkRatio-rl;
+    uint32_t writeToDataCycle = (wl+phyClkRatio-1)/phyClkRatio;
+    uint32_t writePhase = writeToDataCycle*phyClkRatio-wl;
+    uint32_t activePhase = 0;
+	uint32_t prechargePhase = 0;
 
-static void sdram_init(uint32_t core, uint32_t phy, uint32_t cl, uint32_t wr, SdramTiming t, uint32_t phyClkRatio){
-	uint32_t commandToDataCycle = (cl+phyClkRatio-1)/phyClkRatio;
-	uint32_t commandPhase = phyClkRatio - (commandToDataCycle*phyClkRatio-cl);
-	uint32_t sdramConfig = commandPhase | (commandToDataCycle-1 << 16);
+    int32_t ctrlPeriod = sdramPeriod*phyClkRatio;
+    int32_t cREF = t2c(0, 0, timing.REF, sdramPeriod, phyClkRatio);
+    int32_t cRAS = t2c(activePhase     , prechargePhase                 , timing.RAS, sdramPeriod, phyClkRatio);
+    int32_t cRP  = t2c(prechargePhase  , activePhase                    , timing.RP, sdramPeriod, phyClkRatio);
+    int32_t cRFC = t2c(prechargePhase  , activePhase                    , timing.RFC, sdramPeriod, phyClkRatio);
+    int32_t cRRD = t2c(activePhase     , activePhase                    , MAX(timing.RRD, 4*sdramPeriod), sdramPeriod, phyClkRatio);
+    int32_t cRCD = t2c(activePhase     , MIN(writePhase, readPhase)     , timing.RCD, sdramPeriod, phyClkRatio);
+    int32_t cRTW = t2c(readPhase       , writePhase                     , (rl+bl+2-wl)*sdramPeriod, sdramPeriod, phyClkRatio);
+    int32_t cRTP = t2c(readPhase       , prechargePhase                 , MAX(timing.RTP, 4*sdramPeriod), sdramPeriod, phyClkRatio);
+    int32_t cWTR = t2c(writePhase      , readPhase                      , MAX(timing.WTR, 4*sdramPeriod) + (wl+bl)*sdramPeriod, sdramPeriod, phyClkRatio);
+    int32_t cWTP = t2c(writePhase      , prechargePhase                 , timing.WTP + (wl+bl)*sdramPeriod, sdramPeriod, phyClkRatio);
+    int32_t cFAW = t2c(activePhase     , activePhase                    , timing.FAW, sdramPeriod, phyClkRatio);
 
-	write_u32_ad(core + SDRAM_CONFIG, sdramConfig);
-	write_u32_ad(core + SDRAM_CTRL_FLAGS, SDRAM_NO_ACTIVE);
+    write_u32( (prechargePhase << 24) | (activePhase << 16) | (readPhase << 8)   | (writePhase << 0), core + SDRAM_PHASE);
+    write_u32( 0, core + SDRAM_LATENCY);
+    write_u32( SDRAM_NO_ACTIVE, core + SDRAM_CONFIG);
 
-	write_u32_ad(core + SDRAM_TIMING_REF, t.REF);
-	write_u32_ad(core + SDRAM_TIMING_0, (t.RAS << 0) | (t.RP << 8) | (t.RFC << 16) | (t.RRD << 24));
-	write_u32_ad(core + SDRAM_TIMING_1, (t.RCD << 0));
-	write_u32_ad(core + SDRAM_TIMING_2, (t.RTW << 0) | (t.RTP << 8) | (t.WTR << 16) | (t.WTP << 24));
-	write_u32_ad(core + SDRAM_FAW, t.FAW);
-	write_u32_ad(core + SDRAM_ODT, (3 << 0) | (1 << 8));
+    write_u32(cREF-1, core + SDRAM_TIMING_REF);
+    write_u32((sat(cRRD-2) << 24) | (sat(cRFC-2) << 16) | (sat(cRP-2) << 8)   | (sat(cRAS-2) << 0), core + SDRAM_TIMING_0);
+    write_u32(                                                                   (sat(cRCD-2) << 0), core + SDRAM_TIMING_1);
+    write_u32((sat(cWTP-2) << 24)  | (sat(cWTR-2) << 16) | (sat(cRTP-2) << 8)   | (sat(cRTW-2) << 0), core + SDRAM_TIMING_2);
+    write_u32(cFAW-1, core + SDRAM_FAW);
 
-	write_u32_ad(core + SDRAM_SOFT_CLOCKING, 0);
-	io_udelay(200);
-	write_u32_ad(core + SDRAM_SOFT_CLOCKING, SDRAM_RESETN);
-	io_udelay(500);
-	write_u32_ad(core + SDRAM_SOFT_CLOCKING, SDRAM_RESETN | SDRAM_CKE);
 
-	uint32_t clConfig = (cl-3) & 0xF;
-	uint32_t wlConfig = (cl-5);
-	sdram_command(core, SDRAM_MOD, 2, 0x200 | (wlConfig << 3));
-    sdram_command(core, SDRAM_MOD, 3, 0);
+
+    int32_t ODTend = (1 << (writePhase + 6)%phyClkRatio)-1;
+    if(ODTend == 0) ODTend = (1 << phyClkRatio)-1;
+	int32_t ODT = (writePhase+6+phyClkRatio-1)/phyClkRatio-1;
+	write_u32((ODT << 0) | (ODTend << 8), core + SDRAM_ODT);
+
+	write_u32(0, core + SDRAM_SOFT_CLOCKING);
+    io_udelay(200);
+    write_u32(SDRAM_RESETN, core + SDRAM_SOFT_CLOCKING);
+    io_udelay(500);
+    write_u32(SDRAM_RESETN | SDRAM_CKE, core + SDRAM_SOFT_CLOCKING);
+
+	sdram_command(core, SDRAM_MOD, 2, 0x200 | ((wl - 5) << 3));
+	sdram_command(core, SDRAM_MOD, 3, 0);
 	sdram_command(core, SDRAM_MOD, 1, 0x44);
-	sdram_command(core, SDRAM_MOD, 0, (wrToMr[wr-5] << 9) | 0x100 | ((clConfig & 1) << 2) | ((clConfig & 0xE) << 3)); //DDL reset
+	sdram_command(core, SDRAM_MOD, 0, (wrToMr[wl - 5] << 9) | 0x100 | ((rlToMr[rl-5] & 1) << 2) | ((rlToMr[rl-5] & 0xE) << 3)); //DDL reset
 	io_udelay(100);
 	sdram_command(core, SDRAM_ZQCL, 0, 0x400);
 	io_udelay(100);
+
+
 
 //	write_u32_ad(phy + SDRAM_S7_BITSLEEP, 0x00);
 //	write_u32_ad(phy + SDRAM_S7_IDELAY_VALUE, 0x10);
 //	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQS, 0xFFFFFFFF);
 //	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQS, 0x00000000);
-	write_u32_ad(phy + SDRAM_S7_IDELAY_VALUE, 0x10);
-	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0xFFFFFFFF);
-	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0x00000000);
-//
-//
-	write_u32_ad(core + SDRAM_CTRL_FLAGS, 0);
+	write_u32(0x10, phy + SDRAM_S7_IDELAY_VALUE);
+	write_u32(0xFFFFFFFF, phy + SDRAM_S7_IDELAY_LOAD_DQ);
+	write_u32(0x00000000, phy + SDRAM_S7_IDELAY_LOAD_DQ);
+
+
+	write_u32(0, core + SDRAM_CONFIG);
 	asm(".word(0x500F)");
-	write_u32_ad(0x80000000, 0xFFFF0000);
-	write_u32_ad(0x80000004, 0x5555AAAA);
+	write_u32(0xFFFF0000, 0x80000000);
+	write_u32(0x5555AAAA, 0x80000004);
 	asm(".word(0x500F)");
 //	read_u32(0x80000000);
 //	read_u32(0x80000004);
 
 
 	for(int32_t bitsleep = 0; bitsleep < 8;bitsleep++){
-		write_u32_ad(phy + SDRAM_S7_BITSLEEP, 0xFFFFFFFF);
+		write_u32(0xFFFFFFFF, phy + SDRAM_S7_BITSLEEP);
 		asm(".word(0x500F)"); //Flush data cache
 		read_u32(0x80000000);
 	}
