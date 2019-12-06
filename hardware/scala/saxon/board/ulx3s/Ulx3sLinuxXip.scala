@@ -21,6 +21,7 @@ class Ulx3sLinuxXipSystem extends SaxonSocLinux{
   val spiB = Apb3SpiGenerator(0x21000)
   val spiC = Apb3SpiGenerator(0x22000, xipOffset = 0x20000000)
   val noReset = Ulx3sNoResetGenerator()
+  val uartB = Apb3UartGenerator(0x11000)
 
   val bridge = BmbBridgeGenerator()
   interconnect.addConnection(
@@ -37,7 +38,7 @@ class Ulx3sLinuxXipSystem extends SaxonSocLinux{
 
 class Ulx3sLinuxXip extends Generator{
   val clockCtrl = ClockDomainGenerator()
-  clockCtrl.resetHoldDuration.load(255)
+  clockCtrl.resetHoldDuration.load(1023)
   clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
 
@@ -85,6 +86,14 @@ object Ulx3sLinuxXipSystem{
       txFifoDepth = 128,
       rxFifoDepth = 128
     )
+
+    uartB.parameter load UartCtrlMemoryMappedConfig(
+      baudrate = 115200,
+      txFifoDepth = 128,
+      rxFifoDepth = 128
+    )
+
+    uartB.connectInterrupt(plic, 2)
 
     gpioA.parameter load Gpio.Parameter(
       width = 24,
