@@ -1,6 +1,7 @@
 PROJ_NAME=arty7Sdram
 
-DEBUG=no
+DEBUG=yes
+DEBUG_Og=no
 STANDALONE = ..
 
 

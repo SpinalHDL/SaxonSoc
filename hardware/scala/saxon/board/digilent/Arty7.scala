@@ -211,7 +211,7 @@ object Arty7LinuxSystem{
       timingWidth = 4,
       refWidth = 16,
       writeLatencies = List(3),
-      readLatencies = List(5)
+      readLatencies = List(5+3)
     ))
 
     uartA.parameter load UartCtrlMemoryMappedConfig(

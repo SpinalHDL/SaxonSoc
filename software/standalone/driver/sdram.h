@@ -170,7 +170,7 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
     io_udelay(500);
     write_u32(SDRAM_RESETN | SDRAM_CKE, core + SDRAM_SOFT_CLOCKING);
 
-	sdram_command(core, SDRAM_MOD, 2, 0x200 | ((wl - 5) << 3));
+	sdram_command(core, SDRAM_MOD, 2, 0x000 | ((wl - 5) << 3));
 	sdram_command(core, SDRAM_MOD, 3, 0);
 	sdram_command(core, SDRAM_MOD, 1, 0x44);
 	sdram_command(core, SDRAM_MOD, 0, (wrToMr[wl - 5] << 9) | 0x100 | ((rlToMr[rl-5] & 1) << 2) | ((rlToMr[rl-5] & 0xE) << 3)); //DDL reset
@@ -193,15 +193,21 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
 	asm(".word(0x500F)");
 	write_u32(0xFFFF0000, 0x80000000);
 	write_u32(0x5555AAAA, 0x80000004);
+	write_u32(0x11112222, 0x80000008);
+	write_u32(0x33334444, 0x8000000C);
 	asm(".word(0x500F)");
 //	read_u32(0x80000000);
 //	read_u32(0x80000004);
 
 
-	for(int32_t bitsleep = 0; bitsleep < 8;bitsleep++){
+	for(int32_t bitsleep = 0; bitsleep < 9;bitsleep++){
 		write_u32(0xFFFFFFFF, phy + SDRAM_S7_BITSLEEP);
 		asm(".word(0x500F)"); //Flush data cache
-		read_u32(0x80000000);
+		uint32_t d0 = read_u32(0x80000000);
+		uint32_t d1 = read_u32(0x80000004);
+		uint32_t d2 = read_u32(0x80000008);
+		uint32_t d3 = read_u32(0x8000000C);
+		asm("nop");
 	}
 
 //    sdram_command(core, SDRAM_MOD, 3, SDRAM_MPR);
@@ -222,17 +228,18 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
 //	    	read_u32(0x80000000);
 //		}
 ////    }
-//    for(uint32_t idx = 6;idx < 32-6;idx++){
-//    	write_u32_ad(phy + SDRAM_S7_IDELAY_VALUE, idx);
-//    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQS, 0xFFFFFFFF);
-//    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQS, 0x00000000);
-//    	write_u32_ad(phy + SDRAM_S7_IDELAY_VALUE, idx-6);
-//    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0xFFFFFFFF);
-//    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0x00000000);
-//
-//    	asm(".word(0x500F)"); //Flush data cache
-//    	read_u32(0x80000000);
-//    }
+    for(uint32_t idx = 0;idx < 32;idx++){
+    	write_u32_ad(phy + SDRAM_S7_IDELAY_VALUE, idx);
+    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0xFFFFFFFF);
+    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0x00000000);
+
+    	asm(".word(0x500F)"); //Flush data cache
+		uint32_t d0 = read_u32(0x80000000);
+		uint32_t d1 = read_u32(0x80000004);
+		uint32_t d2 = read_u32(0x80000008);
+		uint32_t d3 = read_u32(0x8000000C);
+		asm("nop");
+    }
 }
 
 #endif /* SDRAM_H_ */
