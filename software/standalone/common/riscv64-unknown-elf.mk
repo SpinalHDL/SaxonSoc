@@ -22,7 +22,11 @@ endif
 
 
 ifeq ($(DEBUG),yes)
+ifeq ($(DEBUG_Og),no)
+	CFLAGS += -g3 -O0
+else
 	CFLAGS += -g3 -Og
+endif
 endif
 
 ifeq ($(DEBUG),no)
