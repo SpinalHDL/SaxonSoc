@@ -42,11 +42,5 @@ system_apbDecoder_input@10000000 {
     #size-cells = <0>;
     reg = <0x22000 0x1000>;
   }
-  system_uartB_apb: tty@11000 {
-    compatible = "spinal-lib,uart-1.0";
-    reg = <0x11000 0x1000>;
-    interrupt-parent = <&system_plic_apb>
-    interrupts = <2>;
-  }
 
 };
