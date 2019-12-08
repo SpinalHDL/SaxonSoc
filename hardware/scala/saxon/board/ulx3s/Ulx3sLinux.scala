@@ -182,8 +182,7 @@ object Ulx3sLinuxSystemSim {
       val sdcard = SdcardEmulatorIoSpinalSim(
         io = dut.sdcard.io,
         nsPeriod = 1000,
-        storagePath = "/home/miaou/tmp/saxonsoc-ulx3s-bin-master/linux/images/sdimage"
-//        storagePath = "/home/miaou/tmp/saxonsoc-ulx3s-bin-master/linux/images/imageRoman"
+        storagePath = "../saxonsoc-ulx3s-bin/linux/images/sdimage"
       )
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
@@ -207,6 +206,7 @@ object Ulx3sLinuxSystemSim {
 //          }
 //        }
 //      }
+
       fork{
         while(true){
           disableSimWave()
@@ -239,10 +239,10 @@ object Ulx3sLinuxSystemSim {
         clockDomain = clockDomain
       )
 
-      val linuxPath = "/home/miaou/tmp/saxonsoc-ulx3s-bin-master/linux/images/"
+      val linuxPath = "../saxonsoc-ulx3s-bin/linux/images/"
       sdram.loadBin(0x00400000, linuxPath + "Image")
       sdram.loadBin(0x00FF0000, linuxPath + "dtb")
-      sdram.loadBin(0x00800000, linuxPath + "rootfs.cpio")
+      //sdram.loadBin(0x00800000, linuxPath + "rootfs.cpio")
     }
   }
 }
@@ -251,11 +251,17 @@ object Ulx3sUbootSystemSim {
   import spinal.core.sim._
 
   def main(args: Array[String]): Unit = {
-
     val simConfig = SimConfig
     simConfig.allOptimisation
     simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-CMPCONST")
+
+    val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
+    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v", "sd_phy.v", "sd_top.v", "sd_wishbone.v")
+    sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
+    simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
+    simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
+
     simConfig.compile(new Ulx3sLinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
@@ -263,12 +269,24 @@ object Ulx3sUbootSystemSim {
       clockCtrl.powerOnReset.load(true)
       clockCtrl.clkFrequency.load(50 MHz)
       clockCtrl.resetHoldDuration.load(15)
-      Ulx3sLinuxSystem.default(this, clockCtrl)
+      val sdcard = SdcardEmulatorGenerator()
+      sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
+      spiA.produce(spiA.apb.PENABLE.simPublic())
+      gpioA.produce(gpioA.apb.PENABLE.simPublic())
+      spiA.produce(spiA.apb.PSEL.simPublic())
+      gpioA.produce(gpioA.apb.PSEL.simPublic())
+      Ulx3sLinuxSystem.default(this, clockCtrl, inferSpiAPhy = false)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 115200
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
+
+      val sdcard = SdcardEmulatorIoSpinalSim(
+        io = dut.sdcard.io,
+        nsPeriod = 1000,
+        storagePath = "../saxonsoc-ulx3s-bin/linux/images/sdimage"
+      )
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
@@ -305,12 +323,12 @@ object Ulx3sUbootSystemSim {
         clockDomain = clockDomain
       )
 
-      val linuxPath = "../buildroot/output/images/"
+      val linuxPath = "../saxonsoc-ulx3s-bin/linux/images/"
       //sdram.loadBin(0x00200000, "../u-boot/spl/u-boot-spl.bin")
       sdram.loadBin(0x00200000, "../u-boot/u-boot.bin")
       sdram.loadBin(0x003fffc0, linuxPath + "uImage")
       sdram.loadBin(0x00ff0000, linuxPath + "dtb")
-      sdram.loadBin(0x007fffc0, linuxPath + "rootfs.cpio.uboot")
+      //sdram.loadBin(0x007fffc0, linuxPath + "rootfs.cpio.uboot")
     }
   }
 }
