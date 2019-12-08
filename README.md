@@ -19,7 +19,22 @@ output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/im
 dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts
 ```
 
+## Arty7Linux
 
+WIP
+
+```
+git clone https://github.com/SpinalHDL/buildroot.git -b saxon buildroot
+git clone https://github.com/SpinalHDL/linux.git -b vexriscv --depth 100 linux
+cd buildroot
+make spinal_saxon_arty7_defconfig
+make linux-rebuild all -j$(nproc)
+output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
+dtc -O dtb -o output/images/dtb board/spinal/saxon_arty7/spinal_saxon_arty7.dts
+
+cd ../riscv_openocd
+src/openocd -f tcl/interface/ftdi/ft2232h_breakout.cfg -c 'set CPU0_YAML ../SaxonSoc.git/cpu0.yaml' -f tcl/target/arty7_linux.cfg
+```
 
 
 

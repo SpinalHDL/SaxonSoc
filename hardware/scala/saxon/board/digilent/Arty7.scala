@@ -21,7 +21,7 @@ import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 
 
 
-class Arty7LinuxSystem(val sdramClockDomain : Handle[ClockDomain]) extends SaxonSocLinux{
+class Arty7LinuxSystem() extends SaxonSocLinux{
   //Add components
   val gpioA = Apb3GpioGenerator(0x00000)
 
@@ -31,7 +31,7 @@ class Arty7LinuxSystem(val sdramClockDomain : Handle[ClockDomain]) extends Saxon
 
   val sdramA = SdramXdrBmbGenerator(
     memoryAddress = 0x80000000l
-  ).onClockDomain(sdramClockDomain)
+  )
 
   val sdramA0 = sdramA.addPort()
 //  val sdramA1 = sdramA.addPort()
@@ -79,8 +79,9 @@ class Arty7Linux extends Generator{
   mainClockCtrl.clockDomain.produce(sdramClockCtrl.reset.load(mainClockCtrl.clockDomain.reset))
 
 
-  val system = new Arty7LinuxSystem(sdramClockCtrl.clockDomain)
+  val system = new Arty7LinuxSystem()
   system.onClockDomain(mainClockCtrl.clockDomain)
+  system.sdramA.onClockDomain(sdramClockCtrl.clockDomain)
 
   val sdramDomain = new Generator{
     onClockDomain(sdramClockCtrl.clockDomain)
@@ -211,7 +212,7 @@ object Arty7LinuxSystem{
       timingWidth = 4,
       refWidth = 16,
       writeLatencies = List(3),
-      readLatencies = List(5+3)
+      readLatencies = List(5+3, 5+4)
     ))
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
@@ -229,20 +230,20 @@ object Arty7LinuxSystem{
       m.rsp << s.rsp.halfPipe()
     }
     interconnect.setConnector(sdramA0.bmb){case (m,s) =>
-      m.cmd.halfPipe() >> s.cmd
-      m.rsp << s.rsp.halfPipe()
+      m.cmd >/-> s.cmd
+      m.rsp <-< s.rsp
     }
-    interconnect.setConnector(cpu.iBus){case (m,s) =>
-      m.cmd.halfPipe() >> s.cmd
-      m.rsp << s.rsp.halfPipe()
-    }
-    interconnect.setConnector(cpu.dBus){case (m,s) =>
-      m.cmd.halfPipe() >> s.cmd
-      m.rsp << s.rsp.halfPipe()
-    }
+//    interconnect.setConnector(cpu.iBus){case (m,s) =>
+//      m.cmd.halfPipe() >> s.cmd
+//      m.rsp << s.rsp.halfPipe()
+//    }
+//    interconnect.setConnector(cpu.dBus){case (m,s) =>
+//      m.cmd.halfPipe() >> s.cmd
+//      m.rsp << s.rsp.halfPipe()
+//    }
     interconnect.setConnector(bridge.bmb){case (m,s) =>
-      m.cmd.halfPipe() >> s.cmd
-      m.rsp << s.rsp.halfPipe()
+      m.cmd >/-> s.cmd
+      m.rsp <-< s.rsp
     }
     g
   }
@@ -256,7 +257,7 @@ object Arty7Linux {
     mainClockCtrl.resetSensitivity.load(ResetSensitivity.NONE)
     sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
     Arty7LinuxSystem.default(system, mainClockCtrl)
-    system.ramA.hexInit.load("software/standalone/arty7Sdram/build/arty7Sdram.hex")
+//    system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     g
   }
 
@@ -283,21 +284,24 @@ object Arty7LinuxSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-    simConfig.withWave
-    simConfig.compile(new Arty7LinuxSystem(ClockDomain.external("sdramClk")){
+//    simConfig.withWave
+    simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
+    simConfig.compile(new Arty7LinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
       clockCtrl.makeExternal(ResetSensitivity.HIGH)
       clockCtrl.powerOnReset.load(true)
       clockCtrl.clkFrequency.load(100 MHz)
       clockCtrl.resetHoldDuration.load(15)
-      sdramA.phyParameter.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))
-      sdramA.phyPort.produce{sdramA.phyPort.flatten.filter(_.isInput).foreach(_.assignDontCare())}
-      sdramA.apb.produce{ sdramA.apb.flatten.filter(_.isInput).foreach(_.assignDontCare())}
-      val apbDummy = Apb3DummyGenerator(Apb3Config(13, 32), 0x100000l)
-      apbDummy.produce{apbDummy.apb.get.simPublic}
+
+      val phy = RtlPhyGenerator()
+      phy.layout.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))
+      phy.connect(sdramA)
+
+      apbDecoder.addSlave(sdramA.apb, 0x100000l)
+
       Arty7LinuxSystem.default(this, clockCtrl)
-      ramA.hexInit.load("software/standalone/arty7Sdram/build/arty7Sdram.hex")
+      ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
@@ -306,7 +310,7 @@ object Arty7LinuxSystemSim {
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
-      dut.sdramClockDomain.get.forkStimulus((systemClkPeriod/0.7).toInt)
+//      dut.sdramClockDomain.get.forkStimulus((systemClkPeriod/0.7).toInt)
 
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,
@@ -323,10 +327,14 @@ object Arty7LinuxSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
-      val apbMonitor = new Apb3Listener(dut.apbDummy.apb, clockDomain){
-        override def onRead(address: BigInt): Unit = {}
-        override def onWrite(address: BigInt, value: BigInt): Unit = {println(s"apbWrite(0x${address.toString(16)}, 0x${value.toString(16)})")}
-      }
+      val linuxPath = "../buildroot/output/images/"
+      dut.phy.io.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+      dut.phy.io.loadBin(0x00400000, linuxPath + "Image")
+      dut.phy.io.loadBin(0x00BF0000, linuxPath + "dtb")
+      dut.phy.io.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
+
+      println("DRAM loading done")
+
     }
   }
 }

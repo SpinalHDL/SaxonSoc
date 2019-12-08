@@ -9,7 +9,7 @@ import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Ha
 import spinal.lib.memory.sdram.SdramLayout
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr._
-import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
+import spinal.lib.memory.sdram.xdr.phy.{RtlPhy, XilinxS7Phy}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -240,6 +240,17 @@ case class XilinxS7PhyGenerator(configAddress : BigInt)(implicit decoder: Apb3De
     ctrl.produce{
       ctrl.logic.io.phy <> logic.phy.io.ctrl
     }
+  }
+}
+
+case class RtlPhyGenerator()extends Generator{
+  val layout = createDependency[PhyLayout]
+  val io = produceIo(logic.io.write)
+  val logic = add task RtlPhy(layout)
+
+  def connect(ctrl : SdramXdrBmbGenerator): Unit = {
+    layout.produce{ ctrl.phyParameter.load(layout.get) }
+    Dependable(ctrl, logic){ ctrl.logic.io.phy <> logic.io.ctrl }
   }
 }
 

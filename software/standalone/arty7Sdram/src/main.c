@@ -3,8 +3,6 @@
 #include "saxon.h"
 #include "sdram.h"
 
-volatile char globalC = 'b';
-
 void main() {
 //	uart_writeStr(UART_A, "Hello world\n");
 //	static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, uint32_t bl, SdramTiming t, uint32_t phyClkRatio, uint32_t sdramPeriod){
