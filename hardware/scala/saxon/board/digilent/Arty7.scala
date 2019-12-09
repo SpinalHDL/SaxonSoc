@@ -3,10 +3,11 @@ package saxon.board.digilent
 import saxon.{ResetSensitivity, _}
 import spinal.core._
 import spinal.core.sim._
-import spinal.lib.blackbox.xilinx.s7.BUFG
+import spinal.lib.blackbox.xilinx.s7.{BUFG, STARTUPE2}
 import spinal.lib.bus.amba3.apb.Apb3Config
 import spinal.lib.bus.amba3.apb.sim.{Apb3Listener, Apb3Monitor}
 import spinal.lib.com.jtag.sim.JtagTcp
+import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
@@ -24,6 +25,8 @@ import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 class Arty7LinuxSystem() extends SaxonSocLinux{
   //Add components
   val gpioA = Apb3GpioGenerator(0x00000)
+  val spiA = Apb3SpiGenerator(0x20000)
+  val spiB = Apb3SpiGenerator(0x21000)
 
 
   val ramA = BmbOnChipRamGenerator(0x20000000l)
@@ -99,48 +102,6 @@ class Arty7Linux extends Generator{
     sdramApbBridge.outputClockDomain.merge(sdramClockCtrl.clockDomain)
   }
 
-//  val clocking = add task new Area{
-//    val GCLK100 = in Bool()
-//
-//
-//    mainClockCtrl.clkFrequency.load(100 MHz)
-//    sdramClockCtrl.clkFrequency.load(150 MHz)
-//    val pll = new BlackBox{
-//      setDefinitionName("PLLE2_ADV")
-//
-//      addGenerics(
-//        "CLKIN1_PERIOD" -> 10.0,
-//        "CLKFBOUT_MULT" -> 12,
-//        "CLKOUT0_DIVIDE" -> 16,
-//        "CLKOUT0_PHASE" -> 0,
-//        "CLKOUT1_DIVIDE" -> 16,
-//        "CLKOUT1_PHASE" -> 45,
-//        "CLKOUT2_DIVIDE" -> 8,
-//        "CLKOUT2_PHASE" -> 0,
-//        "CLKOUT3_DIVIDE" -> 8,
-//        "CLKOUT3_PHASE" -> 90
-//      )
-//
-//      val CLKIN1   = in Bool()
-//      val CLKFBIN  = in Bool()
-//      val CLKFBOUT = out Bool()
-//      val CLKOUT0  = out Bool()
-//      val CLKOUT1  = out Bool()
-//      val CLKOUT2  = out Bool()
-//      val CLKOUT3  = out Bool()
-//    }
-//
-//    pll.CLKFBIN := pll.CLKFBOUT
-//    pll.CLKIN1 := GCLK100
-//
-//    mainClockCtrl.clock.load(BUFG.on(pll.CLKOUT0))
-//
-//    sdramClockCtrl.clock.load(mainClockCtrl.clock.get)
-//    sdramDomain.phyA.clk90.load(ClockDomain(BUFG.on(pll.CLKOUT1)))
-//    sdramDomain.phyA.serdesClk0.load(ClockDomain(BUFG.on(pll.CLKOUT2)))
-//    sdramDomain.phyA.serdesClk90.load(ClockDomain(BUFG.on(pll.CLKOUT3)))
-//  }
-
   val clocking = add task new Area{
     val GCLK100 = in Bool()
 
@@ -174,7 +135,6 @@ class Arty7Linux extends Generator{
       val CLKOUT3  = out Bool()
       val CLKOUT4  = out Bool()
 
-//      Clock.syncDrive(CLKIN1, CLKOUT0)
       Clock.syncDrive(CLKIN1, CLKOUT1)
       Clock.syncDrive(CLKIN1, CLKOUT2)
       Clock.syncDrive(CLKIN1, CLKOUT3)
@@ -191,6 +151,14 @@ class Arty7Linux extends Generator{
     sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
     sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
   }
+
+  val startupe2 = system.spiB.phy.produce(
+    STARTUPE2.driveSpiClk(system.generatorClockDomain.get(RegNext(system.spiB.phy.sclk.write(0))))
+  )
+
+  system.spiB.spi.produce(
+    system.spiB.spi.get.asInstanceOf[SpiHalfDuplexMaster].sclk.setAsDirectionLess()
+  )
 }
 
 
@@ -200,7 +168,6 @@ object Arty7LinuxSystem{
     import g._
 
     cpu.config.load(VexRiscvConfigs.linuxTest(0x20000000l))
-    cpu.produce(cpu.externalSupervisorInterrupt.load(Bool)) //TMP patch
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(8 KiB)
@@ -222,8 +189,42 @@ object Arty7LinuxSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 0
+      width = 16,
+      interrupt = List(0, 1, 2, 3)
     )
+    gpioA.connectInterrupts(plic, 4)
+
+    spiA.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
+      SpiXdrMasterCtrl.Parameters(
+        dataWidth = 8,
+        timerWidth = 12,
+        spi = SpiXdrParameter(
+          dataWidth = 2,
+          ioRate = 1,
+          ssWidth = 0
+        )
+      ) .addFullDuplex(id = 0),
+      cmdFifoDepth = 256,
+      rspFifoDepth = 256
+    )
+    spiA.inferSpiSdrIo()
+
+    spiB.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
+      SpiXdrMasterCtrl.Parameters(
+        dataWidth = 8,
+        timerWidth = 12,
+        spi = SpiXdrParameter(
+          dataWidth = 2,
+          ioRate = 1,
+          ssWidth = 0
+        )
+      ) .addFullDuplex(id = 0),
+      cmdFifoDepth = 256,
+      rspFifoDepth = 256
+    )
+    spiB.inferSpiSdrIo()
+
+
 
     interconnect.setConnector(peripheralBridge.input){case (m,s) =>
       m.cmd.halfPipe >> s.cmd
@@ -257,7 +258,7 @@ object Arty7Linux {
     mainClockCtrl.resetSensitivity.load(ResetSensitivity.NONE)
     sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
     Arty7LinuxSystem.default(system, mainClockCtrl)
-//    system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
+    system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     g
   }
 
