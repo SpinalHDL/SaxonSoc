@@ -5,6 +5,8 @@ RISCV_OBJDUMP=${RISCV_BIN}objdump
 
 MARCH := rv32i
 BENCH ?= no
+DEBUG?=no
+DEBUG_Og?=yes
 
 ifeq ($(RV_M),yes)
 	MARCH := $(MARCH)m

@@ -1,6 +1,4 @@
 PROJ_NAME=machineModeSbi
-
-DEBUG=no
 STANDALONE = ..
 
 

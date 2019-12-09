@@ -1,7 +1,4 @@
 PROJ_NAME=bootloader
-
-DEBUG=yes
-DEBUG_Og=no
 STANDALONE = ..
 
 

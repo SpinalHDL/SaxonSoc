@@ -39,7 +39,7 @@ static void spiFlash_f2m(Spi_Reg * spi,  Gpio_Reg *gpio, u32 cs, u32 flashAddres
 	spi_write(spi, flashAddress >>  8);
 	spi_write(spi, flashAddress >>  0);
 	spi_write(spi, 0);
-	uint8_t *ram = memoryAddress;
+	uint8_t *ram = (uint8_t *) memoryAddress;
 	for(u32 idx = 0;idx < size;idx++){
 		u8 value = spi_read(spi);
 		*ram++ = value;

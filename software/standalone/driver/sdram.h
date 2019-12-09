@@ -128,7 +128,7 @@ static void sdram_command(uint32_t core, uint32_t cmd, uint32_t bank, uint32_t a
 //	write_u32_ad(address, data);
 //}
 
-static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, uint32_t bl, SdramTiming timing, uint32_t phyClkRatio, uint32_t sdramPeriod, uint32_t calibration, uint32_t simulation){
+static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, uint32_t bl, SdramTiming timing, uint32_t phyClkRatio, uint32_t sdramPeriod, uint32_t noDelay){
     uint32_t readToDataCycle = (rl+phyClkRatio-1)/phyClkRatio;
     uint32_t readPhase = readToDataCycle*phyClkRatio-rl;
     uint32_t writeToDataCycle = (wl+phyClkRatio-1)/phyClkRatio;
@@ -157,7 +157,7 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
     write_u32((sat(cRRD-2) << 24) | (sat(cRFC-2) << 16) | (sat(cRP-2) << 8)   | (sat(cRAS-2) << 0), core + SDRAM_TIMING_0);
     write_u32(                                                                   (sat(cRCD-2) << 0), core + SDRAM_TIMING_1);
     write_u32((sat(cWTP-2) << 24)  | (sat(cWTR-2) << 16) | (sat(cRTP-2) << 8)   | (sat(cRTW-2) << 0), core + SDRAM_TIMING_2);
-    write_u32(cFAW-1, core + SDRAM_FAW);
+    write_u32(sat(cFAW-1), core + SDRAM_FAW);
 
 
 
@@ -167,29 +167,30 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
 	write_u32((ODT << 0) | (ODTend << 8), core + SDRAM_ODT);
 
 	write_u32(0, core + SDRAM_SOFT_CLOCKING);
-	if(!simulation) io_udelay(200);
+	if(!noDelay) io_udelay(200);
     write_u32(SDRAM_RESETN, core + SDRAM_SOFT_CLOCKING);
-    if(!simulation) io_udelay(500);
+    if(!noDelay) io_udelay(500);
     write_u32(SDRAM_RESETN | SDRAM_CKE, core + SDRAM_SOFT_CLOCKING);
 
 	sdram_command(core, SDRAM_MOD, 2, 0x000 | ((wl - 5) << 3));
 	sdram_command(core, SDRAM_MOD, 3, 0);
 	sdram_command(core, SDRAM_MOD, 1, 0x44);
 	sdram_command(core, SDRAM_MOD, 0, (wrToMr[wl - 5] << 9) | 0x100 | ((rlToMr[rl-5] & 1) << 2) | ((rlToMr[rl-5] & 0xE) << 3)); //DDL reset
-	if(!simulation) io_udelay(100);
+	if(!noDelay) io_udelay(100);
 	sdram_command(core, SDRAM_ZQCL, 0, 0x400);
-	if(!simulation) io_udelay(100);
+	if(!noDelay) io_udelay(100);
+}
 
-
+void sdram_phy_s7(uint32_t core, uint32_t phy){
 	write_u32(10, phy + SDRAM_S7_IDELAY_VALUE);
 	write_u32(0xFFFFFFFF, phy + SDRAM_S7_IDELAY_LOAD_DQ);
 	write_u32(0x00000000, phy + SDRAM_S7_IDELAY_LOAD_DQ);
 
 
 	write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
-//	write_u32(0, core + SDRAM_CONFIG);
 
-	if(!calibration) return;
+
+
 	asm(".word(0x500F)");
 	write_u32(0xFFFF0000, 0x80000000);
 	write_u32(0x5555AAAA, 0x80000004);
@@ -234,20 +235,26 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
 	//	    	read_u32(0x80000000);
 	//		}
 	////    }
-	    for(uint32_t idx = 0;idx < 32;idx++){
-	    	write_u32_ad(phy + SDRAM_S7_IDELAY_VALUE, idx);
-	    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0xFFFFFFFF);
-	    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0x00000000);
 
-	    	asm(".word(0x500F)"); //Flush data cache
-			uint32_t d0 = read_u32(0x80000000);
-			uint32_t d1 = read_u32(0x80000004);
-			uint32_t d2 = read_u32(0x80000008);
-			uint32_t d3 = read_u32(0x8000000C);
-			asm("nop");
-	    }
 
-		write_u32(28-16, phy + SDRAM_S7_IDELAY_VALUE);
+
+//	    for(uint32_t idx = 0;idx < 32;idx++){
+//	    	write_u32_ad(phy + SDRAM_S7_IDELAY_VALUE, idx);
+//	    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0xFFFFFFFF);
+//	    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0x00000000);
+//
+//	    	asm(".word(0x500F)"); //Flush data cache
+//			uint32_t d0 = read_u32(0x80000000);
+//			uint32_t d1 = read_u32(0x80000004);
+//			uint32_t d2 = read_u32(0x80000008);
+//			uint32_t d3 = read_u32(0x8000000C);
+//			asm("nop");
+//	    }
+//		asm(".word(0x500F)");
+//		write_u32(28-16, phy + SDRAM_S7_IDELAY_VALUE);
+//
+
+
 //
 //
 //		for(uint32_t idx = 0;idx < 100;idx++){

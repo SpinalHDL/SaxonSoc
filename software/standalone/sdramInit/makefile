@@ -1,7 +1,4 @@
 PROJ_NAME=sdramInit
-
-DEBUG=yes
-DEBUG_Og=no
 STANDALONE = ..
 
 
