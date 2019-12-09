@@ -114,7 +114,7 @@ object VexRiscvConfigs {
         relaxedPcCalculation = false,
         config = InstructionCacheConfig(
           cacheSize = 4096*1,
-          bytePerLine = 32,
+          bytePerLine = 64,
           wayCount = 1,
           addressWidth = 32,
           cpuDataWidth = 32,
@@ -136,7 +136,7 @@ object VexRiscvConfigs {
         relaxedMemoryTranslationRegister = true,
         config = new DataCacheConfig(
           cacheSize         = 4096*1,
-          bytePerLine       = 32,
+          bytePerLine       = 64,
           wayCount          = 1,
           addressWidth      = 32,
           cpuDataWidth      = 32,
