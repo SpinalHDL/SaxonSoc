@@ -97,7 +97,7 @@ object Ulx3sLinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 0
+          ssWidth = 1
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
@@ -270,11 +270,15 @@ object Ulx3sUbootSystemSim {
       clockCtrl.clkFrequency.load(50 MHz)
       clockCtrl.resetHoldDuration.load(15)
       val sdcard = SdcardEmulatorGenerator()
+/*
       sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
       spiA.produce(spiA.apb.PENABLE.simPublic())
       gpioA.produce(gpioA.apb.PENABLE.simPublic())
       spiA.produce(spiA.apb.PSEL.simPublic())
       gpioA.produce(gpioA.apb.PSEL.simPublic())
+*/
+      sdcard.connect(spiA.phy, spiA.phy.produce(RegNext(spiA.phy.ss(0))))
+
       Ulx3sLinuxSystem.default(this, clockCtrl, inferSpiAPhy = false)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
