@@ -64,7 +64,7 @@ case class Ulx3sLinuxPll() extends BlackBox{
 }
 
 object Ulx3sLinuxSystem{
-  def default(g : Ulx3sLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
+  def default(g : Ulx3sLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true, ssSpiAWidth : Int = 0) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.linux(0x70000000l))
@@ -97,7 +97,7 @@ object Ulx3sLinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 1
+          ssWidth = ssSpiAWidth
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
@@ -279,7 +279,7 @@ object Ulx3sUbootSystemSim {
 */
       sdcard.connect(spiA.phy, spiA.phy.produce(RegNext(spiA.phy.ss(0))))
 
-      Ulx3sLinuxSystem.default(this, clockCtrl, inferSpiAPhy = false)
+      Ulx3sLinuxSystem.default(this, clockCtrl, inferSpiAPhy = false, ssSpiAWidth = 1)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
