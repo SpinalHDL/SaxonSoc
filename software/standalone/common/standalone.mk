@@ -2,6 +2,11 @@ OBJDIR ?= build
 
 LDFLAGS += -lc
 
+SPINAL_SIM ?= no
+ifeq ($(SPINAL_SIM),yes)
+    PROJ_NAME := $(PROJ_NAME)_spinal_sim
+    CFLAGS += -DSPINAL_SIM
+endif
 
 CFLAGS += -I${STANDALONE}/include
 CFLAGS += -I${STANDALONE}/driver
