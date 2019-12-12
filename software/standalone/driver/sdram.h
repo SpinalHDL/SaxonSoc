@@ -128,7 +128,13 @@ static void sdram_command(uint32_t core, uint32_t cmd, uint32_t bank, uint32_t a
 //	write_u32_ad(address, data);
 //}
 
-static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, uint32_t bl, SdramTiming timing, uint32_t phyClkRatio, uint32_t sdramPeriod, uint32_t noDelay){
+static void sdram_udelay(uint32_t us){
+    #ifndef SPINAL_SIM
+    io_udelay(us);
+    #endif
+}
+
+static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, uint32_t bl, SdramTiming timing, uint32_t phyClkRatio, uint32_t sdramPeriod){
     uint32_t readToDataCycle = (rl+phyClkRatio-1)/phyClkRatio;
     uint32_t readPhase = readToDataCycle*phyClkRatio-rl;
     uint32_t writeToDataCycle = (wl+phyClkRatio-1)/phyClkRatio;
@@ -167,18 +173,19 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
 	write_u32((ODT << 0) | (ODTend << 8), core + SDRAM_ODT);
 
 	write_u32(0, core + SDRAM_SOFT_CLOCKING);
-	if(!noDelay) io_udelay(200);
+	sdram_udelay(200);
     write_u32(SDRAM_RESETN, core + SDRAM_SOFT_CLOCKING);
-    if(!noDelay) io_udelay(500);
+    sdram_udelay(500);
     write_u32(SDRAM_RESETN | SDRAM_CKE, core + SDRAM_SOFT_CLOCKING);
 
 	sdram_command(core, SDRAM_MOD, 2, 0x000 | ((wl - 5) << 3));
 	sdram_command(core, SDRAM_MOD, 3, 0);
 	sdram_command(core, SDRAM_MOD, 1, 0x44);
 	sdram_command(core, SDRAM_MOD, 0, (wrToMr[wl - 5] << 9) | 0x100 | ((rlToMr[rl-5] & 1) << 2) | ((rlToMr[rl-5] & 0xE) << 3)); //DDL reset
-	if(!noDelay) io_udelay(100);
+	sdram_udelay(100);
 	sdram_command(core, SDRAM_ZQCL, 0, 0x400);
-	if(!noDelay) io_udelay(100);
+	sdram_udelay(100);
+    write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
 }
 
 void sdram_phy_s7(uint32_t core, uint32_t phy){
@@ -187,7 +194,7 @@ void sdram_phy_s7(uint32_t core, uint32_t phy){
 	write_u32(0x00000000, phy + SDRAM_S7_IDELAY_LOAD_DQ);
 
 
-	write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
+
 
 
 
