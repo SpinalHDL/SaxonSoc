@@ -42,12 +42,12 @@ CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make -j8
 u-boot
 make clean; CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make saxon_arty7_defconfig; CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make -j8
 
-mkimage -A riscv -O linux -T kernel -C none -a 0x80400000 -e 0x80400000 -n Linux -d Image uImage
+output/host/bin/mkimage -A riscv -O linux -T kernel -C none -a 0x80000000 -e 0x80000000 -n Linux -d output/images/Image output/images/uImage
 
-load mmc 0 0x803FFFC0 uImage
-load mmc 0 0x80BFFFC0 rootfs.cpio.uboot
-load mmc 0 0x80BF0000 dtb
-bootm 0x803FFFC0 0x80BFFFC0 0x80BF0000
+load mmc 0 0x80000000 uboot/uImage
+load mmc 0 0x80BFFFC0 uboot/rootfs.cpio.uboot
+load mmc 0 0x80BF0000 uboot/dtb
+bootm 0x80000000 0x80BFFFC0 0x80BF0000
 
 ```
 
