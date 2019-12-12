@@ -34,6 +34,21 @@ dtc -O dtb -o output/images/dtb board/spinal/saxon_arty7/spinal_saxon_arty7.dts
 
 cd ../riscv_openocd
 src/openocd -f tcl/interface/ftdi/ft2232h_breakout.cfg -c 'set CPU0_YAML ../SaxonSoc.git/cpu0.yaml' -f tcl/target/arty7_linux.cfg
+
+u-boot
+CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make saxon_arty7_defconfig
+CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make -j8
+
+u-boot
+make clean; CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make saxon_arty7_defconfig; CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make -j8
+
+mkimage -A riscv -O linux -T kernel -C none -a 0x80400000 -e 0x80400000 -n Linux -d Image uImage
+
+load mmc 0 0x803FFFC0 uImage
+load mmc 0 0x80BFFFC0 rootfs.cpio.uboot
+load mmc 0 0x80BF0000 dtb
+bootm 0x803FFFC0 0x80BFFFC0 0x80BF0000
+
 ```
 
 
