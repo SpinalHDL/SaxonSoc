@@ -4,7 +4,18 @@
 #include "type.h"
 #include "spi.h"
 #include "gpio.h"
+#include "io.h"
 
+
+static void spiFlash_select(Gpio_Reg *gpio, u32 cs){
+	gpio->OUTPUT &= ~(1 << cs);
+	io_udelay(1);
+}
+
+static void spiFlash_deselect(Gpio_Reg *gpio, u32 cs){
+	gpio->OUTPUT |= (1 << cs);
+	io_udelay(1);
+}
 
 static void spiFlash_init(Spi_Reg * spi, Gpio_Reg *gpio, u32 cs){
     //SPI init
@@ -19,21 +30,22 @@ static void spiFlash_init(Spi_Reg * spi, Gpio_Reg *gpio, u32 cs){
     spi_applyConfig(spi, &spiCfg);
 
     gpio->OUTPUT_ENABLE |= (1 << cs);
+    spiFlash_deselect(gpio,cs);
 }
 
 static void spiFlash_wake(Spi_Reg * spi, Gpio_Reg *gpio, u32 cs){
-	gpio->OUTPUT &= ~(1 << cs);
+	spiFlash_select(gpio,cs);
 	spi_write(spi, 0xAB);
 	spi_write(spi, 0x00);
 	spi_write(spi, 0x00);
 	spi_write(spi, 0x00);
 	spi_write(spi, 0x00);
-	gpio->OUTPUT |= (1 << cs);
+	spiFlash_deselect(gpio,cs);
 }
 
 
 static void spiFlash_f2m(Spi_Reg * spi,  Gpio_Reg *gpio, u32 cs, u32 flashAddress, u32 memoryAddress, u32 size){
-	gpio->OUTPUT &= ~(1 << cs);
+	spiFlash_select(gpio,cs);
 	spi_write(spi, 0x0B);
 	spi_write(spi, flashAddress >> 16);
 	spi_write(spi, flashAddress >>  8);
@@ -44,5 +56,5 @@ static void spiFlash_f2m(Spi_Reg * spi,  Gpio_Reg *gpio, u32 cs, u32 flashAddres
 		u8 value = spi_read(spi);
 		*ram++ = value;
 	}
-	gpio->OUTPUT |= (1 << cs);
+	spiFlash_deselect(gpio,cs);
 }
