@@ -189,7 +189,7 @@ object Arty7LinuxSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 16,
+      width = 15,
       interrupt = List(0, 1, 2, 3)
     )
     gpioA.connectInterrupts(plic, 4)
@@ -201,7 +201,7 @@ object Arty7LinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 0
+          ssWidth = 1
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
@@ -302,7 +302,7 @@ object Arty7LinuxSystemSim {
       apbDecoder.addSlave(sdramA.apb, 0x100000l)
 
       Arty7LinuxSystem.default(this, clockCtrl)
-      ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
+      ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
@@ -329,10 +329,16 @@ object Arty7LinuxSystemSim {
       )
 
       val linuxPath = "../buildroot/output/images/"
+      val uboot = "../u-boot/"
       dut.phy.io.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      dut.phy.io.loadBin(0x00400000, linuxPath + "Image")
-      dut.phy.io.loadBin(0x00BF0000, linuxPath + "dtb")
-      dut.phy.io.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
+      dut.phy.io.loadBin(0x00010000, uboot + "u-boot.bin")
+
+
+      //      val linuxPath = "../buildroot/output/images/"
+//      dut.phy.io.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+//      dut.phy.io.loadBin(0x00400000, linuxPath + "Image")
+//      dut.phy.io.loadBin(0x00BF0000, linuxPath + "dtb")
+//      dut.phy.io.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
 
       println("DRAM loading done")
 
