@@ -12,8 +12,7 @@ void bspMain() {
 		8,
 		MT41K128M16JT_125_ps,
 		2,
-		3300,
-        0
+		3300
 	);
 
 	sdram_phy_s7(
