@@ -49,6 +49,10 @@ load mmc 0 0x80BFFFC0 uboot/rootfs.cpio.uboot
 load mmc 0 0x80BF0000 uboot/dtb
 bootm 0x80000000 0x80BFFFC0 0x80BF0000
 
+load mmc 0 0x80000000 uImage
+load mmc 0 0x81EF0000 dtb
+bootm 0x80000000 - 0x81EF0000
+
 ```
 
 
