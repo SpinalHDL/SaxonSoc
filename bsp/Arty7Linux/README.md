@@ -2,24 +2,24 @@
 
 The boot sequance is done in 4 steps :
 
-1) bootloader : In the OnChipRam initialized by the FPGA bitstream
-  a) Initialise the DDR3
-  b) Copy the machineModeSbi and the u-boot binary from the FPGA SPI flash to the DDR3
-  c) Jump to the machineModeSbi binary in machine mode
+* bootloader : In the OnChipRam initialized by the FPGA bitstream
+  * Initialise the DDR3
+  * Copy the machineModeSbi and the u-boot binary from the FPGA SPI flash to the DDR3
+  * Jump to the machineModeSbi binary in machine mode
 
-2) machineModeSbi : In the DDR3
-  a) Initialise the serial port used as shell
-  b) Initialise the machine mode CSR to support futher supervisor SBI call and to emulate some missing CSR
-  c) Jump to the u-boot binary in supervisor mode
+* machineModeSbi : In the DDR3
+  * Initialise the serial port used as shell
+  * Initialise the machine mode CSR to support futher supervisor SBI call and to emulate some missing CSR
+  * Jump to the u-boot binary in supervisor mode
 
-3) u-boot : In the DDR3
-  a) Wait two seconds for user inputs
-  b) Read the linux uImage and dtb from the sdcard first partition
-  c) Boot linux
+* u-boot : In the DDR3
+  * Wait two seconds for user inputs
+  * Read the linux uImage and dtb from the sdcard first partition
+  * Boot linux
 
-4) Linux : in the DDR3
-  a) Kernel boot
-  b) Run Buildroot from the sdcard second partition
+* Linux : in the DDR3
+  * Kernel boot
+  * Run Buildroot from the sdcard second partition
 
 ## Binary locations
 
