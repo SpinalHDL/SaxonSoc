@@ -3,7 +3,11 @@
 This repo experiment multiple things at once :
 - The BMB (Banana Memory Bus) which can cover both cached and cacheless SoC without compromises
 - A hardware description paradigm made of generators and depedancies which should be able to solve SoC toplevel hell
-- Linux on VexRiscv
+- Linux and U-Boot on VexRiscv
+
+A few kits are supported :
+- ulx3s (ECP5)
+- Arty-A7 (Artix 7), documented in bsp/Arty7Linux/README.md
 
 ## De1SocLinux
 
