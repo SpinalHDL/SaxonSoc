@@ -39,7 +39,7 @@ pll:
                 -i 25 \
                 -o 50 \
 		--clkout1 50 \
-		--phase1 45 \
+		--phase1 90 \
                 -n  pll_linux\
                 -f pll_linux.v
 clean:
