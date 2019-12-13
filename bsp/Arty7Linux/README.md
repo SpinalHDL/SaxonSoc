@@ -28,7 +28,7 @@ OnChipRam:
 
 DDR3:
 - 0x80000000 : Linux kernel
-- 0x81FF0000 : machineModeSbi
+- 0x81FF0000 : machineModeSbi, 64 KB reserved-memory (Linux can't use that memory space)
 - 0x81F00000 : u-boot
 
 FPGA SPI flash:
