@@ -285,7 +285,7 @@ object Arty7LinuxSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-//    simConfig.withWave
+    simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
     simConfig.compile(new Arty7LinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
@@ -313,6 +313,14 @@ object Arty7LinuxSystemSim {
       clockDomain.forkStimulus(systemClkPeriod)
 //      dut.sdramClockDomain.get.forkStimulus((systemClkPeriod/0.7).toInt)
 
+
+//      fork{
+//        disableSimWave()
+//        clockDomain.waitSampling(1000)
+//        waitUntil(!dut.uartA.uart.rxd.toBoolean)
+//        enableSimWave()
+//      }
+
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,
         jtagClkPeriod = jtagClkPeriod
@@ -330,8 +338,8 @@ object Arty7LinuxSystemSim {
 
       val linuxPath = "../buildroot/output/images/"
       val uboot = "../u-boot/"
-      dut.phy.io.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      dut.phy.io.loadBin(0x00010000, uboot + "u-boot.bin")
+      dut.phy.io.loadBin(0x01FF0000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+      dut.phy.io.loadBin(0x01F00000, uboot + "u-boot.bin")
 
 
       //      val linuxPath = "../buildroot/output/images/"
