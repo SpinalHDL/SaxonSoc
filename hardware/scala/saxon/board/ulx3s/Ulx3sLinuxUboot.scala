@@ -20,6 +20,7 @@ class Ulx3sLinuxUbootSystem extends SaxonSocLinux{
   val spiA = Apb3SpiGenerator(0x20000)
   val spiB = Apb3SpiGenerator(0x21000)
   val spiC = Apb3SpiGenerator(0x22000)
+  val uartB = Apb3UartGenerator(0x11000) 
   val noReset = Ulx3sNoResetGenerator()
 
   val bridge = BmbBridgeGenerator()
@@ -85,6 +86,14 @@ object Ulx3sLinuxUbootSystem{
       txFifoDepth = 128,
       rxFifoDepth = 128
     )
+
+    uartB.parameter load UartCtrlMemoryMappedConfig(
+      baudrate = 115200,
+      txFifoDepth = 128,
+      rxFifoDepth = 128
+    )
+
+    uartB.connectInterrupt(plic, 2)
 
     gpioA.parameter load Gpio.Parameter(
       width = 24,
