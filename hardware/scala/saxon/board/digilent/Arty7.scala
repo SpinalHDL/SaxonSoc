@@ -285,7 +285,7 @@ object Arty7LinuxSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-    simConfig.withWave
+//    simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
     simConfig.compile(new Arty7LinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
