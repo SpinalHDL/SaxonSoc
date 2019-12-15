@@ -67,7 +67,7 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
 }
 
 object Ulx3sLinuxUbootSystem{
-  def default(g : Ulx3sLinuxUbootSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
+  def default(g : Ulx3sLinuxUbootSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true, sdramSize: Int) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.linux(0x20000000l))
@@ -78,8 +78,13 @@ object Ulx3sLinuxUbootSystem{
     ramA.size.load(8 KiB)
     ramA.hexInit.load(null)
 
-    sdramA.layout.load(MT48LC16M16A2.layout)
-    sdramA.timings.load(MT48LC16M16A2.timingGrade7)
+    if (sdramSize == 32) {
+      sdramA.layout.load(MT48LC16M16A2.layout)
+      sdramA.timings.load(MT48LC16M16A2.timingGrade7)
+    } else {
+      sdramA.layout.load(AS4C32M16SB.layout)
+      sdramA.timings.load(AS4C32M16SB.timingGrade7)
+    }
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
@@ -151,7 +156,7 @@ object Ulx3sLinuxUbootSystem{
 
 object Ulx3sLinuxUboot {
   //Function used to configure the SoC
-  def default(g : Ulx3sLinuxUboot) = g{
+  def default(g : Ulx3sLinuxUboot, sdramSize: Int) = g{
     import g._
     clockCtrl.clkFrequency.load(50 MHz)
     clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
@@ -166,7 +171,7 @@ object Ulx3sLinuxUboot {
       usrMclk.USRMCLKI := sclk
     }
 
-    Ulx3sLinuxUbootSystem.default(system, clockCtrl)
+    Ulx3sLinuxUbootSystem.default(system, clockCtrl, sdramSize = sdramSize)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 
     g
@@ -174,7 +179,8 @@ object Ulx3sLinuxUboot {
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sLinuxUboot()).toComponent()))
+    val sdramSize = if (args.length > 0 && args(0) == "64")  64 else 32
+    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sLinuxUboot, sdramSize).toComponent()))
     BspGenerator("Ulx3sLinuxUboot", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
   }
 }
@@ -204,7 +210,7 @@ object Ulx3sLinuxUbootSystemSim {
       val sdcard = SdcardEmulatorGenerator()
       sdcard.connect(spiA.phy, spiA.phy.produce(RegNext(spiA.phy.ss(0))))
 
-      Ulx3sLinuxUbootSystem.default(this, clockCtrl, inferSpiAPhy = false)
+      Ulx3sLinuxUbootSystem.default(this, clockCtrl, sdramSize = 32, inferSpiAPhy = false)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
