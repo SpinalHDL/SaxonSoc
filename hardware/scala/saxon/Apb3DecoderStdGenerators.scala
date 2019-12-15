@@ -58,13 +58,18 @@ case class Apb3UartGenerator(apbOffset : BigInt)
 //  interrupts = <2>;
 }
 
-
-case class Apb3SpiGenerator(apbOffset : BigInt, xipOffset : BigInt = 0)
+object Apb3SpiGenerator{
+  def apply(apbOffset : BigInt, xipOffset : BigInt = 0)
+           (implicit decoder: Apb3DecoderGenerator, interconnect: BmbInterconnectGenerator = null): Apb3SpiGenerator ={
+    new Apb3SpiGenerator(apbOffset,xipOffset)
+  }
+}
+class Apb3SpiGenerator(apbOffset : BigInt, xipOffset : BigInt = 0)
                             (implicit decoder: Apb3DecoderGenerator, interconnect: BmbInterconnectGenerator = null) extends Generator {
   val parameter = createDependency[SpiXdrMasterCtrl.MemoryMappingParameters]
   val withXip = Handle(false)
   val interrupt = produce(logic.io.interrupt)
-  val phy = produceIo(logic.io.spi)
+  val phy = produce(logic.io.spi)
   val spi = Handle[Nameable]
   val apb = produce(logic.io.apb)
   val logic = add task Apb3SpiXdrMasterCtrl(parameter.copy(xip = if(!withXip) null else XipBusParameters(24, bmbRequirements.lengthWidth)))

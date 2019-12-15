@@ -34,10 +34,10 @@ void bspMain() {
 	putString("Starting bootloader\n");
 
 #ifndef SPINAL_SIM
-	spiFlash_init(SPI, GPIO, GPIO_CS_PIN);
-	spiFlash_wake(SPI, GPIO, GPIO_CS_PIN);
-	spiFlash_f2m(SPI, GPIO, GPIO_CS_PIN, MACHINE_MODE_SBI_FLASH, MACHINE_MODE_SBI_MEMORY, MACHINE_MODE_SBI_SIZE);
-	spiFlash_f2m(SPI, GPIO, GPIO_CS_PIN, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
+	spiFlash_init_withGpioCs(SPI, GPIO, GPIO_CS_PIN);
+	spiFlash_wake_withGpioCs(SPI, GPIO, GPIO_CS_PIN);
+	spiFlash_f2m_withGpioCs(SPI, GPIO, GPIO_CS_PIN, MACHINE_MODE_SBI_FLASH, MACHINE_MODE_SBI_MEMORY, MACHINE_MODE_SBI_SIZE);
+	spiFlash_f2m_withGpioCs(SPI, GPIO, GPIO_CS_PIN, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
 #endif
 
 	putString("Calling userMain\n");

@@ -128,13 +128,15 @@ sudo umount sdcard
 ## FPGA flashing
 
 ```
-write_cfgmem  -format mcs -size 16 -interface SPIx4 -loadbit {up 0x00000000 "/home/miaou/pro/riscv/arty7_linux/arty7_linux.runs/impl_3/Arty7Linux.bit" } -loaddata {up 0x00300000 "/home/miaou/pro/riscv/SaxonSoc.git/software/standalone/machineModeSbi/build/machineModeSbi.bin" up 0x00310000 "/home/miaou/pro/riscv/u-boot/u-boot.bin" } -force -file "/home/miaou/pro/riscv/arty7_linux/prog.mcs"
+write_cfgmem  -format mcs -size 16 -interface SPIx4 -loadbit {up 0x00000000 "/home/miaou/pro/riscv/arty7_linux/arty7_linux.runs/impl_3/Arty7Linux.bit" } -loaddata {up 0x00400000 "/home/miaou/pro/riscv/SaxonSoc.git/software/standalone/machineModeSbi/build/machineModeSbi.bin" up 0x00410000 "/home/miaou/pro/riscv/u-boot/u-boot.bin" } -force -file "/home/miaou/pro/riscv/arty7_linux/prog.mcs"
 ```
 
 ## Connecting to the USB uart
 
 ```
 screen /dev/ttyUSB1 115200
+or
+picocom -b 115200 /dev/ttyUSB1 --imap lfcrlf
 ```
 
 ## Simulation
@@ -145,3 +147,16 @@ WIP
 cd SaxonSoc/software/standalone/bootloader
 make clean all BSP=Arty7Linux SPINAL_SIM=yes
 cd ../../../..
+```
+
+
+## Memo WIP
+
+``
+#https://www.emcraft.com/stm32f769i-discovery-board/accessing-spi-devices-in-linux
+
+hexdump -C -n 100 /dev/mtd3
+flash_erase /dev/mtd3 0 1
+echo "wuff" > /dev/mtd3
+hexdump -C -n 100 /dev/mtd3
+```

@@ -14,6 +14,7 @@ import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.eda.bench.{Bench, Rtl, XilinxStdTargets}
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
+import spinal.lib.master
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
 import spinal.lib.memory.sdram.xdr.CoreParameter
@@ -25,8 +26,11 @@ import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 class Arty7LinuxSystem() extends SaxonSocLinux{
   //Add components
   val gpioA = Apb3GpioGenerator(0x00000)
-  val spiA = Apb3SpiGenerator(0x20000)
-  val spiB = Apb3SpiGenerator(0x21000)
+  val spiA = new Apb3SpiGenerator(0x20000){
+    val user = produce(master(phy.withoutSs.toSpi()).setName("system_spiA_user")) //TODO automatic naming
+    val flash = produce(master(phy.decode(ssId = 0).toSpi()).setName("system_spiA_flash")) //TODO automatic naming
+    val sdcard = produce(master(phy.decode(ssId = 1).toSpi()).setName("system_spiA_sdcard")) //TODO automatic naming
+  }
 
 
   val ramA = BmbOnChipRamGenerator(0x20000000l)
@@ -37,7 +41,6 @@ class Arty7LinuxSystem() extends SaxonSocLinux{
   )
 
   val sdramA0 = sdramA.addPort()
-//  val sdramA1 = sdramA.addPort()
 
   val bridge = BmbBridgeGenerator()
   interconnect.addConnection(
@@ -152,12 +155,8 @@ class Arty7Linux extends Generator{
     sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
   }
 
-  val startupe2 = system.spiB.phy.produce(
-    STARTUPE2.driveSpiClk(system.generatorClockDomain.get(RegNext(system.spiB.phy.sclk.write(0))))
-  )
-
-  system.spiB.spi.produce(
-    system.spiB.spi.get.asInstanceOf[SpiHalfDuplexMaster].sclk.setAsDirectionLess()
+  val startupe2 = system.spiA.flash.produce(
+    STARTUPE2.driveSpiClk(system.spiA.flash.sclk.setAsDirectionLess())
   )
 }
 
@@ -189,7 +188,7 @@ object Arty7LinuxSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 15,
+      width = 14,
       interrupt = List(0, 1, 2, 3)
     )
     gpioA.connectInterrupts(plic, 4)
@@ -201,30 +200,12 @@ object Arty7LinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 1
+          ssWidth = 2
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
       rspFifoDepth = 256
     )
-    spiA.inferSpiSdrIo()
-
-    spiB.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
-      SpiXdrMasterCtrl.Parameters(
-        dataWidth = 8,
-        timerWidth = 12,
-        spi = SpiXdrParameter(
-          dataWidth = 2,
-          ioRate = 1,
-          ssWidth = 0
-        )
-      ) .addFullDuplex(id = 0),
-      cmdFifoDepth = 256,
-      rspFifoDepth = 256
-    )
-    spiB.inferSpiSdrIo()
-
-
 
     interconnect.setConnector(peripheralBridge.input){case (m,s) =>
       m.cmd.halfPipe >> s.cmd
