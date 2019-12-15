@@ -141,7 +141,7 @@ put ../software/standalone/machineModeSbi/build/machineModeSbi.bin flash@0x30000
 put ../u-boot/u-boot.bin flash@0x310000
 ```
 
-## Upload bistream
+## Upload bitstream
 ```
 cd  SaxonSoc/hardware/synthesis/ulx3s
 make prog
