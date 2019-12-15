@@ -1,6 +1,6 @@
-## Boot sequance
+## Boot sequence
 
-The boot sequance is done in 4 steps :
+The boot sequence is done in 4 steps :
 
 * bootloader : In the OnChipRam initialized by the FPGA bitstream
   * Initialise the DDR3
@@ -131,3 +131,17 @@ sudo umount sdcard
 write_cfgmem  -format mcs -size 16 -interface SPIx4 -loadbit {up 0x00000000 "/home/miaou/pro/riscv/arty7_linux/arty7_linux.runs/impl_3/Arty7Linux.bit" } -loaddata {up 0x00300000 "/home/miaou/pro/riscv/SaxonSoc.git/software/standalone/machineModeSbi/build/machineModeSbi.bin" up 0x00310000 "/home/miaou/pro/riscv/u-boot/u-boot.bin" } -force -file "/home/miaou/pro/riscv/arty7_linux/prog.mcs"
 ```
 
+## Connecting to the USB uart
+
+```
+screen /dev/ttyUSB1 115200
+```
+
+## Simulation
+
+WIP
+
+```
+cd SaxonSoc/software/standalone/bootloader
+make clean all BSP=Arty7Linux SPINAL_SIM=yes
+cd ../../../..
