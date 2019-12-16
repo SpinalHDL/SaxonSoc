@@ -5,6 +5,7 @@ import java.io.RandomAccessFile
 import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.wishbone._
+import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.SpiXdrMaster
 import spinal.lib.generator._
 import spinal.lib.io.TriStateArray
@@ -135,11 +136,15 @@ case class SdcardEmulatorGenerator() extends Generator{
     io.opt_enable_hs <> ctrl.opt_enable_hs
   }
 
-  def connect(phy : Handle[SpiXdrMaster], ss : Handle[Bool]): Unit = Dependable(phy, logic, ss){
-    val spi = phy.setAsDirectionLess.toSpi()
+  def connectSpi(spi : Handle[SpiHalfDuplexMaster], ss : Handle[Bool]): Unit = Dependable(spi, logic, ss){
+    spi.setAsDirectionLess
     logic.ctrl.sd_clk := spi.sclk
     logic.ctrl.sd_cmd_i := spi.data(0).write
     logic.ctrl.sd_dat_i := ss ## logic.ctrl.sd_dat_o(2 downto 0)
     spi.data.read := logic.ctrl.sd_dat_o(0) ## True
+  }
+
+  def connect(phy : Handle[SpiXdrMaster], ss : Handle[Bool]): Unit = {
+    connectSpi(phy.produce(phy.setAsDirectionLess.toSpi()), ss)
   }
 }

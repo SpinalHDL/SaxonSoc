@@ -268,6 +268,13 @@ object Arty7LinuxSystemSim {
     simConfig.allOptimisation
 //    simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
+
+//    val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
+//    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v", "sd_phy.v", "sd_top.v", "sd_wishbone.v")
+//    sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
+//    simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
+//    simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
+
     simConfig.compile(new Arty7LinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
@@ -284,6 +291,9 @@ object Arty7LinuxSystemSim {
 
       Arty7LinuxSystem.default(this, clockCtrl)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
+
+//      val sdcard = SdcardEmulatorGenerator()
+//      sdcard.connectSpi(spiA.sdcard, spiA.sdcard.produce(spiA.sdcard.ss(0)))
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
@@ -295,12 +305,12 @@ object Arty7LinuxSystemSim {
 //      dut.sdramClockDomain.get.forkStimulus((systemClkPeriod/0.7).toInt)
 
 
-//      fork{
-//        disableSimWave()
-//        clockDomain.waitSampling(1000)
-//        waitUntil(!dut.uartA.uart.rxd.toBoolean)
-//        enableSimWave()
-//      }
+      fork{
+        disableSimWave()
+        clockDomain.waitSampling(1000)
+        waitUntil(!dut.uartA.uart.rxd.toBoolean)
+        enableSimWave()
+      }
 
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,
@@ -316,6 +326,13 @@ object Arty7LinuxSystemSim {
         uartPin = dut.uartA.uart.rxd,
         baudPeriod = uartBaudPeriod
       )
+
+//      val sdcard = SdcardEmulatorIoSpinalSim(
+//        io = dut.sdcard.io,
+//        nsPeriod = 1000,
+//        storagePath = "/home/miaou/tmp/saxonsoc-ulx3s-bin-master/linux/images/sdimage"
+//      )
+
 
       val linuxPath = "../buildroot/output/images/"
       val uboot = "../u-boot/"
