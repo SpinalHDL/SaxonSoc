@@ -106,9 +106,9 @@ class Apb3SpiGenerator(apbOffset : BigInt, xipOffset : BigInt = 0)
        |}""".stripMargin
   }
 
-  def inferSpiSdrIo() = this(Dependable(phy)(spi.load(master(phy.setAsDirectionLess.toSpi().setPartialName(spi, ""))))) //TODO automated naming
+  def inferSpiSdrIo() = this(Dependable(phy)(spi.load(master(phy.toSpi().setPartialName(spi, ""))))) //TODO automated naming
   def inferSpiIce40() = this(Dependable(phy)(spi.load{
-    phy.setAsDirectionLess.toSpiIce40().asInOut().setPartialName(spi, "")
+    phy.toSpiIce40().asInOut().setPartialName(spi, "")
   }))
 }
 
