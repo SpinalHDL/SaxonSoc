@@ -262,7 +262,7 @@ object Ulx3sUbootSystemSim {
     simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
     simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
 
-    simConfig.compile(new Ulx3sLinuxSystem(){
+    simConfig.compile(new Ulx3sLinuxUbootSystem{
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
       clockCtrl.makeExternal(ResetSensitivity.HIGH)
@@ -278,8 +278,8 @@ object Ulx3sUbootSystemSim {
       gpioA.produce(gpioA.apb.PSEL.simPublic())
 */
       sdcard.connect(spiA.phy, spiA.phy.produce(RegNext(spiA.phy.ss(0))))
-
-      Ulx3sLinuxSystem.default(this, clockCtrl, inferSpiAPhy = false, ssSpiAWidth = 1)
+      ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
+      Ulx3sLinuxUbootSystem.default(this, clockCtrl, inferSpiAPhy = false, sdramSize = 16)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4

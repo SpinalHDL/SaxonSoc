@@ -209,8 +209,8 @@ object Ulx3sLinuxUbootSystemSim {
       clockCtrl.resetHoldDuration.load(15)
       val sdcard = SdcardEmulatorGenerator()
       sdcard.connect(spiA.phy, spiA.phy.produce(RegNext(spiA.phy.ss(0))))
-
       Ulx3sLinuxUbootSystem.default(this, clockCtrl, sdramSize = 32, inferSpiAPhy = false)
+      spiC.inferSpiSdrIo()
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
