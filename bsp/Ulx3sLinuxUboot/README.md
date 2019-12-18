@@ -161,3 +161,37 @@ put SaxonSoc/hardware/synthesis/ulx3s/bin/toplevel.bit fpga
 screen /dev/ttyUSB1 115200
 ```
 
+## Simulation
+
+You need a recent version of Verilator to run the simulation:
+
+```
+sudo apt-get install git make autoconf g++ flex bison -y  # First time prerequisites
+git clone http://git.veripool.org/git/verilator   # Only first time
+unsetenv VERILATOR_ROOT  # For csh; ignore error if on bash
+unset VERILATOR_ROOT  # For bash
+cd verilator
+git pull        # Make sure we're up-to-date
+git checkout verilator_3_916
+autoconf        # Create ./configure script
+./configure
+make -j$(nproc)
+sudo make install
+cd ..
+```
+
+You will also need an sdcard image, which you can get from this repository:
+
+```
+git clone https://github.com/lawrie/saxonsoc-ulx3s-bin
+```
+
+An then to run the simulation:
+
+```
+cd SaxonSoc/hardware/synthesis/ulx3s
+make sim
+cd ../../../..
+```
+
+Note that the sd card simulation does not work correctly, so the simulation will currently only get to u-boot, and will not boot Linux. Also, be careful that the wave file does not get too big. Writing to the wave file is currently started when you press a key to send input to u-boot.
