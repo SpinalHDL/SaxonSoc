@@ -221,19 +221,17 @@ object Ulx3sLinuxUbootSystemSim {
       val sdcard = SdcardEmulatorIoSpinalSim(
         io = dut.sdcard.io,
         nsPeriod = 1000,
-        storagePath = "../saxonsoc-ulx3s-bin/linux/images/sdimage"
+        storagePath = "../saxonsoc-ulx3s-bin/linux/u-boot/images/sdimage"
       )
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
 
       fork{
-        while(true){
-          disableSimWave()
-          sleep(systemClkPeriod*500000)
-          enableSimWave()
-          sleep(systemClkPeriod*100)
-        }
+        disableSimWave()
+        clockDomain.waitSampling(1000)
+        waitUntil(!dut.uartA.uart.rxd.toBoolean)
+        enableSimWave()
       }
 
       val tcpJtag = JtagTcp(
@@ -261,8 +259,8 @@ object Ulx3sLinuxUbootSystemSim {
 
       val linuxPath = "../buildroot/output/images/"
       val uboot = "../u-boot/"
-      sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      sdram.loadBin(0x00010000, uboot + "u-boot.bin")
+      sdram.loadBin(0x00800000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+      sdram.loadBin(0x01F00000, uboot + "u-boot.bin")
 
     }
   }
