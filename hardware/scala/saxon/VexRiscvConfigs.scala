@@ -109,20 +109,19 @@ object VexRiscvConfigs {
       new IBusCachedPlugin(
         resetVector = resetVector,
         compressedGen = false,
-        prediction = vexriscv.plugin.NONE,
-        injectorStage = true,
-        relaxedPcCalculation = false,
+        prediction = STATIC,
+        injectorStage = false,
         config = InstructionCacheConfig(
-          cacheSize = 4096*1,
+          cacheSize = 4096*2,
           bytePerLine = 64,
-          wayCount = 1,
+          wayCount = 2,
           addressWidth = 32,
           cpuDataWidth = 32,
           memDataWidth = 32,
           catchIllegalAccess = true,
           catchAccessFault = true,
           asyncTagMemory = false,
-          twoCycleRam = true,
+          twoCycleRam = false,
           twoCycleCache = true
         ),
         memoryTranslatorPortConfig = MmuPortConfig(
@@ -133,11 +132,10 @@ object VexRiscvConfigs {
         dBusCmdMasterPipe = true,
         dBusCmdSlavePipe = true,
         dBusRspSlavePipe = true,
-        relaxedMemoryTranslationRegister = true,
         config = new DataCacheConfig(
-          cacheSize         = 4096*1,
+          cacheSize         = 4096*2,
           bytePerLine       = 64,
-          wayCount          = 1,
+          wayCount          = 2,
           addressWidth      = 32,
           cpuDataWidth      = 32,
           memDataWidth      = 32,
@@ -145,8 +143,7 @@ object VexRiscvConfigs {
           catchIllegal      = true,
           catchUnaligned    = true,
           withLrSc = true,
-          withAmo = true,
-          earlyWaysHits = true
+          withAmo = true
           //          )
         ),
         memoryTranslatorPortConfig = MmuPortConfig(
@@ -163,7 +160,7 @@ object VexRiscvConfigs {
       ),
       new IntAluPlugin,
       new SrcPlugin(
-        separatedAddSub = true
+        separatedAddSub = false
       ),
       new FullBarrelShifterPlugin(earlyInjection = false),
       new HazardSimplePlugin(
@@ -175,16 +172,14 @@ object VexRiscvConfigs {
         pessimisticWriteRegFile = false,
         pessimisticAddressMatch = false
       ),
-      new MulPlugin(
-        inputBuffer = true
-      ),
+      new MulPlugin,
       new MulDivIterativePlugin(
         genMul = false,
         genDiv = true,
         mulUnrollFactor = 32,
         divUnrollFactor = 1
       ),
-      new CsrPlugin(CsrPluginConfig.linuxMinimal(null).copy(ebreakGen = false)),
+      new CsrPlugin(CsrPluginConfig.linuxMinimal(null).copy(ebreakGen = false, wfiOutput = true)),
 
       new BranchPlugin(
         earlyBranch = false,
