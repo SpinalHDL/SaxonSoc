@@ -136,6 +136,7 @@ ifconfig eth0 up
 ifconfig eth0 0.0.0.0 0.0.0.0 && dhclient
 ifconfig eth0:0 192.168.1.6 up
 ifconfig eth0 192.168.1.1
+
 /sbin/udhcpc -i eth0
 
 nano /etc/network/interfaces
@@ -149,7 +150,7 @@ iface eth1 inet dhcp
 ifdown eth1; ifup eth1
 
 ftp://speedtest.tele2.net/
-wget ftp://speedtest.tele2.net/5MB.zip
+rr
 wget --output-document=/dev/null ftp://speedtest.tele2.net/5MB.zip
 
 
@@ -232,3 +233,4 @@ max_num_sta=8
 ap_max_inactivity=300
 
 hostapd /etc/wilc_hostapd_open.conf -B &
+

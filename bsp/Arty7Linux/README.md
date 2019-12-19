@@ -33,8 +33,8 @@ DDR3:
 
 FPGA SPI flash:
 - 0x000000   : FPGA bitstream
-- 0x300000   : machineModeSbi
-- 0x310000   : u-boot
+- 0x400000   : machineModeSbi
+- 0x410000   : u-boot
 
 Sdcard :
 - p1:uImage  : Linux kernel
@@ -113,7 +113,33 @@ cd ..
 The sdcard need two ext2 partitions, one for u-boot, one for linux
 
 ```
-mkdir sdcard
+(
+echo d
+echo
+echo d
+echo
+echo n
+echo p
+echo 1
+echo
+echo +100M
+echo n
+echo p
+echo 2
+echo
+echo +500M
+echo w
+) | sudo fdisk /dev/mmcblk0
+
+sudo mkfs.ext2 -q /dev/mmcblk0p1
+sudo mkfs.ext2 -q /dev/mmcblk0p2
+```
+
+Then to copy the files
+
+
+```
+mkdir -p sdcard
 sudo mount /dev/mmcblk0p1 sdcard
 sudo cp buildroot/output/images/uImage sdcard/uImage
 sudo cp buildroot/output/images/dtb sdcard/dtb
@@ -152,11 +178,86 @@ cd ../../../..
 
 ## Memo WIP
 
-``
+```
+# Test SDCARD speed
+hdparm -t /dev/mmcblk0
+
 #https://www.emcraft.com/stm32f769i-discovery-board/accessing-spi-devices-in-linux
 
 hexdump -C -n 100 /dev/mtd3
 flash_erase /dev/mtd3 0 1
 echo "wuff" > /dev/mtd3
 hexdump -C -n 100 /dev/mtd3
+
+https://www.techrepublic.com/article/how-to-quickly-setup-an-ftp-server-on-ubuntu-18-04/
+sudo apt-get install vsftpd
+sudo systemctl start vsftpd
+sudo systemctl enable vsftpd
+sudo useradd -m ftpuser
+sudo mv /etc/vsftpd.conf /etc/vsftpd.conf.orig
+sudo nano /etc/vsftpd.conf
+
+listen=NO
+listen_ipv6=YES
+local_enable=YES
+write_enable=YES
+local_umask=022
+dirmessage_enable=YES
+use_localtime=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+chroot_local_user=YES
+secure_chroot_dir=/var/run/vsftpd/empty
+pam_service_name=vsftpd
+rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+ssl_enable=NO
+pasv_enable=Yes
+pasv_min_port=10000
+pasv_max_port=10100
+allow_writeable_chroot=YES
+anonymous_enable=YES
+no_anon_password=YES
+anon_root=/home/ftpuser
+
+sudo systemctl reload vsftpd
+sudo systemctl restart vsftpd
+
+
+cp  arty7_linux/arty7_linux.runs/impl_3/Arty7Linux.bit /home/ftpuser/arty7
+cp  u-boot/u-boot.bin /home/ftpuser/arty7
+cp  SaxonSoc.git/software/standalone/machineModeSbi/build/machineModeSbi.bin /home/ftpuser/arty7
+cp  buildroot/output/images/uImage /home/ftpuser/arty7
+cp  buildroot/output/images/dtb /home/ftpuser/arty7
+cp  buildroot/output/images/rootfs.tar /home/ftpuser/arty7
+
+wget ftp://10.42.0.1/arty7/Arty7Linux.bit -O Arty7Linux.bit
+flash_erase /dev/mtd0 0 0
+cat Arty7Linux.bit > /dev/mtd0
+
+wget ftp://10.42.0.1/arty7/machineModeSbi.bin -O machineModeSbi.bin
+flash_erase /dev/mtd1 0 0
+cat machineModeSbi.bin > /dev/mtd1
+
+wget ftp://10.42.0.1/arty7/u-boot.bin -O u-boot.bin
+flash_erase /dev/mtd2 0 0
+cat u-boot.bin > /dev/mtd2
+
+mkdir -p uboot
+mount /dev/mmcblk0p1 uboot
+wget ftp://10.42.0.1/arty7/uImage -O uboot/uImage
+wget ftp://10.42.0.1/arty7/dtb -O uboot/dtb
+umount uboot
+
+wget ftp://10.42.0.1/arty7/rootfs.tar -O rootfs.tar
+mkdir -p buildroot
+mount /dev/mmcblk0p2 buildroot
+tar xf rootfs.tar -C buildroot
+umount buildroot
+         | 4K I$ 4K D$ | 8K I$ 8K D$
+---------|-------------|-----------------
+SDCARD   | 0.975       | 1.180 MBytes/s
+ENC28J60 | 1.200       | 1.450 MBits/s TCP
+
 ```
+
