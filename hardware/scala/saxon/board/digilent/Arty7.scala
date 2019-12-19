@@ -19,6 +19,7 @@ import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
+import vexriscv.plugin.CsrPlugin
 
 
 
@@ -240,6 +241,7 @@ object Arty7Linux {
     sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
     Arty7LinuxSystem.default(system, mainClockCtrl)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
+    system.cpu.produce(out(Bool).setName("inWfi") := system.cpu.config.plugins.find(_.isInstanceOf[CsrPlugin]).get.asInstanceOf[CsrPlugin].inWfi)
     g
   }
 
