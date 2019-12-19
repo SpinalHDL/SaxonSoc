@@ -10,6 +10,7 @@ import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
+import spinal.lib.com.spi._
 
 class Ulx3sLinuxSystem extends SaxonSocLinux{
   //Add components
@@ -18,6 +19,7 @@ class Ulx3sLinuxSystem extends SaxonSocLinux{
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
   val spiB = Apb3SpiGenerator(0x21000)
+  val spiC = Apb3SpiGenerator(0x22000)
   val noReset = Ulx3sNoResetGenerator()
 
   val bridge = BmbBridgeGenerator()
@@ -64,7 +66,7 @@ case class Ulx3sLinuxPll() extends BlackBox{
 }
 
 object Ulx3sLinuxSystem{
-  def default(g : Ulx3sLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true, ssSpiAWidth : Int = 0) = g {
+  def default(g : Ulx3sLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.linux(0x70000000l))
@@ -97,7 +99,7 @@ object Ulx3sLinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = ssSpiAWidth
+          ssWidth = 1
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
@@ -120,6 +122,20 @@ object Ulx3sLinuxSystem{
     )
     spiB.inferSpiSdrIo()
 
+    spiC.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
+      SpiXdrMasterCtrl.Parameters(
+        dataWidth = 8,
+        timerWidth = 12,
+        spi = SpiXdrParameter(
+          dataWidth = 2,
+          ioRate = 1,
+          ssWidth = 0
+        )
+      ) .addFullDuplex(id = 0),
+      cmdFifoDepth = 256,
+      rspFifoDepth = 256
+    )
+
     g
   }
 }
@@ -130,10 +146,9 @@ object Ulx3sLinux {
     import g._
     clockCtrl.clkFrequency.load(50 MHz)
     clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
-    //g.system.sdramA.logic.produce {
-    //  g.system.sdramA.logic.ctrl.chip.sdram.addAttribute("syn_useioff")
-    //}
+    system.spiC.inferSpiSdrIo()
     Ulx3sLinuxSystem.default(system, clockCtrl)
+
     g
   }
 
@@ -167,12 +182,9 @@ object Ulx3sLinuxSystemSim {
       clockCtrl.clkFrequency.load(50 MHz)
       clockCtrl.resetHoldDuration.load(15)
       val sdcard = SdcardEmulatorGenerator()
-      sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
-      spiA.produce(spiA.apb.PENABLE.simPublic())
-      gpioA.produce(gpioA.apb.PENABLE.simPublic())
-      spiA.produce(spiA.apb.PSEL.simPublic())
-      gpioA.produce(gpioA.apb.PSEL.simPublic())
+      sdcard.connect(spiA.phy, spiA.phy.produce(RegNext(spiA.phy.ss(0))))
       Ulx3sLinuxSystem.default(this, clockCtrl, inferSpiAPhy = false)
+      spiC.inferSpiSdrIo()
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
@@ -188,32 +200,11 @@ object Ulx3sLinuxSystemSim {
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
 
-//      var debugTimer = 0
-//      disableSimWave()
-//      clockDomain.onSamplings{
-//        if(debugTimer != 0) {
-//          debugTimer = debugTimer - 1
-//          if(debugTimer == 0) disableSimWave()
-//        }
-//
-//        if(dut.spiA.apb.PENABLE.toBoolean && dut.spiA.apb.PSEL.toInt != 0 ||
-//          dut.gpioA.apb.PENABLE.toBoolean && dut.gpioA.apb.PSEL.toInt != 0 ||
-//          dut.sdcard.io.wishbone.CYC.toBoolean ||
-//          (dut.gpioA.gpio.writeEnable.toInt & 0x100) != 0 && (dut.gpioA.gpio.write.toInt & 0x100) == 0){
-//          if(debugTimer == 0){
-//            enableSimWave()
-//            debugTimer = 10000
-//          }
-//        }
-//      }
-
       fork{
-        while(true){
-          disableSimWave()
-          sleep(systemClkPeriod*500000)
-          enableSimWave()
-          sleep(systemClkPeriod*100)
-        }
+        disableSimWave()
+        clockDomain.waitSampling(1000)
+        waitUntil(!dut.uartA.uart.rxd.toBoolean)
+        enableSimWave()
       }
 
       val tcpJtag = JtagTcp(
@@ -262,7 +253,7 @@ object Ulx3sUbootSystemSim {
     simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
     simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
 
-    simConfig.compile(new Ulx3sLinuxUbootSystem{
+    simConfig.compile(new Ulx3sLinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
       clockCtrl.makeExternal(ResetSensitivity.HIGH)
@@ -270,16 +261,9 @@ object Ulx3sUbootSystemSim {
       clockCtrl.clkFrequency.load(50 MHz)
       clockCtrl.resetHoldDuration.load(15)
       val sdcard = SdcardEmulatorGenerator()
-/*
-      sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
-      spiA.produce(spiA.apb.PENABLE.simPublic())
-      gpioA.produce(gpioA.apb.PENABLE.simPublic())
-      spiA.produce(spiA.apb.PSEL.simPublic())
-      gpioA.produce(gpioA.apb.PSEL.simPublic())
-*/
       sdcard.connect(spiA.phy, spiA.phy.produce(RegNext(spiA.phy.ss(0))))
-      ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
-      Ulx3sLinuxUbootSystem.default(this, clockCtrl, inferSpiAPhy = false, sdramSize = 16)
+      Ulx3sLinuxSystem.default(this, clockCtrl, inferSpiAPhy = false)
+      spiC.inferSpiSdrIo()
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
@@ -296,12 +280,10 @@ object Ulx3sUbootSystemSim {
       clockDomain.forkStimulus(systemClkPeriod)
 
       fork{
-        while(true){
-          disableSimWave()
-          sleep(systemClkPeriod*500000)
-          enableSimWave()
-          sleep(systemClkPeriod*100)
-        }
+        disableSimWave()
+        clockDomain.waitSampling(1000)
+        waitUntil(!dut.uartA.uart.rxd.toBoolean)
+        enableSimWave()
       }
 
       val tcpJtag = JtagTcp(
