@@ -171,7 +171,9 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
     if(ODTend == 0) ODTend = (1 << phyClkRatio)-1;
 	int32_t ODT = (writePhase+6+phyClkRatio-1)/phyClkRatio-1;
 	write_u32((ODT << 0) | (ODTend << 8), core + SDRAM_ODT);
+}
 
+static void sdram_ddr3_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t bl){
 	write_u32(0, core + SDRAM_SOFT_CLOCKING);
 	sdram_udelay(200);
     write_u32(SDRAM_RESETN, core + SDRAM_SOFT_CLOCKING);
@@ -188,14 +190,10 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
     write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
 }
 
-void sdram_phy_s7(uint32_t core, uint32_t phy){
+static void sdram_phy_s7(uint32_t core, uint32_t phy){
 	write_u32(10, phy + SDRAM_S7_IDELAY_VALUE);
 	write_u32(0xFFFFFFFF, phy + SDRAM_S7_IDELAY_LOAD_DQ);
 	write_u32(0x00000000, phy + SDRAM_S7_IDELAY_LOAD_DQ);
-
-
-
-
 
 
 	asm(".word(0x500F)");
