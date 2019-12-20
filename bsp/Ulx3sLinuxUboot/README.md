@@ -124,7 +124,6 @@ sudo mount /dev/mmcblk0p1 sdcard
 sudo cp buildroot/output/images/uImage sdcard/boot/uImage
 sudo cp buildroot/output/images/dtb sdcard/boot/dtb
 # Copy anything else you require such as network configuration files
-sudo umount sdcard
 
 sudo tar xf buildroot/output/images/rootfs.tar -C sdcard
 sudo umount sdcard
