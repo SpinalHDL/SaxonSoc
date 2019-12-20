@@ -121,6 +121,7 @@ mkdir sdcard
 # Change sdcard device name to one used on your system
 # unmount it, if automatically mounted
 sudo mount /dev/mmcblk0p1 sdcard 
+sudo mkdir sdcard/boot
 sudo cp buildroot/output/images/uImage sdcard/boot/uImage
 sudo cp buildroot/output/images/dtb sdcard/boot/dtb
 # Copy anything else you require such as network configuration files
