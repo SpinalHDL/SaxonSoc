@@ -103,6 +103,18 @@ const SdramTiming MT41K128M16JT_125_ps = {
 	.FAW =    40000
 };
 
+const SdramTiming MT47H64M16HR_25_ps = {
+	.REF =  7800000,
+	.RAS =    40000,
+	.RP  =    15000,
+	.RFC =   127500,
+	.RRD =    10000,
+	.RCD =    15000,
+	.RTP =     7500,
+	.WTR =     7500,
+	.WTP =    15000,
+	.FAW =    45000
+};
 
 const uint8_t wrToMr[] = {1,2,3,4,-1,5,-1,6,-1,7,-1,0};
 const uint8_t rlToMr[] = {2,4,6,8,10,12,14,1,3,5};
@@ -171,6 +183,21 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
     if(ODTend == 0) ODTend = (1 << phyClkRatio)-1;
 	int32_t ODT = (writePhase+6+phyClkRatio-1)/phyClkRatio-1;
 	write_u32((ODT << 0) | (ODTend << 8), core + SDRAM_ODT);
+}
+
+static void sdram_ddr2_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t bl, uint32_t al){
+	write_u32(0, core + SDRAM_SOFT_CLOCKING);
+	sdram_udelay(200);
+	write_u32(SDRAM_RESETN, core + SDRAM_SOFT_CLOCKING);
+	sdram_udelay(500);
+	write_u32(SDRAM_RESETN | SDRAM_CKE, core + SDRAM_SOFT_CLOCKING);
+
+	sdram_command(core, SDRAM_MOD, 2, 0);
+	sdram_command(core, SDRAM_MOD, 3, 0);
+	sdram_command(core, SDRAM_MOD, 1, (1 << 11) | ((al & 7) << 3) | 0x44);
+	sdram_command(core, SDRAM_MOD, 0, (1 << 12) | (((wl - 1) & 7) << 9) | ((rl & 7) << 4) | (((bl & 15) >> 3) | 2));
+	sdram_udelay(200);
+	write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
 }
 
 static void sdram_ddr3_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t bl){
