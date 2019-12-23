@@ -437,6 +437,10 @@ void trap(){
 		default: {
 			putString("Unknown exception ");
 		    putHex(cause);
+			putString("\nPC=");
+		    putHex(csr_read(mepc));
+			putString("\nMTVAL=");
+		    putHex(csr_read(mbadaddr));
 			putString("\n");
 			redirectTrap();
 		} break;
