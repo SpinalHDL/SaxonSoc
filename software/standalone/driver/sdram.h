@@ -116,6 +116,20 @@ const SdramTiming MT47H64M16HR_25_ps = {
 	.FAW =    45000
 };
 
+const SdramTiming MT48LC16M16A2_6A_ps = {
+	.REF =  7812500,
+	.RAS =    42000,
+	.RP  =    18000,
+	.RFC =    60000,
+	.RRD =    12000,
+	.RCD =    18000,
+	.RTP =        0,
+	.WTR =        0,
+	.WTP =     6000,
+	.FAW =        0
+};
+
+
 const uint8_t wrToMr[] = {1,2,3,4,-1,5,-1,6,-1,7,-1,0};
 const uint8_t rlToMr[] = {2,4,6,8,10,12,14,1,3,5};
 
@@ -146,14 +160,14 @@ static void sdram_udelay(uint32_t us){
     #endif
 }
 
-static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, uint32_t bl, SdramTiming timing, uint32_t phyClkRatio, uint32_t sdramPeriod){
+static void sdram_init(uint32_t core, uint32_t rl, uint32_t wl, uint32_t bl, SdramTiming timing, uint32_t phyClkRatio, uint32_t sdramPeriod){
     uint32_t readToDataCycle = (rl+phyClkRatio-1)/phyClkRatio;
     uint32_t readPhase = readToDataCycle*phyClkRatio-rl;
     uint32_t writeToDataCycle = (wl+phyClkRatio-1)/phyClkRatio;
     uint32_t writePhase = writeToDataCycle*phyClkRatio-wl;
     uint32_t activePhase = 0;
 	uint32_t prechargePhase = 0;
-
+	//TODO missued 4
     int32_t ctrlPeriod = sdramPeriod*phyClkRatio;
     int32_t cREF = t2c(0, 0, timing.REF, sdramPeriod, phyClkRatio);
     int32_t cRAS = t2c(activePhase     , prechargePhase                 , timing.RAS, sdramPeriod, phyClkRatio);
@@ -177,12 +191,22 @@ static void sdram_init(uint32_t core, uint32_t phy, uint32_t rl, uint32_t wl, ui
     write_u32((sat(cWTP-2) << 24)  | (sat(cWTR-2) << 16) | (sat(cRTP-2) << 8)   | (sat(cRTW-2) << 0), core + SDRAM_TIMING_2);
     write_u32(sat(cFAW-1), core + SDRAM_FAW);
 
-
-
     int32_t ODTend = (1 << (writePhase + 6)%phyClkRatio)-1;
     if(ODTend == 0) ODTend = (1 << phyClkRatio)-1;
 	int32_t ODT = (writePhase+6+phyClkRatio-1)/phyClkRatio-1;
 	write_u32((ODT << 0) | (ODTend << 8), core + SDRAM_ODT);
+}
+
+static void sdram_sdr_init(uint32_t core,  uint32_t rl){
+    write_u32(rl-1, SYSTEM_SDRAM_A_APB + SDRAM_READ_LATENCY);
+
+    write_u32(0, core + SDRAM_SOFT_CLOCKING); sdram_udelay(100);
+    write_u32(SDRAM_CKE, core + SDRAM_SOFT_CLOCKING); sdram_udelay(100);
+    sdram_command(core, SDRAM_PRE,0,0x400);
+    sdram_command(core, SDRAM_REF,0,0x000);
+    sdram_command(core, SDRAM_REF,0,0x000);
+    sdram_command(core, SDRAM_MOD,0,rl << 4);
+    write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
 }
 
 static void sdram_ddr2_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t bl, uint32_t al){

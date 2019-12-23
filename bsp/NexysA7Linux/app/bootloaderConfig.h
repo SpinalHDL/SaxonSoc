@@ -51,7 +51,6 @@ void bspMain() {
 	putString("sdram_init\n");
 	sdram_init(
 		SYSTEM_SDRAM_A_APB,
-		SDRAM_DOMAIN_PHY_A_APB,
 		RL,
 		WL,
 		BL,
