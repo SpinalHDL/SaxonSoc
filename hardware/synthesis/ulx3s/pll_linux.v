@@ -24,13 +24,13 @@ EHXPLLL #(
         .OUTDIVIDER_MUXD("DIVD"),
         .CLKI_DIV(1),
         .CLKOP_ENABLE("ENABLED"),
-        .CLKOP_DIV(12),
-        .CLKOP_CPHASE(5),
+        .CLKOP_DIV(13),
+        .CLKOP_CPHASE(12),
         .CLKOP_FPHASE(0),
         .CLKOS_ENABLE("ENABLED"),
-        .CLKOS_DIV(12),
-        .CLKOS_CPHASE(8),
-        .CLKOS_FPHASE(0),
+        .CLKOS_DIV(13),
+        .CLKOS_CPHASE(23),//23  21
+        .CLKOS_FPHASE(3),//3    6
         .FEEDBK_PATH("CLKOP"),
         .CLKFB_DIV(2)
     ) pll_i (

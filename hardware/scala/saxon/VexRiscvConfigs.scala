@@ -102,6 +102,96 @@ object VexRiscvConfigs {
       )
     )
 
+
+  def ulx3sLinux(resetVector: Long) = VexRiscvConfig(
+    withMemoryStage = true,
+    withWriteBackStage = true,
+    List(
+      new IBusCachedPlugin(
+        resetVector = resetVector,
+        compressedGen = false,
+        prediction = STATIC,
+        injectorStage = false,
+        config = InstructionCacheConfig(
+          cacheSize = 4096*1,
+          bytePerLine = 32,
+          wayCount = 1,
+          addressWidth = 32,
+          cpuDataWidth = 32,
+          memDataWidth = 32,
+          catchIllegalAccess = true,
+          catchAccessFault = true,
+          asyncTagMemory = false,
+          twoCycleRam = false,
+          twoCycleCache = true
+        ),
+        memoryTranslatorPortConfig = MmuPortConfig(
+          portTlbSize = 4
+        )
+      ),
+      new DBusCachedPlugin(
+        dBusCmdMasterPipe = true,
+        dBusCmdSlavePipe = true,
+        dBusRspSlavePipe = true,
+        config = new DataCacheConfig(
+          cacheSize         = 4096*1,
+          bytePerLine       = 32,
+          wayCount          = 1,
+          addressWidth      = 32,
+          cpuDataWidth      = 32,
+          memDataWidth      = 32,
+          catchAccessError  = true,
+          catchIllegal      = true,
+          catchUnaligned    = true,
+          withLrSc = true,
+          withAmo = true
+          //          )
+        ),
+        memoryTranslatorPortConfig = MmuPortConfig(
+          portTlbSize = 4
+        )
+      ),
+      new DecoderSimplePlugin(
+        catchIllegalInstruction = true
+      ),
+      new RegFilePlugin(
+        regFileReadyKind = plugin.SYNC,
+        zeroBoot = true
+      ),
+      new IntAluPlugin,
+      new SrcPlugin(
+        separatedAddSub = false
+      ),
+      new FullBarrelShifterPlugin(earlyInjection = false),
+      new HazardSimplePlugin(
+        bypassExecute           = true,
+        bypassMemory            = true,
+        bypassWriteBack         = true,
+        bypassWriteBackBuffer   = true,
+        pessimisticUseSrc       = false,
+        pessimisticWriteRegFile = false,
+        pessimisticAddressMatch = false
+      ),
+      new MulDivIterativePlugin(
+        genMul = true,
+        genDiv = true,
+        mulUnrollFactor = 4,
+        divUnrollFactor = 1
+      ),
+      new CsrPlugin(CsrPluginConfig.linuxMinimal(0x80000020l).copy(ebreakGen = false)),
+
+      new BranchPlugin(
+        earlyBranch = false,
+        catchAddressMisaligned = true,
+        fenceiGenAsAJump = false
+      ),
+      new MmuPlugin(
+        ioRange = (x => x(31 downto 28) === 0x1)
+      ),
+      new YamlPlugin("cpu0.yaml")
+    )
+  )
+
   def linuxTest(resetVector : BigInt = 0x80000000l) = VexRiscvConfig(
     withMemoryStage = true,
     withWriteBackStage = true,

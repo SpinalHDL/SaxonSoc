@@ -1,7 +1,8 @@
 package saxon.board.ulx3s
 
-import saxon.{ResetSensitivity, _}
+import saxon._
 import spinal.core._
+import spinal.lib.blackbox.lattice.ecp5.{BB, TSFF}
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
@@ -11,11 +12,16 @@ import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
 import spinal.lib.com.spi._
+import spinal.lib.memory.sdram.xdr.CoreParameter
+import spinal.lib.memory.sdram.xdr.phy.SdrInferedPhy
 
-class Ulx3sLinuxUbootSystem extends SaxonSocLinux{
+class Ulx3sLinuxUbootSystem extends SaxonSocLinux {
   //Add components
-  val ramA = BmbOnChipRamGenerator(0x20000000l) 
-  val sdramA = SdramSdrBmbGenerator(0x80000000l)
+  val ramA = BmbOnChipRamGenerator(0x20000000l)
+  val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l).mapApbAt(0x0F000)
+  val sdramA0 = sdramA.addPort()
+  val phyA = SdrInferedPhyGenerator().connect(sdramA)
+
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
   val spiB = Apb3SpiGenerator(0x21000)
@@ -27,7 +33,7 @@ class Ulx3sLinuxUbootSystem extends SaxonSocLinux{
   interconnect.addConnection(
     cpu.iBus -> List(bridge.bmb),
     cpu.dBus -> List(bridge.bmb),
-    bridge.bmb -> List(sdramA.bmb, ramA.bmb, peripheralBridge.input)
+    bridge.bmb -> List(sdramA0.bmb, ramA.bmb, peripheralBridge.input)
   )
 
   interconnect.setConnector(bridge.bmb){case (m,s) =>
@@ -52,9 +58,9 @@ class Ulx3sLinuxUboot extends Generator{
 
     val pll = Ulx3sLinuxUbootPll()
     pll.clkin := clk_25mhz
-    sdram_clk := pll.clkout0
-    clockCtrl.clock.load(pll.clkout1)
+    clockCtrl.clock.load(pll.clkout0)
     clockCtrl.reset.load(resetn)
+    sdram_clk := pll.clkout1
   }
 }
 
@@ -70,7 +76,7 @@ object Ulx3sLinuxUbootSystem{
   def default(g : Ulx3sLinuxUbootSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true, sdramSize: Int) = g {
     import g._
 
-    cpu.config.load(VexRiscvConfigs.linux(0x20000000l))
+    cpu.config.load(VexRiscvConfigs.ulx3sLinux(0x20000000l))
     cpu.enableJtag(clockCtrl)
 
     // Configure ram
@@ -78,12 +84,19 @@ object Ulx3sLinuxUbootSystem{
     ramA.size.load(8 KiB)
     ramA.hexInit.load(null)
 
+    sdramA.coreParameter.load(CoreParameter(
+      portTockenMin = 16,
+      portTockenMax = 32,
+      timingWidth = 4,
+      refWidth = 16,
+      writeLatencies = List(0),
+      readLatencies = List(3, 4, 5)
+    ))
+
     if (sdramSize == 32) {
-      sdramA.layout.load(MT48LC16M16A2.layout)
-      sdramA.timings.load(MT48LC16M16A2.timingGrade7)
+      phyA.sdramLayout.load(MT48LC16M16A2.layout)
     } else {
-      sdramA.layout.load(AS4C32M16SB.layout)
-      sdramA.timings.load(AS4C32M16SB.timingGrade7)
+      phyA.sdramLayout.load(AS4C32M16SB.layout)
     }
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
@@ -174,6 +187,27 @@ object Ulx3sLinuxUboot {
     Ulx3sLinuxUbootSystem.default(system, clockCtrl, sdramSize = sdramSize)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 
+    system.phyA.sdram.produce{
+      g.system.phyA.logic.phy.regs.addAttribute("syn_useioff")
+//      g.system.phyA.logic.phy.regs.DQ.writeEnable.getDrivingReg.addAttribute("syn_keep")
+////      g.system.phyA.logic.phy.regs.DQ.writeEnable.spinalTags.clear()
+//      system.phyA.sdram.DQ.setAsDirectionLess()
+//      for(i <- 0 until system.phyA.sdram.DQ.width){
+////        val tsff = TSFF()
+////        tsff.TD := system.phyA.sdram.DQ.writeEnable(i)
+////        tsff.SCLK := False
+////        tsff.RST := False
+//
+//        val bb = BB()
+//        bb.T <> system.phyA.sdram.DQ.writeEnable(i)
+//        bb.I <> system.phyA.sdram.DQ.write(i)
+//        bb.O <> system.phyA.sdram.DQ.read(i)
+//
+//        val b = inout(Analog(Bool())).setName(s"system_phyA_sdram_DQ_$i")
+//        b := bb.B
+//      }
+    }
+
     g
   }
 
@@ -191,7 +225,7 @@ object Ulx3sLinuxUbootSystemSim {
   def main(args: Array[String]): Unit = {
     val simConfig = SimConfig
     simConfig.allOptimisation
-    simConfig.withWave
+//    simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-CMPCONST")
 
     val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
@@ -227,12 +261,12 @@ object Ulx3sLinuxUbootSystemSim {
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
 
-      fork{
-        disableSimWave()
-        clockDomain.waitSampling(1000)
-        waitUntil(!dut.uartA.uart.rxd.toBoolean)
-        enableSimWave()
-      }
+//      fork{
+//        disableSimWave()
+//        clockDomain.waitSampling(1000)
+//        waitUntil(!dut.uartA.uart.rxd.toBoolean)
+//        enableSimWave()
+//      }
 
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,
@@ -252,8 +286,8 @@ object Ulx3sLinuxUbootSystemSim {
       )
 
       val sdram = SdramModel(
-        io = dut.sdramA.sdram,
-        layout = dut.sdramA.logic.layout,
+        io = dut.phyA.sdram,
+        layout = dut.phyA.sdramLayout,
         clockDomain = clockDomain
       )
 
@@ -261,7 +295,6 @@ object Ulx3sLinuxUbootSystemSim {
       val uboot = "../u-boot/"
       sdram.loadBin(0x00800000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       sdram.loadBin(0x01F00000, uboot + "u-boot.bin")
-
     }
   }
 }
