@@ -17,4 +17,7 @@
 *.vho
 *.debug
 *.wdf
+*.pb
+*.prm
+*.mcs
 webtalk
