@@ -41,11 +41,11 @@ void putHex(int value){
 #define putHex(x)
 #endif
 
-#define AL 0
-#define BL 8 //4,8
-#define CL 6 //2.5ns@CL=5 p.1,34
-#define RL (AL+CL)
-#define WL (AL+CL-1)
+#define AL 0 //0..6 p86
+#define BL 8 //4,8 p81,82
+#define CL 6 //5,6 p1,34
+#define RL (AL+CL) //p88
+#define WL (AL+CL-1) //p88
 
 void bspMain() {
 	putString("sdram_init\n");
@@ -57,7 +57,7 @@ void bspMain() {
 		BL,
 		MT47H64M16HR_25_ps,
 		2,
-		3300
+		3333
 	);
 
 	sdram_ddr2_init(
@@ -74,10 +74,6 @@ void bspMain() {
 		SYSTEM_SDRAM_A_APB,
 		SDRAM_DOMAIN_PHY_A_APB
 	);
-	putHex(read_u32(0x80000000)); putString(" ddr\n");
-	putHex(read_u32(0x80000004)); putString(" ddr\n");
-	putHex(read_u32(0x80000008)); putString(" ddr\n");
-	putHex(read_u32(0x8000000C)); putString(" ddr\n");
 
 	putString("spiFlash_init\n");
 	spiFlash_init(SPI, SPI_CS);
@@ -85,11 +81,11 @@ void bspMain() {
 	spiFlash_f2m(SPI, SPI_CS, MACHINE_MODE_SBI_FLASH, MACHINE_MODE_SBI_MEMORY, MACHINE_MODE_SBI_SIZE);
 	spiFlash_f2m(SPI, SPI_CS, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
 
-	putHex(read_u32(MACHINE_MODE_SBI_MEMORY+0)); putString(" ddr\n");
-	putHex(read_u32(MACHINE_MODE_SBI_MEMORY+4)); putString(" ddr\n");
-	putHex(read_u32(MACHINE_MODE_SBI_MEMORY+8)); putString(" ddr\n");
-	putHex(read_u32(MACHINE_MODE_SBI_MEMORY+12)); putString(" ddr\n");
-	spiFlash_f2m(SPI, SPI_CS, MACHINE_MODE_SBI_FLASH, 0x20001000, 16);
+	putHex(read_u32(UBOOT_MEMORY+0)); putString(" ddr\n");
+	putHex(read_u32(UBOOT_MEMORY+4)); putString(" ddr\n");
+	putHex(read_u32(UBOOT_MEMORY+8)); putString(" ddr\n");
+	putHex(read_u32(UBOOT_MEMORY+12)); putString(" ddr\n");
+	spiFlash_f2m(SPI, SPI_CS, UBOOT_SBI_FLASH, 0x20001000, 16);
 	putHex(read_u32(0x20001000)); putString(" ram\n");
 	putHex(read_u32(0x20001004)); putString(" ram\n");
 	putHex(read_u32(0x20001008)); putString(" ram\n");
