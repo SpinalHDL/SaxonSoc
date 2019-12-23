@@ -1,5 +1,4 @@
-#ifndef IO_H
-#define IO_H
+#pragma once
 
 #include <stdint.h>
 #include "soc.h"
@@ -10,6 +9,22 @@ static inline uint32_t read_u32(uint32_t address){
 
 static inline void write_u32(uint32_t data, uint32_t address){
 	*((volatile uint32_t*) address) = data;
+}
+
+static inline uint16_t read_u16(uint32_t address){
+	return *((volatile uint16_t*) address);
+}
+
+static inline void write_u16(uint16_t data, uint32_t address){
+	*((volatile uint16_t*) address) = data;
+}
+
+static inline uint8_t read_u8(uint32_t address){
+	return *((volatile uint8_t*) address);
+}
+
+static inline void write_u8(uint8_t data, uint32_t address){
+	*((volatile uint8_t*) address) = data;
 }
 
 static inline void write_u32_ad(uint32_t address, uint32_t data){
@@ -33,6 +48,5 @@ static void io_udelay(uint32_t usec){
 #endif
 
 
-#endif
 
 
