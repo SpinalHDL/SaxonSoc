@@ -9,57 +9,98 @@ A few kits are supported :
 - ulx3s (ECP5)
 - Arty-A7 (Artix 7), documented in bsp/Arty7Linux/README.md
 
-## De1SocLinux
 
-Build buildroot/linux :
+## BMB spec (WIP)
 
-```
-git clone https://github.com/SpinalHDL/buildroot.git -b saxon buildroot
-git clone https://github.com/SpinalHDL/linux.git -b vexriscv --depth 100 linux
-cd buildroot
-make spinal_saxon_default_defconfig
-make linux-rebuild all -j$(nproc)
-output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
-dtc -O dtb -o output/images/dtb board/spinal/saxon_default/spinal_saxon_default_de1_soc.dts
-```
+### Why BMB
 
-## Arty7Linux
+The needs I had :
 
-WIP
+- A memory bus which could be used from for cacheless + low latency to cachefull SoC design without overhead
+- Interconnect/Adapters which fit well in FPGA (without asyncronus ram reads)
 
-```
-git clone https://github.com/SpinalHDL/buildroot.git -b saxon buildroot
-git clone https://github.com/SpinalHDL/linux.git -b vexriscv --depth 100 linux
-cd buildroot
-make spinal_saxon_arty7_defconfig
-make linux-rebuild all -j$(nproc)
-output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
-dtc -O dtb -o output/images/dtb board/spinal/saxon_arty7/spinal_saxon_arty7.dts
+Why not adopting a existing memory bus :
 
-cd ../riscv_openocd
-src/openocd -f tcl/interface/ftdi/ft2232h_breakout.cfg -c 'set CPU0_YAML ../SaxonSoc.git/cpu0.yaml' -f tcl/target/arty7_linux.cfg
+- AXI4 and Tilelink memory ordering has overhead for cacheless CPU designs
+- AXI4 do not fit cacheless design as the AW W channels split add overhead to the interconnect
+- TileLink isn't FPGA friendly, as its rely on tracking each transaction (unique source identifier)
+- Nor AXI4, Tilelink, Wishbone, Avalon provide the features required for state-less adapters
+- With the SaxonSoc out of order elaboration, there was a quite some room for experimentation and automation
 
-u-boot
-CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make saxon_arty7_defconfig
-CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make -j8
+### Key features
 
-u-boot
-make clean; CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make saxon_arty7_defconfig; CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make -j8
+Feature which target the interconnect and adapters :
 
-output/host/bin/mkimage -A riscv -O linux -T kernel -C none -a 0x80000000 -e 0x80000000 -n Linux -d output/images/Image output/images/uImage
+- Context signals which allow a master to retrieve information from the bus responses, and consequently allow state-less adapters
+- Address and write data are part of the same link, which allow to have low latency interconnect (in comparison to AXI)
+- Allow out of oder completion via the 'source' signals
 
-load mmc 0 0x80000000 uboot/uImage
-load mmc 0 0x80BFFFC0 uboot/rootfs.cpio.uboot
-load mmc 0 0x80BF0000 uboot/dtb
-bootm 0x80000000 0x80BFFFC0 0x80BF0000
+Feature to make slave implementation easier :
 
-load mmc 0 0x80000000 uImage
-load mmc 0 0x81EF0000 dtb
-bootm 0x80000000 - 0x81EF0000
+- Address alignment parameter (BYTE, WORD, POW2) to allow simple slave implementations
+- Length width parameter, which combined with the alignement parameter, allow a slave to not support bursts (the interconnect will add the required adapters)
 
-```
+Other features :
 
+- WriteOnly, readOnly support
 
+### Parameters and signal
+
+BMB can has the following parameters :
+
+| Name         | Type     | Description                                                 |
+| ------------ | -------- | ------------                                                |
+| addressWidth | Bitcount | Addresses are always in byte                                |
+| dataWidth    | Bitcount | Should be multiple of 8                                     |
+| lengthWidth  | Bitcount | Number of byte of a burst = length                          |
+| sourceWidth  | Bitcount | Used for out of order completion                            |
+| contextWidth | Bitcount | Used by masters/adapters to link informations to bursts     |
+| alignment    | Enum     | Smallest alignement used by the master (BYTE, WORD, POW2)   |
+| canRead      | Boolean  | Allow reads                                                 |
+| canWrite     | Boolean  | Allow writes                                                |
+
+BMB is composed of streams to carry transaction between a source and a sink. A stream is composed of :
+
+| Name    | Direction      | Description                                                                  |
+| ------- | -------------- | ---------------------------------------------------------------------------- |
+| valid   | Source => Sink | transaction present on the interface                                         |
+| payload | Source => Sink | transaction content                                                          |
+| ready   | Source <= Sink | consume the transaction on the bus, don't care if there is no transaction    |
+
+More details on https://spinalhdl.github.io/SpinalDoc-RTD/SpinalHDL/Libraries/stream.html
+
+BMB is composed of two streams :
+- cmd : to carry requests, (read, write + data)
+- rsp : to carry responses (read + data, write)
+
+The cmd stream is consquantly composed of the following signals
+
+| Name    | Bitcount     | Description                                                                                         |
+| ------- | ------------ | ------------                                                                                        |
+| valid   | 1            | Stream valid                                                                                        |
+| ready   | 1            | Stream ready                                                                                        |
+| source  | sourceWidth  | Transaction source ID, allow out of order completion between different sources, similar to AXI ID   |
+| opcode  | 1            | 0 => READ, 1 => WRITE                                                                               |
+| address | addressWidth | Address of the first byte of the transaction, stay the same during a burst                          |
+| length  | lengthWidth  | Burst bytes count                                                                                   |
+| data    | dataWidth    | Data used for writes                                                                                |
+| mask    | dataWidth/8  | Data mask used for writes                                                                           |
+| context | contextWidth | Can be used by a master/adapter to link some informations to a burst (returned on rsp transactions) |
+
+During a write burst the source, opcode, address, length and context signal should remain stable.
+
+And the rsp stream is :
+
+| Name    | Bitcount     | Description                                |
+| ------- | ------------ | ------------                               |
+| valid   | 1            | Stream valid                               |
+| ready   | 1            | Stream ready                               |
+| source  | sourceWidth  | Identical to the corresponding cmd source  |
+| opcode  | 1            | 0 => SUCCESS, 1 => ERROR                   |
+| data    | dataWidth    | Data used for reads                        |
+| context | contextWidth | Identical to the corresponding cmd context |
+
+During a read burst the source and context signal should remain stable.
 
 ## Various commands
 
