@@ -32,6 +32,7 @@ Why not adopting a existing memory bus :
 Feature which target the interconnect and adapters :
 
 - Context signals which allow a master to retrieve information from the bus responses, and consequently allow state-less adapters
+- State-less adapters allow unlimited number of pending transactions and avoid the usage of RAM/FIFO in adapters
 - Address and write data are part of the same link, which allow to have low latency interconnect (in comparison to AXI)
 - Allow out of oder completion via the 'source' signals
 
