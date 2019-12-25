@@ -19,6 +19,7 @@ import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
+//import vexriscv.plugin.CsrPlugin
 
 
 
@@ -223,6 +224,7 @@ object NexysA7Linux {
     sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
     NexysA7LinuxSystem.default(system, mainClockCtrl)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
+    //system.cpu.produce(out(Bool).setName("inWfi") := system.cpu.config.plugins.find(_.isInstanceOf[CsrPlugin]).get.asInstanceOf[CsrPlugin].inWfi)
     g
   }
 
@@ -318,63 +320,11 @@ object NexysA7LinuxSystemSim {
 
 
       val linuxPath = "../buildroot/output/images/"
-      val uboot = "../u-boot/"
+      val ubootPath = "../u-boot/"
       dut.phy.io.loadBin(0x01FF0000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      dut.phy.io.loadBin(0x01F00000, uboot + "u-boot.bin")
-
-
-//      val linuxPath = "../buildroot/output/images/"
-//      dut.phy.io.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-//      dut.phy.io.loadBin(0x00400000, linuxPath + "Image")
-//      dut.phy.io.loadBin(0x00BF0000, linuxPath + "dtb")
-//      dut.phy.io.loadBin(0x00C00000, linuxPath + "rootfs.cpio")
-
+      dut.phy.io.loadBin(0x01F00000, ubootPath + "u-boot.bin")
       println("DRAM loading done")
 
     }
   }
 }
-
-
-
-//
-//object NexysA7LinuxSynthesis{
-//  def main(args: Array[String]): Unit = {
-//    val soc = new Rtl {
-//      override def getName(): String = "NexysA7Linux"
-//      override def getRtlPath(): String = "NexysA7Linux.v"
-//      SpinalConfig(defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC), inlineRom = true)
-//        .generateVerilog(InOutWrapper(NexysA7Linux.default(new NexysA7Linux()).toComponent()).setDefinitionName(getRtlPath().split("\\.").head))
-//    }
-//
-//    val rtls = List(soc)
-////    val targets = XilinxStdTargets(
-////      vivadoArtix7Path = "/media/miaou/HD/linux/Xilinx/Vivado/2018.3/bin"
-////    )
-//    val targets = List(
-//      new Target {
-//        override def getFamilyName(): String = "Artix 7"
-//        override def synthesise(rtl: Rtl, workspace: String): Report = {
-//          VivadoFlow(
-//            vivadoPath=vivadoArtix7Path,
-//            workspacePath=workspace,
-//            toplevelPath=rtl.getRtlPath(),
-//            family=getFamilyName(),
-//            device="xc7a35ticsg324-1L" // xc7k70t-fbg676-3"
-//          )
-//        }
-//      }
-//    )
-//
-//    Bench(rtls, targets, "/media/miaou/HD/linux/tmp")
-//  }
-//}
-//
-//
-//
-//
-
-
-/*
-write_cfgmem  -format mcs -size 16 -interface SPIx4 -loadbit {up 0x00000000 "/local/home/roman/projects/riscv/SaxonSoc_dev/hardware/synthesis/nexys4ddr/saxon_linux/saxon_linux.runs/impl_1/NexysA7Linux.bit" } -force -file "/local/home/roman/projects/riscv/SaxonSoc_dev/hardware/synthesis/nexys4ddr/saxon_linux/saxon_linux.mcs"
-*/
