@@ -173,11 +173,11 @@ static void sdram_init(uint32_t core, uint32_t rl, uint32_t wl, uint32_t bl, Sdr
     int32_t cRAS = t2c(activePhase     , prechargePhase                 , timing.RAS, sdramPeriod, phyClkRatio);
     int32_t cRP  = t2c(prechargePhase  , activePhase                    , timing.RP, sdramPeriod, phyClkRatio);
     int32_t cRFC = t2c(activePhase     , activePhase                    , timing.RFC, sdramPeriod, phyClkRatio);
-    int32_t cRRD = t2c(activePhase     , activePhase                    , MAX(timing.RRD, 4*sdramPeriod), sdramPeriod, phyClkRatio);
+    int32_t cRRD = t2c(activePhase     , activePhase                    , MAX(timing.RRD, bl*sdramPeriod), sdramPeriod, phyClkRatio);
     int32_t cRCD = t2c(activePhase     , MIN(writePhase, readPhase)     , timing.RCD, sdramPeriod, phyClkRatio);
     int32_t cRTW = t2c(readPhase       , writePhase                     , (rl+bl+2-wl)*sdramPeriod, sdramPeriod, phyClkRatio);
-    int32_t cRTP = t2c(readPhase       , prechargePhase                 , MAX(timing.RTP, 4*sdramPeriod), sdramPeriod, phyClkRatio);
-    int32_t cWTR = t2c(writePhase      , readPhase                      , MAX(timing.WTR, 4*sdramPeriod) + (wl+bl)*sdramPeriod, sdramPeriod, phyClkRatio);
+    int32_t cRTP = t2c(readPhase       , prechargePhase                 , MAX(timing.RTP, bl*sdramPeriod), sdramPeriod, phyClkRatio);
+    int32_t cWTR = t2c(writePhase      , readPhase                      , MAX(timing.WTR, bl*sdramPeriod) + (wl+bl)*sdramPeriod, sdramPeriod, phyClkRatio);
     int32_t cWTP = t2c(writePhase      , prechargePhase                 , timing.WTP + (wl+bl)*sdramPeriod, sdramPeriod, phyClkRatio);
     int32_t cFAW = t2c(activePhase     , activePhase                    , timing.FAW, sdramPeriod, phyClkRatio);
 
@@ -197,7 +197,15 @@ static void sdram_init(uint32_t core, uint32_t rl, uint32_t wl, uint32_t bl, Sdr
 	write_u32((ODT << 0) | (ODTend << 8), core + SDRAM_ODT);
 }
 
-static void sdram_sdr_init(uint32_t core,  uint32_t rl){
+static void sdram_sdr_init(uint32_t core,  uint32_t rl, uint32_t bl){
+	uint32_t blMod;
+	switch(bl){
+	case 1: blMod = 0; break;
+	case 2: blMod = 1; break;
+	case 4: blMod = 2; break;
+	case 8: blMod = 3; break;
+	}
+
     write_u32(rl-1, SYSTEM_SDRAM_A_APB + SDRAM_READ_LATENCY);
 
     write_u32(0, core + SDRAM_SOFT_CLOCKING); sdram_udelay(100);
@@ -205,7 +213,7 @@ static void sdram_sdr_init(uint32_t core,  uint32_t rl){
     sdram_command(core, SDRAM_PRE,0,0x400);
     sdram_command(core, SDRAM_REF,0,0x000);
     sdram_command(core, SDRAM_REF,0,0x000);
-    sdram_command(core, SDRAM_MOD,0,rl << 4);
+    sdram_command(core, SDRAM_MOD,0,(rl << 4) | blMod);
     write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
 }
 

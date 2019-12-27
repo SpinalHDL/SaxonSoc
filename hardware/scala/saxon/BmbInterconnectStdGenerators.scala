@@ -9,7 +9,7 @@ import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Ha
 import spinal.lib.memory.sdram.SdramLayout
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr._
-import spinal.lib.memory.sdram.xdr.phy.{RtlPhy, SdrInferedPhy, XilinxS7Phy}
+import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, RtlPhy, SdrInferedPhy, XilinxS7Phy}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -254,6 +254,22 @@ case class SdrInferedPhyGenerator(implicit decoder: Apb3DecoderGenerator) extend
 
   val logic = add task new Area{
     val phy = SdrInferedPhy(sdramLayout)
+  }
+
+  def connect(ctrl : SdramXdrBmbGenerator): this.type = {
+    this.produce{ctrl.phyParameter.load(logic.phy.pl)}
+    ctrl.produce{ctrl.logic.io.phy <> logic.phy.io.ctrl}
+    this
+  }
+}
+
+
+case class Ecp5Sdrx2PhyGenerator(implicit decoder: Apb3DecoderGenerator) extends Generator{
+  val sdramLayout = createDependency[SdramLayout]
+  val sdram = produceIo(logic.phy.io.sdram)
+
+  val logic = add task new Area{
+    val phy = Ecp5Sdrx2Phy(sdramLayout)
   }
 
   def connect(ctrl : SdramXdrBmbGenerator): this.type = {

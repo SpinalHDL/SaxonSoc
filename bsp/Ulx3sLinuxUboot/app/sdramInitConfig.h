@@ -33,7 +33,7 @@ void putHex(int value){
 
 #define RL 3
 #define WL 0
-#define BL 1
+#define BL 2
 
 void bspMain() {
 	putString("Starting bootloader\n");
@@ -44,13 +44,14 @@ void bspMain() {
         WL,
         BL,
         MT48LC16M16A2_6A_ps,
-        1,
+        2,
         20000
     );
 
     sdram_sdr_init(
         SYSTEM_SDRAM_A_APB,
-        RL
+        RL,
+        BL
     );
 
 	putString("sdram init done\n");

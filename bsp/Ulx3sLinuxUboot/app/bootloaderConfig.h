@@ -34,7 +34,7 @@ void putHex(int value){
 
 #define RL 3
 #define WL 0
-#define BL 1
+#define BL 2
 
 void bspMain() {
 	putString("Starting bootloader\n");
@@ -45,26 +45,52 @@ void bspMain() {
 		WL,
 		BL,
 		MT48LC16M16A2_6A_ps,
-		1,
+		2,
 		20000
 	);
 
 	sdram_sdr_init(
 		SYSTEM_SDRAM_A_APB,
-		RL
+		RL,
+		BL
 	);
 
-//	write_u32(0x11223344,0x80000000);
-//	write_u16(    0x5566,0x80000006);
-//	write_u16(    0x7788,0x80000004);
-//	write_u8(       0xDD,0x80000008);
-//	write_u8(       0xCC,0x80000009);
-//	write_u8(       0xBB,0x8000000A);
-//	write_u8(       0xAA,0x8000000B);
-//	asm(".word(0x500F)"); //Flush data cache
-//	u32 a = read_u32(0x80000000);
-//	u32 b = read_u32(0x80000004);
-//	u32 c = read_u32(0x80000008);
+//    write_u32(0, SYSTEM_SDRAM_A_APB + SDRAM_CONFIG);
+	for(uint32_t i = 0;i < 6;i++){
+		write_u32(i, SYSTEM_SDRAM_A_APB + SDRAM_READ_LATENCY);
+//		write_u32(0x12346578,0x80000000 + 0);
+//		write_u32(0x11223344,0x80000000 + 4);
+//		write_u16(    0x5566,0x80000006 + 4);
+//		write_u16(    0x7788,0x80000004 + 4);
+//		write_u8(       0xDD,0x80000008 + 4);
+//		write_u8(       0xCC,0x80000009 + 4);
+//		write_u8(       0xBB,0x8000000A + 4);
+//		write_u8(       0xAA,0x8000000B + 4);
+
+		write_u16(    0x123F,0x80000000 + 0);
+		write_u16(    0x456F,0x80000000 + 2);
+		write_u16(    0x0000,0x80000000 + 4);
+		write_u16(    0x0000,0x80000000 + 6);
+
+//		write_u16(    0x0001,0x80000000 + 8);
+//		write_u16(    0x0002,0x80000000 + 10);
+//		write_u16(    0x0003,0x80000000 + 12);
+//		write_u16(    0x0003,0x80000000 + 14);
+
+		write_u16(    0xFFFF,0x80000000 + 8);
+		write_u16(    0xFFFF,0x80000000 + 10);
+		write_u16(    0xFFFF,0x80000000 + 12);
+		write_u16(    0xFFFF,0x80000000 + 14);
+
+		write_u32(0x00020001,0x80000000 + 8);
+		write_u32(0x00030003,0x80000000 + 12);
+		asm(".word(0x500F)"); //Flush data cache
+		u32 a = read_u32(0x80000000);
+		u32 b = read_u32(0x80000004);
+		u32 c = read_u32(0x80000008);
+ 		u32 d = read_u32(0x8000000C);
+		asm("nop");
+	}
 
 #ifndef SPINAL_SIM
 	spiFlash_init_withGpioCs(SPI, GPIO, GPIO_CS_PIN);

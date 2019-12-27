@@ -2,7 +2,7 @@ package saxon.board.ulx3s
 
 import saxon._
 import spinal.core._
-import spinal.lib.blackbox.lattice.ecp5.{BB, TSFF}
+import spinal.lib.blackbox.lattice.ecp5.{BB, ODDRX1F, TSFF}
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
@@ -20,7 +20,7 @@ class Ulx3sLinuxUbootSystem extends SaxonSocLinux {
   val ramA = BmbOnChipRamGenerator(0x20000000l)
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l).mapApbAt(0x0F000)
   val sdramA0 = sdramA.addPort()
-  val phyA = SdrInferedPhyGenerator().connect(sdramA)
+  val phyA = Ecp5Sdrx2PhyGenerator().connect(sdramA)
 
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
@@ -60,7 +60,11 @@ class Ulx3sLinuxUboot extends Generator{
     pll.clkin := clk_25mhz
     clockCtrl.clock.load(pll.clkout0)
     clockCtrl.reset.load(resetn)
-    sdram_clk := pll.clkout1
+//    sdram_clk := pll.clkout1
+    val bb = ClockDomain(pll.clkout1, False)(ODDRX1F())
+    bb.D0 <> True
+    bb.D1 <> False
+    bb.Q <> sdram_clk
   }
 }
 
@@ -90,7 +94,7 @@ object Ulx3sLinuxUbootSystem{
       timingWidth = 4,
       refWidth = 16,
       writeLatencies = List(0),
-      readLatencies = List(3, 4, 5)
+      readLatencies = List(5, 6, 7)
     ))
 
     if (sdramSize == 32) {
@@ -186,27 +190,6 @@ object Ulx3sLinuxUboot {
 
     Ulx3sLinuxUbootSystem.default(system, clockCtrl, sdramSize = sdramSize)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
-
-    system.phyA.sdram.produce{
-      g.system.phyA.logic.phy.regs.addAttribute("syn_useioff")
-//      g.system.phyA.logic.phy.regs.DQ.writeEnable.getDrivingReg.addAttribute("syn_keep")
-////      g.system.phyA.logic.phy.regs.DQ.writeEnable.spinalTags.clear()
-//      system.phyA.sdram.DQ.setAsDirectionLess()
-//      for(i <- 0 until system.phyA.sdram.DQ.width){
-////        val tsff = TSFF()
-////        tsff.TD := system.phyA.sdram.DQ.writeEnable(i)
-////        tsff.SCLK := False
-////        tsff.RST := False
-//
-//        val bb = BB()
-//        bb.T <> system.phyA.sdram.DQ.writeEnable(i)
-//        bb.I <> system.phyA.sdram.DQ.write(i)
-//        bb.O <> system.phyA.sdram.DQ.read(i)
-//
-//        val b = inout(Analog(Bool())).setName(s"system_phyA_sdram_DQ_$i")
-//        b := bb.B
-//      }
-    }
 
     g
   }
