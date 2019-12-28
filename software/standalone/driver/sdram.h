@@ -86,7 +86,7 @@ static uint32_t sat(int32_t v) {
 	return MAX(v,0);
 }
 
-const SdramTiming MT41K128M16JT_125_ps = {
+static const SdramTiming MT41K128M16JT_125_ps = {
     .generation = SDRAM_TIMING_DDR3,
 	.REF =  7800000,
 	.RAS =    35000,
@@ -100,7 +100,7 @@ const SdramTiming MT41K128M16JT_125_ps = {
 	.FAW =    40000
 };
 
-const SdramTiming MT47H64M16HR_25_ps = {
+static const SdramTiming MT47H64M16HR_25_ps = {
     .generation = SDRAM_TIMING_DDR2,
 	.REF =  7800000,
 	.RAS =    40000,
@@ -114,7 +114,7 @@ const SdramTiming MT47H64M16HR_25_ps = {
 	.FAW =    45000
 };
 
-const SdramTiming MT48LC16M16A2_6A_ps = {
+static const SdramTiming MT48LC16M16A2_6A_ps = {
     .generation = SDRAM_TIMING_SDR,
 	.REF =  7812500,
 	.RAS =    42000,
@@ -128,20 +128,20 @@ const SdramTiming MT48LC16M16A2_6A_ps = {
 	.FAW =        0
 };
 
+static void sdram_udelay(uint32_t us){
+    #ifndef SPINAL_SIM
+    io_udelay(us);
+    #endif
+}
 
 static void sdram_command(uint32_t core, uint32_t cmd, uint32_t bank, uint32_t address){
 	write_u32_ad(core + SDRAM_SOFT_BA, bank);
 	write_u32_ad(core + SDRAM_SOFT_ADDR, address);
 	write_u32_ad(core + SDRAM_SOFT_CMD, cmd);
 	write_u32_ad(core + SDRAM_SOFT_PUSH, 0);
+	sdram_udelay(1);
 }
 
-
-static void sdram_udelay(uint32_t us){
-    #ifndef SPINAL_SIM
-    io_udelay(us);
-    #endif
-}
 
 static void sdram_init(uint32_t core, uint32_t rl, uint32_t wl, SdramTiming timing, uint32_t ctrlBurstLength, uint32_t phyClkRatio, uint32_t sdramPeriod){
     uint32_t readToDataCycle = (rl+phyClkRatio-1)/phyClkRatio;
@@ -223,21 +223,31 @@ static void sdram_sdr_init(uint32_t core,  uint32_t rl, uint32_t ctrlBurstLength
     write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
 }
 
-static void sdram_ddr2_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t ctrlBurstLength, uint32_t phyClkRatio, uint32_t al){
+static void sdram_ddr2_init(uint32_t core, uint32_t rl, SdramTiming timing, uint32_t ctrlBurstLength, uint32_t phyClkRatio, uint32_t sdramPeriod){
+    uint32_t al = 0;
     uint32_t bl = ctrlBurstLength*phyClkRatio;
 
-	write_u32(0, core + SDRAM_SOFT_CLOCKING);
-	sdram_udelay(200);
-	write_u32(SDRAM_RESETN, core + SDRAM_SOFT_CLOCKING);
-	sdram_udelay(500);
-	write_u32(SDRAM_RESETN | SDRAM_CKE, core + SDRAM_SOFT_CLOCKING);
+    write_u32(0, core + SDRAM_SOFT_CLOCKING);
+    sdram_udelay(200);
+    write_u32(SDRAM_CKE, core + SDRAM_SOFT_CLOCKING);
+    sdram_udelay(10);
 
-	sdram_command(core, SDRAM_MOD, 2, 0);
-	sdram_command(core, SDRAM_MOD, 3, 0);
-	sdram_command(core, SDRAM_MOD, 1, (1 << 11) | ((al & 7) << 3) | 0x44);
-	sdram_command(core, SDRAM_MOD, 0, (1 << 12) | (((wl - 1) & 7) << 9) | ((rl & 7) << 4) | (((bl & 15) >> 3) | 2));
-	sdram_udelay(200);
-	write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
+    uint32_t emr1 = ((al & 7) << 3) | 0x44;
+    uint32_t wr = (timing.WTP+sdramPeriod-1)/sdramPeriod;
+    sdram_command(core, SDRAM_PRE, 0, 0x400);
+    sdram_command(core, SDRAM_MOD, 2, 0);
+    sdram_command(core, SDRAM_MOD, 3, 0);
+    sdram_command(core, SDRAM_MOD, 1, emr1);
+    sdram_command(core, SDRAM_MOD, 0, 0x100); sdram_udelay(20);
+    sdram_command(core, SDRAM_PRE, 0, 0x400);
+    sdram_command(core, SDRAM_REF, 0, 0x000);
+    sdram_command(core, SDRAM_REF, 0, 0x000);
+    sdram_command(core, SDRAM_MOD, 0, (((wr - 1) & 7) << 9) | ((rl & 7) << 4) | ((bl & 15) >> 3) | 2); sdram_udelay(20);
+    sdram_command(core, SDRAM_MOD, 1, emr1 | 0x380);
+    sdram_command(core, SDRAM_MOD, 1, emr1);
+    sdram_udelay(10);
+
+    write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
 }
 
 static void sdram_ddr3_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t ctrlBurstLength, uint32_t phyClkRatio){
