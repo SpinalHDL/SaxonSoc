@@ -83,6 +83,7 @@ cd -
 # MachineModeSbi
 cd SaxonSoc/software/standalone/machineModeSbi
 RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- make clean all BSP=NexysA7Linux
+RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- make BSP=NexysA7Linux SPINAL_SIM=yes
 cd -
 
 # Netlist

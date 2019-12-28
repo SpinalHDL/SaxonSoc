@@ -221,7 +221,7 @@ object NexysA7Linux {
   def default(g : NexysA7Linux) = g{
     import g._
     mainClockCtrl.resetSensitivity.load(ResetSensitivity.NONE)
-    sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
+    sdramDomain.phyA.sdramLayout.load(MT47H64M16HR.layout)
     NexysA7LinuxSystem.default(system, mainClockCtrl)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     //system.cpu.produce(out(Bool).setName("inWfi") := system.cpu.config.plugins.find(_.isInstanceOf[CsrPlugin]).get.asInstanceOf[CsrPlugin].inWfi)
@@ -269,7 +269,7 @@ object NexysA7LinuxSystemSim {
       clockCtrl.resetHoldDuration.load(15)
 
       val phy = RtlPhyGenerator()
-      phy.layout.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))
+      phy.layout.load(XilinxS7Phy.phyLayout(MT47H64M16HR.layout, 2))
       phy.connect(sdramA)
 
       apbDecoder.addSlave(sdramA.apb, 0x100000l)
@@ -321,7 +321,7 @@ object NexysA7LinuxSystemSim {
 
       val linuxPath = "../buildroot/output/images/"
       val ubootPath = "../u-boot/"
-      dut.phy.io.loadBin(0x01FF0000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+      dut.phy.io.loadBin(0x01FF0000, "software/standalone/machineModeSbi/build/machineModeSbi_spinal_sim.bin")
       dut.phy.io.loadBin(0x01F00000, ubootPath + "u-boot.bin")
       println("DRAM loading done")
 
