@@ -34,7 +34,8 @@ void putHex(int value){
 
 #define RL 3
 #define WL 0
-#define BL 2
+#define CTRL_BURST_LENGHT 1
+#define PHY_CLK_RATIO 2
 
 void bspMain() {
 	putString("Starting bootloader\n");
@@ -43,16 +44,17 @@ void bspMain() {
 		SYSTEM_SDRAM_A_APB,
 		RL,
 		WL,
-		BL,
 		MT48LC16M16A2_6A_ps,
-		2,
+		CTRL_BURST_LENGHT,
+		PHY_CLK_RATIO,
 		20000
 	);
 
 	sdram_sdr_init(
 		SYSTEM_SDRAM_A_APB,
 		RL,
-		BL
+		CTRL_BURST_LENGHT,
+		PHY_CLK_RATIO
 	);
 
 #ifndef SPINAL_SIM

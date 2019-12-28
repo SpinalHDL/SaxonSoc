@@ -56,8 +56,14 @@
 #define SDRAM_FAW 0x030
 #define SDRAM_ODT 0x034
 
+#define SDRAM_TIMING_SDR 0
+#define SDRAM_TIMING_DDR1 1
+#define SDRAM_TIMING_DDR2 2
+#define SDRAM_TIMING_DDR3 3
+
 typedef struct
 {
+    uint32_t generation;
 	uint32_t RFC;
 	uint32_t RAS;
 	uint32_t RP ;
@@ -71,16 +77,6 @@ typedef struct
 
 } SdramTiming;
 
-//inline static SdramTiming sdram_timingsFrom(SdramTiming ps, SdramTiming cycle, uint32_t corePeriodPs, uint32_t phyClkRatio){
-//	SdramTiming config;
-//	for(uint32_t idx = 0;idx < sizeof(SdramTiming)/sizeof(uint32_t);idx++){
-//		uint32_t t1 = (((uint32_t*)&ps)[idx] + corePeriodPs-1)/corePeriodPs;
-//		uint32_t t2 = (((uint32_t*)&cycle)[idx] + phyClkRatio -1) / phyClkRatio;
-//		((uint32_t*)&config)[idx] = (t1 > t2 ? t1 : t2)-2;
-//	}
-//	return config;
-//}
-
 
 static int32_t t2c(int32_t startPhase, int32_t nextPhase, int32_t duration, int32_t sdramPeriod, int32_t phyClkRatio) {
 	return (startPhase + (duration + sdramPeriod - 1)/sdramPeriod - nextPhase + phyClkRatio - 1) / phyClkRatio;
@@ -91,6 +87,7 @@ static uint32_t sat(int32_t v) {
 }
 
 const SdramTiming MT41K128M16JT_125_ps = {
+    .generation = SDRAM_TIMING_DDR3,
 	.REF =  7800000,
 	.RAS =    35000,
 	.RP  =    13750,
@@ -104,6 +101,7 @@ const SdramTiming MT41K128M16JT_125_ps = {
 };
 
 const SdramTiming MT47H64M16HR_25_ps = {
+    .generation = SDRAM_TIMING_DDR2,
 	.REF =  7800000,
 	.RAS =    40000,
 	.RP  =    15000,
@@ -117,6 +115,7 @@ const SdramTiming MT47H64M16HR_25_ps = {
 };
 
 const SdramTiming MT48LC16M16A2_6A_ps = {
+    .generation = SDRAM_TIMING_SDR,
 	.REF =  7812500,
 	.RAS =    42000,
 	.RP  =    18000,
@@ -130,9 +129,6 @@ const SdramTiming MT48LC16M16A2_6A_ps = {
 };
 
 
-const uint8_t wrToMr[] = {1,2,3,4,-1,5,-1,6,-1,7,-1,0};
-const uint8_t rlToMr[] = {2,4,6,8,10,12,14,1,3,5};
-
 static void sdram_command(uint32_t core, uint32_t cmd, uint32_t bank, uint32_t address){
 	write_u32_ad(core + SDRAM_SOFT_BA, bank);
 	write_u32_ad(core + SDRAM_SOFT_ADDR, address);
@@ -140,19 +136,6 @@ static void sdram_command(uint32_t core, uint32_t cmd, uint32_t bank, uint32_t a
 	write_u32_ad(core + SDRAM_SOFT_PUSH, 0);
 }
 
-//void i2x(uint32_t value, char* str){
-//	for(uint32_t i = 0;i < 8;i++){
-//		uint32_t e = (value >> (i*4)) & 0xF;
-//		str[i] = e < 10 ? e + '0' : e-10+'A';
-//	}
-//}
-//
-//static inline void write_u32_ad_log(uint32_t address, uint32_t data){
-//	char buffer[] = "0xAAAAAAAA 0xDDDDDDDD\n";
-//	i2x(address, buffer+2); i2x(data, buffer+2+8+1+2);
-//	uart_writeStr(UART_A, buffer);
-//	write_u32_ad(address, data);
-//}
 
 static void sdram_udelay(uint32_t us){
     #ifndef SPINAL_SIM
@@ -160,25 +143,47 @@ static void sdram_udelay(uint32_t us){
     #endif
 }
 
-static void sdram_init(uint32_t core, uint32_t rl, uint32_t wl, uint32_t bl, SdramTiming timing, uint32_t phyClkRatio, uint32_t sdramPeriod){
+static void sdram_init(uint32_t core, uint32_t rl, uint32_t wl, SdramTiming timing, uint32_t ctrlBurstLength, uint32_t phyClkRatio, uint32_t sdramPeriod){
     uint32_t readToDataCycle = (rl+phyClkRatio-1)/phyClkRatio;
     uint32_t readPhase = readToDataCycle*phyClkRatio-rl;
     uint32_t writeToDataCycle = (wl+phyClkRatio-1)/phyClkRatio;
     uint32_t writePhase = writeToDataCycle*phyClkRatio-wl;
     uint32_t activePhase = 0;
 	uint32_t prechargePhase = 0;
-	//TODO missued 4
+    uint32_t bl = ctrlBurstLength*phyClkRatio;
+
+
+
+    uint32_t cRRD_MIN = 0;
+    uint32_t cRTW_IDLE = 0;
+    uint32_t cWTP_ADD = 0;
+    switch(timing.generation) {
+      case SDRAM_TIMING_SDR:
+        cRTW_IDLE = 1;
+        break;
+      case SDRAM_TIMING_DDR1:
+      case SDRAM_TIMING_DDR2:
+        cRTW_IDLE = 2; // Could be 1
+        cWTP_ADD = 1;
+        break;
+      case SDRAM_TIMING_DDR3:
+        cRRD_MIN = 4;
+        cRTW_IDLE = 2;
+        cWTP_ADD = 1;
+        break;
+    };
+    
     int32_t ctrlPeriod = sdramPeriod*phyClkRatio;
     int32_t cREF = t2c(0, 0, timing.REF, sdramPeriod, phyClkRatio);
     int32_t cRAS = t2c(activePhase     , prechargePhase                 , timing.RAS, sdramPeriod, phyClkRatio);
     int32_t cRP  = t2c(prechargePhase  , activePhase                    , timing.RP, sdramPeriod, phyClkRatio);
     int32_t cRFC = t2c(activePhase     , activePhase                    , timing.RFC, sdramPeriod, phyClkRatio);
-    int32_t cRRD = t2c(activePhase     , activePhase                    , MAX(timing.RRD, bl*sdramPeriod), sdramPeriod, phyClkRatio);
-    int32_t cRCD = t2c(activePhase     , MIN(writePhase, readPhase)     , timing.RCD, sdramPeriod, phyClkRatio);
-    int32_t cRTW = t2c(readPhase       , writePhase                     , (rl+bl+2-wl)*sdramPeriod, sdramPeriod, phyClkRatio);
+    int32_t cRRD = t2c(activePhase     , activePhase                    , MAX(timing.RRD, cRRD_MIN*sdramPeriod), sdramPeriod, phyClkRatio);
+    int32_t cRCD = t2c(activePhase     , MIN(writePhase, readPhase), timing.RCD, sdramPeriod, phyClkRatio);
+    int32_t cRTW = t2c(readPhase       , writePhase                     , (rl+bl+cRTW_IDLE-wl)*sdramPeriod, sdramPeriod, phyClkRatio);
     int32_t cRTP = t2c(readPhase       , prechargePhase                 , MAX(timing.RTP, bl*sdramPeriod), sdramPeriod, phyClkRatio);
     int32_t cWTR = t2c(writePhase      , readPhase                      , MAX(timing.WTR, bl*sdramPeriod) + (wl+bl)*sdramPeriod, sdramPeriod, phyClkRatio);
-    int32_t cWTP = t2c(writePhase      , prechargePhase                 , timing.WTP + (wl+bl)*sdramPeriod, sdramPeriod, phyClkRatio);
+    int32_t cWTP = t2c(writePhase      , prechargePhase                 , timing.WTP + (wl+bl+cWTP_ADD-1)*sdramPeriod, sdramPeriod, phyClkRatio);
     int32_t cFAW = t2c(activePhase     , activePhase                    , timing.FAW, sdramPeriod, phyClkRatio);
 
     write_u32( (prechargePhase << 24) | (activePhase << 16) | (readPhase << 8)   | (writePhase << 0), core + SDRAM_PHASE);
@@ -197,8 +202,9 @@ static void sdram_init(uint32_t core, uint32_t rl, uint32_t wl, uint32_t bl, Sdr
 	write_u32((ODT << 0) | (ODTend << 8), core + SDRAM_ODT);
 }
 
-static void sdram_sdr_init(uint32_t core,  uint32_t rl, uint32_t bl){
+static void sdram_sdr_init(uint32_t core,  uint32_t rl, uint32_t ctrlBurstLength, uint32_t phyClkRatio){
 	uint32_t blMod;
+	uint32_t bl = ctrlBurstLength*phyClkRatio;
 	switch(bl){
 	case 1: blMod = 0; break;
 	case 2: blMod = 1; break;
@@ -217,7 +223,9 @@ static void sdram_sdr_init(uint32_t core,  uint32_t rl, uint32_t bl){
     write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
 }
 
-static void sdram_ddr2_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t bl, uint32_t al){
+static void sdram_ddr2_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t ctrlBurstLength, uint32_t phyClkRatio, uint32_t al){
+    uint32_t bl = ctrlBurstLength*phyClkRatio;
+
 	write_u32(0, core + SDRAM_SOFT_CLOCKING);
 	sdram_udelay(200);
 	write_u32(SDRAM_RESETN, core + SDRAM_SOFT_CLOCKING);
@@ -232,7 +240,10 @@ static void sdram_ddr2_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t b
 	write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
 }
 
-static void sdram_ddr3_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t bl){
+static void sdram_ddr3_init(uint32_t core,  uint32_t rl, uint32_t wl, uint32_t ctrlBurstLength, uint32_t phyClkRatio){
+	static const uint8_t wrToMr[] = {1,2,3,4,-1,5,-1,6,-1,7,-1,0};
+	static const uint8_t rlToMr[] = {2,4,6,8,10,12,14,1,3,5};
+
 	write_u32(0, core + SDRAM_SOFT_CLOCKING);
 	sdram_udelay(200);
     write_u32(SDRAM_RESETN, core + SDRAM_SOFT_CLOCKING);

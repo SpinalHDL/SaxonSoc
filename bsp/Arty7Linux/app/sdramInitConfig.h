@@ -6,15 +6,17 @@
 
 #define RL 5
 #define WL 5
-#define BL 8
+#define CTRL_BURST_LENGHT 2
+#define PHY_CLK_RATIO 2
+
 void bspMain() {
 	sdram_init(
 		SYSTEM_SDRAM_A_APB,
 		RL,
 		WL,
-		BL,
 		MT41K128M16JT_125_ps,
-		2,
+		CTRL_BURST_LENGHT,
+		PHY_CLK_RATIO,
 		3300
 	);
 
@@ -22,7 +24,8 @@ void bspMain() {
         SYSTEM_SDRAM_A_APB,
         RL,
         WL,
-        BL
+        CTRL_BURST_LENGHT,
+        PHY_CLK_RATIO
     );
 
 	sdram_phy_s7(
