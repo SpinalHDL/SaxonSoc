@@ -220,7 +220,7 @@ object NexysA7Linux {
   def default(g : NexysA7Linux) = g{
     import g._
     mainClockCtrl.resetSensitivity.load(ResetSensitivity.NONE)
-    sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
+    sdramDomain.phyA.sdramLayout.load(MT47H64M16HR.layout)
     NexysA7LinuxSystem.default(system, mainClockCtrl)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     g
@@ -267,7 +267,7 @@ object NexysA7LinuxSystemSim {
       clockCtrl.resetHoldDuration.load(15)
 
       val phy = RtlPhyGenerator()
-      phy.layout.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))
+      phy.layout.load(XilinxS7Phy.phyLayout(MT47H64M16HR.layout, 2))
       phy.connect(sdramA)
 
       apbDecoder.addSlave(sdramA.apb, 0x100000l)
