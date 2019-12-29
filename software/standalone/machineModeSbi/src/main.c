@@ -22,6 +22,29 @@ void putString(char* s){
 	}
 }
 
+#define GETC_BUFFER_SIZE 1024
+char getC_buffer[GETC_BUFFER_SIZE];
+int32_t getC_buffer_wptr = 0;
+int32_t getC_buffer_rptr = 0;
+
+void getC_buffer_update(){
+	while(1){
+		int32_t ch = getC();
+		if(ch == -1) break;
+		int32_t wptr_next = (getC_buffer_wptr+1) % GETC_BUFFER_SIZE;
+		if(wptr_next == getC_buffer_rptr) break;
+		getC_buffer[getC_buffer_wptr] = ch;
+		getC_buffer_wptr = wptr_next;
+	}
+}
+
+int getC_buffer_read(){
+	if(getC_buffer_wptr == getC_buffer_rptr) return -1;
+	int ch = getC_buffer[getC_buffer_rptr];
+	getC_buffer_rptr = (getC_buffer_rptr+1) % GETC_BUFFER_SIZE;
+	return ch;
+}
+
 //Affect mtvec
 void setup_pmp(void)
 {
@@ -263,6 +286,7 @@ void trap(){
 		case CAUSE_MACHINE_TIMER:{
 			csr_set(sip, MIP_STIP);
 			csr_clear(mie, MIE_MTIE);
+			getC_buffer_update();
 		}break;
 		default: redirectTrap(); break;
 		}
@@ -419,7 +443,8 @@ void trap(){
 				csr_write(mepc, csr_read(mepc) + 4);
 			}break;
 			case SBI_CONSOLE_GETCHAR:{
-				writeRegister(10, getC()); //no char
+				getC_buffer_update();
+				writeRegister(10, getC_buffer_read());
 				csr_write(mepc, csr_read(mepc) + 4);
 			}break;
 			case SBI_SET_TIMER:{
