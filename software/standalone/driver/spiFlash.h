@@ -61,12 +61,14 @@ static void spiFlash_wake_withGpioCs(Spi_Reg * spi, Gpio_Reg *gpio, u32 cs){
 	spiFlash_select_withGpioCs(gpio,cs);
 	spiFlash_wake_(spi);
 	spiFlash_diselect_withGpioCs(gpio,cs);
+	io_udelay(200);
 }
 
 static void spiFlash_wake(Spi_Reg * spi, u32 cs){
 	spiFlash_select(spi,cs);
 	spiFlash_wake_(spi);
 	spiFlash_diselect(spi,cs);
+	io_udelay(200);
 }
 
 static void spiFlash_f2m_(Spi_Reg * spi, u32 flashAddress, u32 memoryAddress, u32 size){
