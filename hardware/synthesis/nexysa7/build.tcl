@@ -19,6 +19,8 @@ proc help {} {
 	puts "$script_file -tclargs \"--bitstream\""
 	puts "$script_file -tclargs \"--rebuild\""
 	puts "$script_file -tclargs \"--program\""
+	puts "$script_file -tclargs \"--cfgmem\""
+	puts "$script_file -tclargs \"--flash\""
 	exit 0
 }
 
@@ -101,9 +103,9 @@ if {$::argc > 0} {
 			"--synthesize" {synthesize; return 0}
 			"--implement"  {implement; return 0}
 			"--bitstream"  {bitstream; return 0}
-			"--cfgmem"     {cfgmem; return 0}
-			"--program"    {program; return 0}
 			"--rebuild"    {synthesize; implement; bitstream; return 0}
+			"--program"    {program; return 0}
+			"--cfgmem"     {cfgmem; return 0}
 			"--flash"      {cfgmem; flash; program; return 0}
 			default        {help}
 		}

@@ -12,7 +12,7 @@ create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports { G
 ##Switches
 
 set_property -dict { PACKAGE_PIN J15   IOSTANDARD LVCMOS33 } [get_ports { sdramDomain_phyA_sdram_RESETn }]; #IO_L24N_T3_RS0_15 Sch=sw[0]
-set_property -dict { PACKAGE_PIN L16   IOSTANDARD LVCMOS33 } [get_ports { sdramDomain_phyA_sdram_ADDR[13] }]; #IO_L3N_T0_DQS_EMCCLK_14 Sch=sw[1]
+#set_property -dict { PACKAGE_PIN L16   IOSTANDARD LVCMOS33 } [get_ports { SW[1] }]; #IO_L3N_T0_DQS_EMCCLK_14 Sch=sw[1]
 #set_property -dict { PACKAGE_PIN M13   IOSTANDARD LVCMOS33 } [get_ports { SW[2] }]; #IO_L6N_T0_D08_VREF_14 Sch=sw[2]
 #set_property -dict { PACKAGE_PIN R15   IOSTANDARD LVCMOS33 } [get_ports { SW[3] }]; #IO_L13N_T2_MRCC_14 Sch=sw[3]
 #set_property -dict { PACKAGE_PIN R17   IOSTANDARD LVCMOS33 } [get_ports { SW[4] }]; #IO_L12N_T1_MRCC_14 Sch=sw[4]
@@ -184,8 +184,8 @@ set_property -dict { PACKAGE_PIN G1    IOSTANDARD LVCMOS33 } [get_ports { system
 #set_property -dict { PACKAGE_PIN E2    IOSTANDARD LVCMOS33 } [get_ports { SD_RESET }]; #IO_L14P_T2_SRCC_35 Sch=sd_reset
 #set_property -dict { PACKAGE_PIN A1    IOSTANDARD LVCMOS33 } [get_ports { SD_CD }]; #IO_L9N_T1_DQS_AD7N_35 Sch=sd_cd
 set_property -dict { PACKAGE_PIN B1    IOSTANDARD LVCMOS33 } [get_ports { system_spiA_sdcard_sclk }]; #IO_L9P_T1_DQS_AD7P_35 Sch=sd_sck
-set_property -dict { PACKAGE_PIN C1    IOSTANDARD LVCMOS33 } [get_ports { system_spiA_sdcard_data[1] }]; #IO_L16N_T2_35 Sch=sd_cmd
-set_property -dict { PACKAGE_PIN C2    IOSTANDARD LVCMOS33 } [get_ports { system_spiA_sdcard_data[0] }]; #IO_L16P_T2_35 Sch=sd_dat[0]
+set_property -dict { PACKAGE_PIN C1    IOSTANDARD LVCMOS33 } [get_ports { system_spiA_sdcard_data[0] }]; #IO_L16N_T2_35 Sch=sd_cmd
+set_property -dict { PACKAGE_PIN C2    IOSTANDARD LVCMOS33 } [get_ports { system_spiA_sdcard_data[1] }]; #IO_L16P_T2_35 Sch=sd_dat[0]
 #set_property -dict { PACKAGE_PIN E1    IOSTANDARD LVCMOS33 } [get_ports { SD_DAT[1] }]; #IO_L18N_T2_35 Sch=sd_dat[1]
 #set_property -dict { PACKAGE_PIN F1    IOSTANDARD LVCMOS33 } [get_ports { SD_DAT[2] }]; #IO_L18P_T2_35 Sch=sd_dat[2]
 set_property -dict { PACKAGE_PIN D2    IOSTANDARD LVCMOS33 } [get_ports { system_spiA_sdcard_ss[0] }]; #IO_L14N_T2_SRCC_35 Sch=sd_dat[3]
