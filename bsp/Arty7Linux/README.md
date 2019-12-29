@@ -259,5 +259,19 @@ umount buildroot
 SDCARD   | 0.975       | 1.180 MBytes/s
 ENC28J60 | 1.200       | 1.450 MBits/s TCP
 
+
+
+
+cd ../riscv_openocd
+src/openocd -f tcl/interface/ftdi/ft2232h_breakout.cfg -c 'set CPU0_YAML ../SaxonSoc.git/cpu0.yaml' -f tcl/target/arty7_linux.cfg
+load mmc 0 0x80000000 uboot/uImage
+load mmc 0 0x80BFFFC0 uboot/rootfs.cpio.uboot
+load mmc 0 0x80BF0000 uboot/dtb
+bootm 0x80000000 0x80BFFFC0 0x80BF0000
+
+load mmc 0 0x80000000 uImage
+load mmc 0 0x81EF0000 dtb
+bootm 0x80000000 - 0x81EF0000
+
 ```
 
