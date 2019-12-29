@@ -160,7 +160,7 @@ object NexysA7LinuxSystem{
       portTockenMax = 8,
       timingWidth = 4,
       refWidth = 16,
-      writeLatencies = List(3),
+      writeLatencies = List(2),
       readLatencies = List(5+3, 5+4)
     ))
 
@@ -249,7 +249,7 @@ object NexysA7LinuxSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-//    simConfig.withWave
+    simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
 //    val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
@@ -273,7 +273,7 @@ object NexysA7LinuxSystemSim {
       apbDecoder.addSlave(sdramA.apb, 0x100000l)
 
       NexysA7LinuxSystem.default(this, clockCtrl)
-      ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
+      ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 
 //      val sdcard = SdcardEmulatorGenerator()
 //      sdcard.connectSpi(spiA.sdcard, spiA.sdcard.produce(spiA.sdcard.ss(0)))
@@ -288,12 +288,12 @@ object NexysA7LinuxSystemSim {
 //      dut.sdramClockDomain.get.forkStimulus((systemClkPeriod/0.7).toInt)
 
 
-      fork{
-        disableSimWave()
-        clockDomain.waitSampling(1000)
-        waitUntil(!dut.uartA.uart.rxd.toBoolean)
-        enableSimWave()
-      }
+//      fork{
+//        disableSimWave()
+//        clockDomain.waitSampling(1000)
+//        waitUntil(!dut.uartA.uart.rxd.toBoolean)
+//        enableSimWave()
+//      }
 
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,
@@ -319,8 +319,8 @@ object NexysA7LinuxSystemSim {
 
       val linuxPath = "../buildroot/output/images/"
       val uboot = "../u-boot/"
-      dut.phy.io.loadBin(0x01FF0000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      dut.phy.io.loadBin(0x01F00000, uboot + "u-boot.bin")
+//      dut.phy.io.loadBin(0x01FF0000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+//      dut.phy.io.loadBin(0x01F00000, uboot + "u-boot.bin")
 
 
 //      val linuxPath = "../buildroot/output/images/"
