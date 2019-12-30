@@ -72,7 +72,10 @@ git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev --recursive SaxonSoc
 
 # Bootloader
 cd SaxonSoc/software/standalone/bootloader
-make clean all BSP=Ulx3sLinuxUboot
+# If you have the 32 MB SDRAM :
+make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSDRAM_TIMING=MT48LC16M16A2_6A_ps"
+# If you have the 64 MB SDRAM :
+make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSDRAM_TIMING=AS4C32M16SB_7TCN_ps"
 cd ../../../..
 
 # MachineModeSbi

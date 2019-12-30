@@ -128,6 +128,20 @@ static const SdramTiming MT48LC16M16A2_6A_ps = {
 	.FAW =        0
 };
 
+static const SdramTiming AS4C32M16SB_7TCN_ps = {
+    .generation = SDRAM_TIMING_SDR,
+	.REF =  7800000,
+	.RAS =    42000,
+	.RP  =    21000,
+	.RFC =    63000,
+	.RRD =    14000,
+	.RCD =    21000,
+	.RTP =        0,
+	.WTR =        0,
+	.WTP =    14000-7000,
+	.FAW =        0
+};
+
 static void sdram_udelay(uint32_t us){
     #ifndef SPINAL_SIM
     io_udelay(us);
@@ -156,7 +170,7 @@ static void sdram_init(uint32_t core, uint32_t rl, uint32_t wl, SdramTiming timi
 
     uint32_t cRRD_MIN = 0;
     uint32_t cRTW_IDLE = 0;
-    uint32_t cWTP_ADD = 0;
+    uint32_t cWTP_ADD = 1;
     switch(timing.generation) {
       case SDRAM_TIMING_SDR:
         cRTW_IDLE = 1;
@@ -164,12 +178,10 @@ static void sdram_init(uint32_t core, uint32_t rl, uint32_t wl, SdramTiming timi
       case SDRAM_TIMING_DDR1:
       case SDRAM_TIMING_DDR2:
         cRTW_IDLE = 2; // Could be 1
-        cWTP_ADD = 1;
         break;
       case SDRAM_TIMING_DDR3:
         cRRD_MIN = 4;
         cRTW_IDLE = 2;
-        cWTP_ADD = 1;
         break;
     };
     
