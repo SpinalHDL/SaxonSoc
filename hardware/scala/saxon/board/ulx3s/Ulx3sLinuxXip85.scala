@@ -68,29 +68,6 @@ case class Ulx3sLinuxXip85Pll() extends BlackBox{
   val locked = out Bool()
 }
 
-object AS4C32M16SB {
-  def layout = SdramLayout(
-    generation = SDR,
-    bankWidth   = 2,
-    columnWidth = 10,
-    rowWidth    = 13,
-    dataWidth   = 16
-  )
-
-  def timingGrade7 = SdramTimings(
-    bootRefreshCount =   8,
-    tPOW             = 100 us,
-    tREF             =  64 ms,
-    tRC              =  60 ns,
-    tRFC             =  66 ns,
-    tRAS             =  37 ns,
-    tRP              =  15 ns,
-    tRCD             =  15 ns,
-    cMRD             =   2,
-    tWR              =  10 ns,
-    cWR              =   1
-  )
-}
 
 object Ulx3sLinuxXip85System{
   def default(g : Ulx3sLinuxXip85System, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
