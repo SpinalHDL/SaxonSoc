@@ -15,6 +15,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   val config = Handle[VexRiscvConfig]
   val withJtag = Handle[Boolean]
   val debugClockDomain = Handle[ClockDomain]
+  val debugReset = Handle[Bool]
   val debugAskReset = Handle[() => Unit]
   val hardwareBreakpointCount = Handle(0)
 
@@ -26,6 +27,16 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   def enableJtag(implicit clockCtrl: ClockDomainGenerator) : Unit = {
     this.debugClockDomain.merge(clockCtrl.controlClockDomain)
     debugAskReset.merge(clockCtrl.doSystemReset)
+    withJtag.load(true)
+  }
+
+  def enableJtag(resetCtrl : ClockDomainResetGenerator) : Unit = {
+    this.debugClockDomain.merge(resetCtrl.inputClockDomain)
+    val resetBridge = resetCtrl.ResetGenerator(resetCtrl)
+    debugAskReset.load(null)
+    resetBridge.reset.merge(debugReset)
+    resetBridge.kind.load(ASYNC)
+    resetBridge.sensitivity.load(ResetSensitivity.HIGH)
     withJtag.load(true)
   }
 
@@ -54,8 +65,10 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
         if (plugin.config.supervisorGen) externalSupervisorInterrupt load plugin.externalInterruptS
       }
       case plugin: DebugPlugin => plugin.debugClockDomain {
-        when(RegNext(plugin.io.resetOut)) {
+        if(debugAskReset.get != null) when(RegNext(plugin.io.resetOut)) {
           debugAskReset.get()
+        } else {
+          debugReset.load(RegNext(plugin.io.resetOut))
         }
         jtag <> plugin.io.bus.fromJtag()
       }
