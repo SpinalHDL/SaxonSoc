@@ -213,6 +213,19 @@ done
 echo 488 > unexport
 ```
 
+## Different Ulx3s boards
+
+The build instructions are for a Ulx3s 12F board, but a variety of Ulx3s boards are available.
+
+Some of the 85F boards, particularly the ones with a blue PCB, have a 64MB SDRAM chip.
+
+To build for an 85F board with a 64MB SDRAM chip, you should use the makefile.uboot85 variant from SaxonSoc/hardware/synthesis/ulx3s.
+
+The differences are the IDCODE used by ecppack and the device parameter to nextpnr-ecp5. For a 12F or 25F device the parameter is --25k. For the 45F device it is --45k, and for the 85F, --85k.
+
+Also, if you have an 85F with a 64MB SDRAM chip, you need to build the bootloader for that chip - see *Building everything* above.
+And in that case you need the parameter to `sbt "runMain saxon.board.ulx3s.Ulx3sLinuxUboot 64"` in the makefile set to 64. For a 32MB SDRAM chip it should be set to 32, or omitted. And lastly for the 64MB SDRAM chip, you need to tell Linux that it has 64 MB of memory by using the spinal_saxon_ulx3s_64.dts variant of the dts and dtb, when you build your sdcard.
+
 ## Simulation
 
 You need a recent version of Verilator to run the simulation:
