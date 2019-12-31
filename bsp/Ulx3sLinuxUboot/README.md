@@ -164,6 +164,55 @@ put SaxonSoc/hardware/synthesis/ulx3s/bin/toplevel.bit fpga
 screen /dev/ttyUSB1 115200
 ```
 
+## Ethernet 
+
+You can use an [ENC28J60](https://www.ebay.co.uk/itm/1-x-ENC28J60-LAN-Ethernet-Network-Board-Module-For-Arduino-SPI-Interface/262699636321) module for connection to the internet va Ethernet.
+
+The pin mapping, which is suitable for connecting via a Pmod, is:
+
+```
+GP14 - CS
+GN14 - SI   # MOSI
+GP15 - INT
+GN15 - SO   # MISO
+GN17 - SCK
+3.3V - RST
+3.3V - 3.3
+GND  - GND  # Next to 3.3
+NC   - 5v
+NC   - GND  # Next to 5V
+NC   - CLK
+NC   - WOL
+
+```
+
+## GPIO
+
+You can access GPIO pins via /sys/class/gpio
+
+There are 24 pins that are mapped on to GPIO numbers 488 - 511.
+The first 8 map to the leds, although led 1 is not connected as gpio[1] is currently used for the interrupt on the ENC28J60 device.
+
+`echo number > export` makes the pin available to gpio
+`echo number > unexport` makes it unavailable.
+`value` is used to read or write the pin.
+`direction` can be used to set the pin to `in` or `out`.
+
+For example, to blink led 0:
+
+```
+#!/bin/sh
+cd /sys/class/gpio
+echo 488 > export
+echo out > gpio488/direction
+for i in 1 0 1 0 1 0
+do
+  sleep  0.1
+  echo   $i > gpio488/value
+done
+echo 488 > unexport
+```
+
 ## Simulation
 
 You need a recent version of Verilator to run the simulation:
