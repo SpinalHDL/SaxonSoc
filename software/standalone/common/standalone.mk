@@ -7,7 +7,7 @@ ifeq ($(SPINAL_SIM),yes)
     PROJ_NAME := $(PROJ_NAME)_spinal_sim
     CFLAGS += -DSPINAL_SIM
 endif
-
+CFLAGS += ${CFLAGS_ARGS}
 CFLAGS += -I${STANDALONE}/include
 CFLAGS += -I${STANDALONE}/driver
 LDFLAGS +=  -nostdlib -lgcc -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME).map,--print-memory-usage

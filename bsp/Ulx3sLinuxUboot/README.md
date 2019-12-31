@@ -72,7 +72,10 @@ git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev --recursive SaxonSoc
 
 # Bootloader
 cd SaxonSoc/software/standalone/bootloader
-make clean all BSP=Ulx3sLinuxUboot
+# If you have the 32 MB SDRAM :
+make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSDRAM_TIMING=MT48LC16M16A2_6A_ps"
+# If you have the 64 MB SDRAM :
+make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSDRAM_TIMING=AS4C32M16SB_7TCN_ps"
 cd ../../../..
 
 # MachineModeSbi
@@ -137,8 +140,8 @@ If you have micropython on your Ulx3s ESP32, you can do:
 
 ```
 ftp <ESP32 IP address>
-put ../software/standalone/machineModeSbi/build/machineModeSbi.bin flash@0x300000
-put ../u-boot/u-boot.bin flash@0x310000
+put SaxonSoc/software/standalone/machineModeSbi/build/machineModeSbi.bin flash@0x300000
+put u-boot/u-boot.bin flash@0x310000
 ```
 
 ## Upload bitstream
@@ -160,6 +163,68 @@ put SaxonSoc/hardware/synthesis/ulx3s/bin/toplevel.bit fpga
 ```
 screen /dev/ttyUSB1 115200
 ```
+
+## Ethernet 
+
+You can use an [ENC28J60](https://www.ebay.co.uk/itm/1-x-ENC28J60-LAN-Ethernet-Network-Board-Module-For-Arduino-SPI-Interface/262699636321) module for connection to the internet va Ethernet.
+
+The pin mapping, which is suitable for connecting via a Pmod, is:
+
+```
+GP14 - CS
+GN14 - SI   # MOSI
+GP15 - INT
+GN15 - SO   # MISO
+GN17 - SCK
+3.3V - RST
+3.3V - 3.3
+GND  - GND  # Next to 3.3
+NC   - 5v
+NC   - GND  # Next to 5V
+NC   - CLK
+NC   - WOL
+
+```
+
+## GPIO
+
+You can access GPIO pins via /sys/class/gpio
+
+There are 24 pins that are mapped on to GPIO numbers 488 - 511.
+The first 8 map to the leds, although led 1 is not connected as gpio[1] is currently used for the interrupt on the ENC28J60 device.
+
+`echo number > export` makes the pin available to gpio
+`echo number > unexport` makes it unavailable.
+`value` is used to read or write the pin.
+`direction` can be used to set the pin to `in` or `out`.
+
+For example, to blink led 0:
+
+```
+#!/bin/sh
+cd /sys/class/gpio
+echo 488 > export
+echo out > gpio488/direction
+for i in 1 0 1 0 1 0
+do
+  sleep  0.1
+  echo   $i > gpio488/value
+done
+echo 488 > unexport
+```
+
+## Different Ulx3s boards
+
+The build instructions are for a Ulx3s 12F board, but a variety of Ulx3s boards are available.
+
+Some of the 85F boards, particularly the ones with a blue PCB, have a 64MB SDRAM chip.
+
+To build for an 85F board with a 64MB SDRAM chip, you should use the makefile.uboot85 variant from SaxonSoc/hardware/synthesis/ulx3s.
+
+The differences are the IDCODE used by ecppack and the device parameter to nextpnr-ecp5. For a 12F or 25F device the parameter is --25k. For the 45F device it is --45k, and for the 85F, --85k.
+
+Also, if you have an 85F with a 64MB SDRAM chip, you need to build the bootloader for that chip - see *Building everything* above.
+And in that case you need the parameter to `sbt "runMain saxon.board.ulx3s.Ulx3sLinuxUboot 64"` in the makefile set to 64. For a 32MB SDRAM chip it should be set to 32, or omitted. And lastly for the 64MB SDRAM chip, you need to tell Linux that it has 64 MB of memory by using the spinal_saxon_ulx3s_64.dts variant of the dts and dtb, when you build your sdcard.
 
 ## Simulation
 

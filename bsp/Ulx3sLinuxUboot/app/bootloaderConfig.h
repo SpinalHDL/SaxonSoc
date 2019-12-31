@@ -37,6 +37,12 @@ void putHex(int value){
 #define CTRL_BURST_LENGHT 1
 #define PHY_CLK_RATIO 2
 
+#ifndef SDRAM_TIMING
+#error "You need to define the SDRAM_TIMING via the makefile CFLAGS_ARGS"
+//Ex : make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSDRAM_TIMING=MT48LC16M16A2_6A_ps"
+//Ex : make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSDRAM_TIMING=AS4C32M16SB_7TCN_ps"
+#endif
+
 void bspMain() {
 	putString("Starting bootloader\n");
 
@@ -44,7 +50,7 @@ void bspMain() {
 		SYSTEM_SDRAM_A_APB,
 		RL,
 		WL,
-		MT48LC16M16A2_6A_ps,
+		SDRAM_TIMING,
 		CTRL_BURST_LENGHT,
 		PHY_CLK_RATIO,
 		20000

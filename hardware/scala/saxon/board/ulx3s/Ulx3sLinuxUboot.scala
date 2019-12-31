@@ -12,15 +12,15 @@ import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
 import spinal.lib.com.spi._
+import spinal.lib.memory.sdram.SdramLayout
 import spinal.lib.memory.sdram.xdr.CoreParameter
-import spinal.lib.memory.sdram.xdr.phy.SdrInferedPhy
+import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, SdrInferedPhy}
 
 class Ulx3sLinuxUbootSystem extends SaxonSocLinux {
   //Add components
   val ramA = BmbOnChipRamGenerator(0x20000000l)
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l).mapApbAt(0x0F000)
   val sdramA0 = sdramA.addPort()
-  val phyA = Ecp5Sdrx2PhyGenerator().connect(sdramA)
 
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
@@ -43,13 +43,18 @@ class Ulx3sLinuxUbootSystem extends SaxonSocLinux {
 }
 
 class Ulx3sLinuxUboot extends Generator{
-  val clockCtrl = ClockDomainGenerator()
-  clockCtrl.resetHoldDuration.load(255)
-  clockCtrl.resetSynchronous.load(false)
-  clockCtrl.powerOnReset.load(true)
+  val globalCd = ClockDomainResetGenerator()
+  globalCd.holdDuration.load(255)
+  globalCd.enablePowerOnReset()
 
-  val system = new Ulx3sLinuxUbootSystem()
-  system.onClockDomain(clockCtrl.clockDomain)
+  val systemCd = ClockDomainResetGenerator()
+  systemCd.setInput(globalCd)
+  systemCd.holdDuration.load(63)
+
+  val system = new Ulx3sLinuxUbootSystem(){
+    val phyA = Ecp5Sdrx2PhyGenerator().connect(sdramA)
+  }
+  system.onClockDomain(systemCd.outputClockDomain)
 
   val clocking = add task new Area{
     val clk_25mhz = in Bool()
@@ -58,9 +63,18 @@ class Ulx3sLinuxUboot extends Generator{
 
     val pll = Ulx3sLinuxUbootPll()
     pll.clkin := clk_25mhz
-    clockCtrl.clock.load(pll.clkout0)
-    clockCtrl.reset.load(resetn)
-//    sdram_clk := pll.clkout1
+    globalCd.setInput(
+      ClockDomain(
+        clock = pll.clkout0,
+        reset = resetn,
+        frequency = FixedFrequency(50 MHz),
+        config = ClockDomainConfig(
+          resetKind = ASYNC,
+          resetActiveLevel = LOW
+        )
+      )
+    )
+
     val bb = ClockDomain(pll.clkout1, False)(ODDRX1F())
     bb.D0 <> True
     bb.D1 <> False
@@ -77,11 +91,11 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
 }
 
 object Ulx3sLinuxUbootSystem{
-  def default(g : Ulx3sLinuxUbootSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true, sdramSize: Int) = g {
+  def default(g : Ulx3sLinuxUbootSystem, resetCtrl : ClockDomainResetGenerator, inferSpiAPhy : Boolean = true, sdramSize: Int) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.ulx3sLinux(0x20000000l))
-    cpu.enableJtag(clockCtrl)
+    cpu.enableJtag(resetCtrl)
 
     // Configure ram
     ramA.dataWidth.load(32)
@@ -96,12 +110,6 @@ object Ulx3sLinuxUbootSystem{
       writeLatencies = List(0),
       readLatencies = List(5, 6, 7)
     ))
-
-    if (sdramSize == 32) {
-      phyA.sdramLayout.load(MT48LC16M16A2.layout)
-    } else {
-      phyA.sdramLayout.load(AS4C32M16SB.layout)
-    }
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
@@ -175,8 +183,6 @@ object Ulx3sLinuxUboot {
   //Function used to configure the SoC
   def default(g : Ulx3sLinuxUboot, sdramSize: Int) = g{
     import g._
-    clockCtrl.clkFrequency.load(50 MHz)
-    clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
 
     system.spiC.inferSpiSdrIo()
 
@@ -188,7 +194,13 @@ object Ulx3sLinuxUboot {
       usrMclk.USRMCLKI := sclk
     }
 
-    Ulx3sLinuxUbootSystem.default(system, clockCtrl, sdramSize = sdramSize)
+    if (sdramSize == 32) {
+      system.phyA.sdramLayout.load(MT48LC16M16A2.layout)
+    } else {
+      system.phyA.sdramLayout.load(AS4C32M16SB.layout)
+    }
+
+    Ulx3sLinuxUbootSystem.default(system, systemCd, sdramSize = sdramSize)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 
     g
@@ -216,21 +228,34 @@ object Ulx3sLinuxUbootSystemSim {
     sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
     simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
     simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
+    simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
     simConfig.compile(new Ulx3sLinuxUbootSystem(){
-      val clockCtrl = ClockDomainGenerator()
-      this.onClockDomain(clockCtrl.clockDomain)
-      clockCtrl.makeExternal(ResetSensitivity.HIGH)
-      clockCtrl.powerOnReset.load(true)
-      clockCtrl.clkFrequency.load(50 MHz)
-      clockCtrl.resetHoldDuration.load(15)
+      val globalCd = ClockDomainResetGenerator()
+      globalCd.holdDuration.load(255)
+      globalCd.enablePowerOnReset()
+
+      val systemCd = ClockDomainResetGenerator()
+      systemCd.setInput(globalCd)
+      systemCd.holdDuration.load(63)
+
+      this.onClockDomain(systemCd.outputClockDomain)
+
+      globalCd.makeExternal(
+        frequency = FixedFrequency(50 MHz)
+      )
+
+      val phyA = RtlPhyGenerator()
+      phyA.layout.load(Ecp5Sdrx2Phy.phyLayout(MT48LC16M16A2.layout))
+      phyA.connect(sdramA)
+
       val sdcard = SdcardEmulatorGenerator()
       sdcard.connect(spiA.phy, spiA.phy.produce(RegNext(spiA.phy.ss(0))))
-      Ulx3sLinuxUbootSystem.default(this, clockCtrl, sdramSize = 32, inferSpiAPhy = false)
+      Ulx3sLinuxUbootSystem.default(this, systemCd, sdramSize = 32, inferSpiAPhy = false)
       spiC.inferSpiSdrIo()
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
-      val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
+      val systemClkPeriod = (1e12/dut.globalCd.outputClockDomain.frequency.getValue.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
       val uartBaudRate = 115200
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
@@ -241,8 +266,7 @@ object Ulx3sLinuxUbootSystemSim {
         storagePath = "../saxonsoc-ulx3s-bin/linux/u-boot/images/sdimage"
       )
 
-      val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
-      clockDomain.forkStimulus(systemClkPeriod)
+      dut.globalCd.inputClockDomain.get.forkStimulus(systemClkPeriod)
 
 //      fork{
 //        disableSimWave()
@@ -256,7 +280,7 @@ object Ulx3sLinuxUbootSystemSim {
         jtagClkPeriod = jtagClkPeriod
       )
 
-      clockDomain.waitSampling(10)
+      dut.globalCd.inputClockDomain.get.waitSampling(10)
 
       val uartTx = UartDecoder(
         uartPin =  dut.uartA.uart.txd,
@@ -268,16 +292,10 @@ object Ulx3sLinuxUbootSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
-      val sdram = SdramModel(
-        io = dut.phyA.sdram,
-        layout = dut.phyA.sdramLayout,
-        clockDomain = clockDomain
-      )
-
       val linuxPath = "../buildroot/output/images/"
       val uboot = "../u-boot/"
-      sdram.loadBin(0x00800000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      sdram.loadBin(0x01F00000, uboot + "u-boot.bin")
+      dut.phyA.io.loadBin(0x00800000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+      dut.phyA.io.loadBin(0x01F00000, uboot + "u-boot.bin")
     }
   }
 }

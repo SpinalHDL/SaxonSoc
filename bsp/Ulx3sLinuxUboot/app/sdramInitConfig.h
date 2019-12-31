@@ -43,7 +43,7 @@ void bspMain() {
         SYSTEM_SDRAM_A_APB,
         RL,
         WL,
-        MT48LC16M16A2_6A_ps,
+        SDRAM_TIMING,
         CTRL_BURST_LENGHT,
         PHY_CLK_RATIO,
         20000
