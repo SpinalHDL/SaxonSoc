@@ -140,8 +140,8 @@ If you have micropython on your Ulx3s ESP32, you can do:
 
 ```
 ftp <ESP32 IP address>
-put ../software/standalone/machineModeSbi/build/machineModeSbi.bin flash@0x300000
-put ../u-boot/u-boot.bin flash@0x310000
+put SaxonSoc/software/standalone/machineModeSbi/build/machineModeSbi.bin flash@0x300000
+put u-boot/u-boot.bin flash@0x310000
 ```
 
 ## Upload bitstream
