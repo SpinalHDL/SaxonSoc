@@ -11,8 +11,9 @@ import scala.collection.mutable.ArrayBuffer
 
 case class Apb3DecoderGenerator() extends Generator {
 
-  case class SlaveModel(slave: Handle[Apb3], config : Handle[Apb3Config], address: BigInt) {
+  case class SlaveModel(slave: Handle[Apb3], config : Handle[Apb3Config], address: Handle[BigInt]) {
     configGenerator.dependencies += config
+    configGenerator.dependencies += address
     def mapping = SizeMapping(address, (BigInt(1)) << config.addressWidth)
   }
 
@@ -32,10 +33,11 @@ case class Apb3DecoderGenerator() extends Generator {
   }
 
 
-  def addSlave(slave: Handle[Apb3], address: BigInt): Unit = addSlave(slave, slave.produce(slave.config), address)
+  def addSlave(slave: Handle[Apb3], address: Handle[BigInt]): Unit = addSlave(slave, slave.produce(slave.config), address)
 
-  def addSlave(slave: Handle[Apb3], config : Handle[Apb3Config], address: BigInt): Unit = {
+  def addSlave(slave: Handle[Apb3], config : Handle[Apb3Config], address: Handle[BigInt]): Unit = {
     dependencies += slave
+    dependencies += address
     models += SlaveModel(slave, config, address)
     tags += new MemoryConnection(input, slave, address)
   }

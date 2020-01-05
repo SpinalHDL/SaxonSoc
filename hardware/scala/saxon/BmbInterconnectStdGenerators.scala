@@ -5,7 +5,7 @@ import spinal.lib.IMasterSlave
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3CC, Apb3Config, Apb3SlaveFactory}
 import spinal.lib.bus.bmb.{Bmb, BmbIce40Spram, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
 import spinal.lib.bus.misc.{DefaultMapping, SizeMapping}
-import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection}
+import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection, Unset}
 import spinal.lib.memory.sdram.SdramLayout
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr._
@@ -13,7 +13,7 @@ import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, RtlPhy, SdrInferedPhy, Xil
 
 import scala.collection.mutable.ArrayBuffer
 
-
+/*
 object BmbInterconnectStdGenerators {
   def bmbOnChipRam(address: BigInt,
                    size: BigInt,
@@ -130,7 +130,7 @@ object BmbInterconnectStdGenerators {
 
 
 
-
+*/
 
 
 case class SdramSdrBmbGenerator(address: BigInt)
@@ -293,7 +293,7 @@ case class RtlPhyGenerator()extends Generator{
   }
 }
 
-case class BmbOnChipRamGenerator(address: BigInt)
+case class BmbOnChipRamGenerator(address: Handle[BigInt] = Unset)
                            (implicit interconnect: BmbInterconnectGenerator) extends Generator {
   val size      = Handle[BigInt]
   val dataWidth = Handle[Int]
@@ -306,7 +306,7 @@ case class BmbOnChipRamGenerator(address: BigInt)
     capabilities = Dependable(size, dataWidth)(BmbOnChipRam.busCapabilities(size, dataWidth)),
     requirements = requirements,
     bus = bmb,
-    mapping = Dependable(size)(SizeMapping(address, BigInt(1) << log2Up(size)))
+    mapping = Dependable(address, size)(SizeMapping(address, BigInt(1) << log2Up(size)))
   )
 
 
@@ -374,10 +374,11 @@ case class BmbBridgeGenerator()
 
 
 
-case class  BmbToApb3Decoder(address : BigInt)
-                            (implicit interconnect: BmbInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) extends Generator {
+case class  BmbToApb3Decoder(address : Handle[BigInt] = Unset)(implicit interconnect: BmbInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) extends Generator {
   val input = produce(logic.bridge.io.input)
   val requirements = createDependency[BmbParameter]
+
+  dependencies += address
 
   interconnect.addSlave(
     capabilities = apbDecoder.inputConfig produce BmbToApb3Bridge.busCapabilities(

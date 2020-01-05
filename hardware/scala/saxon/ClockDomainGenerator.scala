@@ -122,7 +122,11 @@ case class ClockDomainResetGenerator() extends Generator {
   val powerOnReset = createDependency[Boolean]
   powerOnReset.load(false)
 
-  def setInput(input : ClockDomain) = inputClockDomain.load(input)
+  def setInput(input : Handle[ClockDomain]) = inputClockDomain.merge(input)
+
+  def setInput(input : Handle[ClockDomain], omitReset : Boolean) : Unit = input.produce(
+    inputClockDomain.load(input.get.copy(reset = if(omitReset) null else input.reset))
+  )
 
   def setInput(input : ClockDomainResetGenerator) = inputClockDomain.merge(input.outputClockDomain)
 
@@ -186,22 +190,6 @@ case class ClockDomainResetGenerator() extends Generator {
       outputReset init(True)
       holdingLogic.resetCounter init(0)
     }
-
-//    val inputResetAdapter = (inputClockDomain.reset != null) generate new Area {
-//      val reset = inputClockDomain.config.resetKind match {
-//        case ASYNC => spinal.lib.ResetCtrl.asyncAssertSyncDeassert(
-//          input = inputClockDomain.isResetActive,
-//          clockDomain = inputClockDomain,
-//          inputPolarity = HIGH,
-//          outputPolarity = HIGH
-//        )
-//        case SYNC  => RegNext(inputClockDomain.isResetActive)
-//      }
-//
-//      when(reset){
-//        inputResetTrigger := True
-//      }
-//    }
   }
 
   case class ResetGenerator(dady : ClockDomainResetGenerator) extends Generator{
@@ -210,7 +198,7 @@ case class ClockDomainResetGenerator() extends Generator {
     val sensitivity = createDependency[ResetSensitivity]
     dependencies += dady.logic
 
-    val stuff = add task new ClockingArea(inputClockDomain){
+    val stuff = add task new ClockingArea(dady.inputClockDomain){
       import ResetSensitivity._
       val syncTrigger = kind.get match {
         case SYNC => {
@@ -231,18 +219,29 @@ case class ClockDomainResetGenerator() extends Generator {
   }
 
 
-  def asyncReset(reset : Bool, sensitivity : ResetSensitivity) = {
+  def asyncReset(reset : Handle[Bool], sensitivity : ResetSensitivity) = {
     val generator = ResetGenerator(this)
-    generator.reset.load(reset)
+    generator.reset.merge(reset)
     generator.sensitivity.load(sensitivity)
     generator.kind.load(ASYNC)
     generator
   }
 
-  def makeExternal(frequency : IClockDomainFrequency = UnknownFrequency): this.type = {
+  def asyncReset(reset : Handle[ClockDomain]) : Handle[ResetGenerator] = reset.produce{
+    val generator = ResetGenerator(this)
+    generator.reset.load(reset.isResetActive)
+    generator.sensitivity.load(ResetSensitivity.HIGH)
+    generator.kind.load(ASYNC)
+    generator
+  }
+
+  def asyncReset(reset : ClockDomainResetGenerator) : Handle[ResetGenerator] = asyncReset(reset.outputClockDomain)
+
+
+  def makeExternal(frequency : IClockDomainFrequency = UnknownFrequency, withResetPin : Boolean = true): this.type = {
     this(Dependable(){
       val clock = in Bool() setCompositeName(ClockDomainResetGenerator.this, "external_clk")
-      val reset = in Bool()  setCompositeName(ClockDomainResetGenerator.this, "external_reset")
+      val reset = withResetPin generate (in Bool()  setCompositeName(ClockDomainResetGenerator.this, "external_reset"))
 
       inputClockDomain.load(
         ClockDomain(

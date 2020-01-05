@@ -30,13 +30,10 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
     withJtag.load(true)
   }
 
-  def enableJtag(resetCtrl : ClockDomainResetGenerator) : Unit = {
-    this.debugClockDomain.merge(resetCtrl.inputClockDomain)
-    val resetBridge = resetCtrl.ResetGenerator(resetCtrl)
+  def enableJtag(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) : Unit = {
+    this.debugClockDomain.merge(debugCd.outputClockDomain)
+    val resetBridge = resetCd.asyncReset(debugReset, ResetSensitivity.HIGH)
     debugAskReset.load(null)
-    resetBridge.reset.merge(debugReset)
-    resetBridge.kind.load(ASYNC)
-    resetBridge.sensitivity.load(ResetSensitivity.HIGH)
     withJtag.load(true)
   }
 

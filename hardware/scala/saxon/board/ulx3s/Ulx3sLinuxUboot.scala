@@ -91,11 +91,11 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
 }
 
 object Ulx3sLinuxUbootSystem{
-  def default(g : Ulx3sLinuxUbootSystem, resetCtrl : ClockDomainResetGenerator, inferSpiAPhy : Boolean = true, sdramSize: Int) = g {
+  def default(g : Ulx3sLinuxUbootSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator, inferSpiAPhy : Boolean = true, sdramSize: Int) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.ulx3sLinux(0x20000000l))
-    cpu.enableJtag(resetCtrl)
+    cpu.enableJtag(debugCd, resetCd)
 
     // Configure ram
     ramA.dataWidth.load(32)
@@ -200,7 +200,7 @@ object Ulx3sLinuxUboot {
       system.phyA.sdramLayout.load(AS4C32M16SB.layout)
     }
 
-    Ulx3sLinuxUbootSystem.default(system, systemCd, sdramSize = sdramSize)
+    Ulx3sLinuxUbootSystem.default(system, globalCd, systemCd, sdramSize = sdramSize)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 
     g
@@ -251,7 +251,7 @@ object Ulx3sLinuxUbootSystemSim {
 
       val sdcard = SdcardEmulatorGenerator()
       sdcard.connect(spiA.phy, spiA.phy.produce(RegNext(spiA.phy.ss(0))))
-      Ulx3sLinuxUbootSystem.default(this, systemCd, sdramSize = 32, inferSpiAPhy = false)
+      Ulx3sLinuxUbootSystem.default(this, globalCd, systemCd, sdramSize = 32, inferSpiAPhy = false)
       spiC.inferSpiSdrIo()
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
     }.toComponent()).doSimUntilVoid("test", 42){dut =>

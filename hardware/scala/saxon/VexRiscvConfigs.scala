@@ -12,7 +12,7 @@ object VexRiscvConfigs {
     val bootloaderBin : String = null
 
     def linux: VexRiscvConfig = linux(0x80000000l)
-    def linux(resetVector: Long) = VexRiscvConfig(
+    def linux(resetVector: Long, ioRegion : UInt => Bool = _(31 downto 28) === 0xF) = VexRiscvConfig(
       withMemoryStage = true,
       withWriteBackStage = true,
       List(

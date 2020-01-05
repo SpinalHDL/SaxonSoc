@@ -22,7 +22,7 @@ trait InterruptCtrl{
   def getBus : Handle[Nameable]
 }
 
-case class Apb3UartGenerator(apbOffset : BigInt)
+case class Apb3UartGenerator(apbOffset : Handle[BigInt] = Unset)
                             (implicit decoder: Apb3DecoderGenerator) extends Generator {
   val parameter = createDependency[UartCtrlMemoryMappedConfig]
   val interrupt = produce(logic.io.interrupt)
@@ -64,7 +64,7 @@ object Apb3SpiGenerator{
     new Apb3SpiGenerator(apbOffset,xipOffset)
   }
 }
-class Apb3SpiGenerator(apbOffset : BigInt, xipOffset : BigInt = 0)
+class Apb3SpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[BigInt] = 0)
                             (implicit decoder: Apb3DecoderGenerator, interconnect: BmbInterconnectGenerator = null) extends Generator {
   val parameter = createDependency[SpiXdrMasterCtrl.MemoryMappingParameters]
   val withXip = Handle(false)
@@ -80,7 +80,7 @@ class Apb3SpiGenerator(apbOffset : BigInt, xipOffset : BigInt = 0)
   dependencies += withXip.produce{
     if(withXip) {
       dependencies += bmbRequirements
-      interconnect.addSlave(
+      interconnect.addSlaveAt(
         capabilities = Handle(SpiXdrMasterCtrl.getXipBmbCapabilities()),
         requirements = bmbRequirements,
         bus = bmb,
@@ -97,6 +97,14 @@ class Apb3SpiGenerator(apbOffset : BigInt, xipOffset : BigInt = 0)
 
   decoder.addSlave(apb, apbOffset)
 
+  @dontName var interruptCtrl : InterruptCtrl = null
+  var interruptId = 0
+  def connectInterrupt(ctrl : InterruptCtrl, id : Int): Unit = {
+    ctrl.addInterrupt(interrupt, id)
+    interruptCtrl = ctrl
+    interruptId = id
+  }
+
   dts(apb) {
     s"""${apb.getName()}: spi@${apbOffset.toString(16)} {
        |  compatible = "spinal-lib,spi-1.0";
@@ -110,13 +118,14 @@ class Apb3SpiGenerator(apbOffset : BigInt, xipOffset : BigInt = 0)
   def inferSpiIce40() = this(Dependable(phy)(spi.load{
     phy.toSpiIce40().asInOut().setPartialName(spi, "")
   }))
+  def phyAsIo() = produceIo(phy.get)
 }
 
 
 
 
 
-case class  Apb3GpioGenerator(apbOffset : BigInt)
+case class  Apb3GpioGenerator(apbOffset : Handle[BigInt] = Unset)
                              (implicit decoder: Apb3DecoderGenerator) extends Generator{
   val parameter = createDependency[spinal.lib.io.Gpio.Parameter]
   val gpio = produceIo(logic.io.gpio)
@@ -131,6 +140,9 @@ case class  Apb3GpioGenerator(apbOffset : BigInt)
     for(pinId <- parameter.interrupt) ctrl.addInterrupt(interrupts.get(pinId), offsetId + pinId)
     interruptCtrl = ctrl
     interruptOffsetId = offsetId
+  }
+  def connectInterrupt(ctrl : InterruptCtrl, pinId : Int, interruptId : Int): Unit = interrupts.produce{
+    ctrl.addInterrupt(interrupts.get(pinId), interruptId)
   }
   def pin(id : Int) = gpio.produce(gpio.get.setAsDirectionLess.apply(id))
 
@@ -154,7 +166,7 @@ case class  Apb3GpioGenerator(apbOffset : BigInt)
 //}
 
 
-case class Apb3PlicGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator with InterruptCtrl{
+case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decoder: Apb3DecoderGenerator) extends Generator with InterruptCtrl{
   @dontName val gateways = ArrayBuffer[Handle[PlicGateway]]()
   val apb = produce(logic.apb)
   val apbConfig = Apb3Config(22, 32)
@@ -221,18 +233,18 @@ case class Apb3PlicGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderG
        |  interrupt-controller;
        |  interrupts-extended = <&L1 11 &L1 9>;
        |  reg = <0x${apbOffset.toString(16)} 0x400000>;
-       |  riscv,ndev = <${gateways.map(_.id).max}>;
+       |  riscv,ndev = <${(gateways.map(_.id) ++ Seq(0)).max}>;
        |}""".stripMargin
   }
 }
 
-case class Apb3DummyGenerator(apbConfig : Apb3Config, apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator{
+case class Apb3DummyGenerator(apbConfig : Apb3Config, apbOffset : Handle[BigInt] = Unset) (implicit decoder: Apb3DecoderGenerator) extends Generator{
   val apb = produce(logic.io.apb)
   val logic = add task Apb3Dummy(apbConfig)
   decoder.addSlave(apb, apbOffset)
 }
 
-case class Apb3MachineTimerGenerator(apbOffset : BigInt) (implicit decoder: Apb3DecoderGenerator) extends Generator{
+case class Apb3MachineTimerGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decoder: Apb3DecoderGenerator) extends Generator{
   val interrupt = produce(logic.io.mTimeInterrupt)
   val apb = produce(logic.io.bus)
   val logic = add task MachineTimer()
@@ -242,3 +254,11 @@ case class Apb3MachineTimerGenerator(apbOffset : BigInt) (implicit decoder: Apb3
   val hz = export(produce(ClockDomain.current.frequency))
 }
 
+
+
+case class Apb3MasterGenerator(apbOffset : Handle[BigInt] = Unset)
+                              (implicit decoder: Apb3DecoderGenerator) extends Generator {
+  val parameter = createDependency[Apb3Config]
+  val apb = produce(master(Apb3(parameter)))
+  decoder.addSlave(apb, apbOffset)
+}
