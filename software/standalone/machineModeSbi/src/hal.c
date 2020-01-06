@@ -4,9 +4,17 @@
 
 #ifdef HARD
 
+#include "soc.h"
 #include "uart.h"
-#define UART_A ((Uart_Reg*)(0x10010000))
-#define MACHINE_TIMER ((volatile uint32_t*)(0x10008000))
+
+#ifndef UART_A
+#define UART_A ((Uart_Reg*)(SYSTEM_UART_A_APB))
+#endif
+
+#ifndef MACHINE_TIMER
+#define MACHINE_TIMER ((volatile uint32_t*)(SYSTEM_MACHINE_TIMER_APB))
+#endif
+
 
 void stopSim(){
     uart_writeStr(UART_A, "\nmachineModeSbi exception\n");

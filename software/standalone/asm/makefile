@@ -1,6 +1,5 @@
 PROJ_NAME=asm
 
-DEBUG=yes
 STANDALONE = ..
 
 

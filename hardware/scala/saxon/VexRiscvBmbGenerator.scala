@@ -20,7 +20,10 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   val hardwareBreakpointCount = Handle(0)
 
   val iBus, dBus = product[Bmb]
-  val externalInterrupt, externalSupervisorInterrupt, timerInterrupt = product[Bool]
+
+  val externalInterrupt = product[Bool]
+  val externalSupervisorInterrupt = product[Bool]
+  val timerInterrupt = product[Bool]
 
   def setTimerInterrupt(that: Handle[Bool]) = Dependable(that, timerInterrupt){timerInterrupt := that}
 

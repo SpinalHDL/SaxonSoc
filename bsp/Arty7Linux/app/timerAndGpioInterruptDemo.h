@@ -1,0 +1,3 @@
+#pragma once
+
+#define PLIC_GPIO_A_0 SYSTEM_PLIC_SYSTEM_GPIO_A_INTERRUPTS_0

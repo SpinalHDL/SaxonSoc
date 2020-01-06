@@ -13,8 +13,10 @@ void setStats(int enable)
 
 }
 
-#define UART_BASE  ((volatile uint32_t*)(0x10010000))
-#define MTIME_BASE ((volatile uint32_t*)(0x10008000))
+#include "saxon.h"
+
+#define UART_BASE  ((volatile uint32_t*)(UART_A))
+#define MTIME_BASE ((volatile uint32_t*)(MACHINE_TIMER))
 
 static void printf_c(int c)
 {

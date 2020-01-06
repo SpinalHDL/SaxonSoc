@@ -1,13 +1,14 @@
 #ifndef UART_H_
 #define UART_H_
 
+#include "type.h"
 
 typedef struct
 {
-  volatile uint32_t DATA;
-  volatile uint32_t STATUS;
-  volatile uint32_t CLOCK_DIVIDER;
-  volatile uint32_t FRAME_CONFIG;
+  volatile u32 DATA;
+  volatile u32 STATUS;
+  volatile u32 CLOCK_DIVIDER;
+  volatile u32 FRAME_CONFIG;
 } Uart_Reg;
 
 enum UartDataLength {BITS_8 = 8};
@@ -18,13 +19,13 @@ typedef struct {
 	enum UartDataLength dataLength;
 	enum UartParity parity;
 	enum UartStop stop;
-	uint32_t clockDivider;
+	u32 clockDivider;
 } Uart_Config;
 
-static uint32_t uart_writeAvailability(Uart_Reg *reg){
+static u32 uart_writeAvailability(Uart_Reg *reg){
 	return (reg->STATUS >> 16) & 0xFF;
 }
-static uint32_t uart_readOccupancy(Uart_Reg *reg){
+static u32 uart_readOccupancy(Uart_Reg *reg){
 	return reg->STATUS >> 24;
 }
 

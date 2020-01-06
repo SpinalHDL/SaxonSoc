@@ -9,7 +9,8 @@ CFLAGS += -DTIME -DCORE_HZ=12000000ll
 
 SRCS = 	${shell find src -type f -name \*.c} \
 		${shell find src -type f -name \*.cpp}  \
-		${shell find src -type f -name \*.S}
+		${shell find src -type f -name \*.S} \
+        ${STANDALONE}/common/start.S
 
 include ${STANDALONE}/common/bsp.mk
 include ${STANDALONE}/common/riscv64-unknown-elf.mk

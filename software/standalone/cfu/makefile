@@ -1,6 +1,5 @@
 PROJ_NAME=cfu
 
-DEBUG=yes
 STANDALONE = ..
 
 

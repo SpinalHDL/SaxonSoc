@@ -1,34 +1,34 @@
 #ifndef SPI_H_
 #define SPI_H_
 
-#include <stdint.h>
+#include "type.h"
 
 typedef struct
 {
-  volatile uint32_t DATA;
-  volatile uint32_t BUFFER;
-  volatile uint32_t CONFIG;
-  volatile uint32_t INTERRUPT;
+  volatile u32 DATA;
+  volatile u32 BUFFER;
+  volatile u32 CONFIG;
+  volatile u32 INTERRUPT;
 
-  volatile uint32_t _a[4];
+  volatile u32 _a[4];
 
-  volatile uint32_t CLK_DIVIDER;
-  volatile uint32_t SS_SETUP;
-  volatile uint32_t SS_HOLD;
-  volatile uint32_t SS_DISABLE;
+  volatile u32 CLK_DIVIDER;
+  volatile u32 SS_SETUP;
+  volatile u32 SS_HOLD;
+  volatile u32 SS_DISABLE;
 } Spi_Reg;
 
 
 
 
 typedef struct {
-	int cpol;
-	int cpha;
-	int mode;
-	uint32_t clkDivider;
-	uint32_t ssSetup;
-	uint32_t ssHold;
-	uint32_t ssDisable;
+	u32 cpol;
+	u32 cpha;
+	u32 mode;
+	u32 clkDivider;
+	u32 ssSetup;
+	u32 ssHold;
+	u32 ssDisable;
 } Spi_Config;
 
 #define SPI_CMD_WRITE (1 << 8)
@@ -47,31 +47,31 @@ typedef struct {
 #define SPI_MODE_CPHA (1 << 1)
 
 
-static uint32_t spi_cmdAvailability(Spi_Reg *reg){
+static u32 spi_cmdAvailability(Spi_Reg *reg){
 	return reg->BUFFER & 0xFFFF;
 }
-static uint32_t spi_rspOccupancy(Spi_Reg *reg){
+static u32 spi_rspOccupancy(Spi_Reg *reg){
 	return reg->BUFFER >> 16;
 }
 
-static void spi_write(Spi_Reg *reg, uint8_t data){
+static void spi_write(Spi_Reg *reg, u8 data){
 	while(spi_cmdAvailability(reg) == 0);
 	reg->DATA = data | SPI_CMD_WRITE;
 }
 
-static uint8_t spi_read(Spi_Reg *reg){
+static u8 spi_read(Spi_Reg *reg){
 	while(spi_cmdAvailability(reg) == 0);
 	reg->DATA = SPI_CMD_READ;
 	while(spi_rspOccupancy(reg) == 0);
 	return reg->DATA;
 }
 
-static void spi_select(Spi_Reg *reg, uint32_t slaveId){
+static void spi_select(Spi_Reg *reg, u32 slaveId){
 	while(spi_cmdAvailability(reg) == 0);
 	reg->DATA = slaveId | 0x80 | SPI_CMD_SS;
 }
 
-static void spi_diselect(Spi_Reg *reg, uint32_t slaveId){
+static void spi_diselect(Spi_Reg *reg, u32 slaveId){
 	while(spi_cmdAvailability(reg) == 0);
 	reg->DATA = slaveId | 0x00 | SPI_CMD_SS;
 }

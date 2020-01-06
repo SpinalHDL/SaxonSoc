@@ -4,7 +4,8 @@ STANDALONE = ..
 
 SRCS = 	${shell find src -type f -name \*.c} \
 		${shell find src -type f -name \*.cpp}  \
-		${shell find src -type f -name \*.S}
+		${shell find src -type f -name \*.S} \
+        ${STANDALONE}/common/start.S
 
 LDSCRIPT ?= ${BSP_PATH}/linker/bootloader.ld
 

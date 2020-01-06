@@ -1,7 +1,7 @@
 #ifndef PLIC_H_
 #define PLIC_H_
 
-#include <stdint.h>
+#include "type.h"
 #include "io.h"
 
 #define PLIC_PRIORITY_BASE         0x0000
@@ -15,28 +15,28 @@
 
 
 
-void plic_set_priority(uint32_t plic, uint32_t gateway, uint32_t priority){
+static void plic_set_priority(u32 plic, u32 gateway, u32 priority){
 	write_u32(priority, plic + PLIC_PRIORITY_BASE + gateway*4);
 }
 
-void plic_set_enable(uint32_t plic, uint32_t target,uint32_t gateway, uint32_t enable){
-	uint32_t word = plic + PLIC_ENABLE_BASE + target * PLIC_ENABLE_PER_HART + (gateway / 32);
-	uint32_t mask = 1 << (gateway % 32);
+static void plic_set_enable(u32 plic, u32 target,u32 gateway, u32 enable){
+	u32 word = plic + PLIC_ENABLE_BASE + target * PLIC_ENABLE_PER_HART + (gateway / 32);
+	u32 mask = 1 << (gateway % 32);
 	if (enable)
 		write_u32(read_u32(word) | mask, word);
 	else
 		write_u32(read_u32(word) & ~mask, word);
 }
 
-void plic_set_threshold(uint32_t plic, uint32_t target, uint32_t threshold){
+static void plic_set_threshold(u32 plic, u32 target, u32 threshold){
 	write_u32(threshold, plic + PLIC_THRESHOLD_BASE + target*PLIC_CONTEXT_PER_HART);
 }
 
-uint32_t plic_claim(uint32_t plic, uint32_t target){
+static u32 plic_claim(u32 plic, u32 target){
 	return read_u32(plic + PLIC_CLAIM_BASE + target*PLIC_CONTEXT_PER_HART);
 }
 
-void plic_release(uint32_t plic, uint32_t target, uint32_t gateway){
+static void plic_release(u32 plic, u32 target, u32 gateway){
 	write_u32(gateway,plic + PLIC_CLAIM_BASE + target*PLIC_CONTEXT_PER_HART);
 }
 

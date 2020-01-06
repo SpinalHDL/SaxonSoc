@@ -1,37 +1,37 @@
 #pragma once
 
-#include <stdint.h>
+#include "type.h"
 #include "soc.h"
 
-static inline uint32_t read_u32(uint32_t address){
-	return *((volatile uint32_t*) address);
+static inline u32 read_u32(u32 address){
+	return *((volatile u32*) address);
 }
 
-static inline void write_u32(uint32_t data, uint32_t address){
-	*((volatile uint32_t*) address) = data;
+static inline void write_u32(u32 data, u32 address){
+	*((volatile u32*) address) = data;
 }
 
-static inline uint16_t read_u16(uint32_t address){
-	return *((volatile uint16_t*) address);
+static inline u16 read_u16(u32 address){
+	return *((volatile u16*) address);
 }
 
-static inline void write_u16(uint16_t data, uint32_t address){
-	*((volatile uint16_t*) address) = data;
+static inline void write_u16(u16 data, u32 address){
+	*((volatile u16*) address) = data;
 }
 
-static inline uint8_t read_u8(uint32_t address){
-	return *((volatile uint8_t*) address);
+static inline u8 read_u8(u32 address){
+	return *((volatile u8*) address);
 }
 
-static inline void write_u8(uint8_t data, uint32_t address){
-	*((volatile uint8_t*) address) = data;
+static inline void write_u8(u8 data, u32 address){
+	*((volatile u8*) address) = data;
 }
 
-static inline void write_u32_ad(uint32_t address, uint32_t data){
-	*((volatile uint32_t*) address) = data;
+static inline void write_u32_ad(u32 address, u32 data){
+	*((volatile u32*) address) = data;
 }
 
-//static void io_delay(uint32_t cycles){
+//static void io_delay(u32 cycles){
 //	//TODO
 //	/*
 //	for(int32_t i = (cycles + 7) >> 3;i >= 0;i--){
@@ -40,9 +40,9 @@ static inline void write_u32_ad(uint32_t address, uint32_t data){
 //}
 
 #if defined(SYSTEM_MACHINE_TIMER_APB)
-static void io_udelay(uint32_t usec){
-	uint32_t mTimePerUsec = SYSTEM_MACHINE_TIMER_HZ/1000000;
-	uint32_t limit = read_u32(SYSTEM_MACHINE_TIMER_APB) + usec*mTimePerUsec;
+static void io_udelay(u32 usec){
+	u32 mTimePerUsec = SYSTEM_MACHINE_TIMER_HZ/1000000;
+	u32 limit = read_u32(SYSTEM_MACHINE_TIMER_APB) + usec*mTimePerUsec;
 	while((int32_t)(limit-(read_u32(SYSTEM_MACHINE_TIMER_APB))) >= 0);
 }
 #endif

@@ -1,9 +1,9 @@
 #include <stdint.h>
 
-#include <saxon.h>
+#include "saxon.h"
 #include "machineTimer.h"
 #include "plic.h"
-
+#include "timerAndGpioInterruptDemo.h"
 
 void init();
 void main();
@@ -12,30 +12,14 @@ void crash();
 void trap_entry();
 void timerInterrupt();
 void externalInterrupt();
+void initTimer();
 void scheduleTimer();
 
-
-
-void init(){
-	//configure RISC-V interrupt CSR
-	csr_write(mtvec, trap_entry); //Set the machine trap vector (trap.S)
-
-	//configure timer
-	scheduleTimer();
-	csr_set(mie, MIE_MTIE); //Enable machine timer interrupts
-
-	//configure PLIC
-	plic_set_threshold(PLIC, PLIC_CPU_0, 0); //cpu 0 accept all interrupts with priority above 0
-	csr_set(mie, MIE_MEIE); //Enable machine external interrupts
-
-	//enable GPIO_A pin 0 rising edge interrupt
-	plic_set_enable(PLIC, PLIC_CPU_0, PLIC_GPIO_A_0, 1);
-	plic_set_priority(PLIC, PLIC_GPIO_A_0, 1);
-	GPIO_A->INTERRUPT_RISE_ENABLE = 1; //Enable pin 1 rising edge interrupts
-
-	//enable interrupts
-	csr_write(mstatus, MSTATUS_MPP | MSTATUS_MIE);
-}
+#ifdef SPINAL_SIM
+    #define TIMER_TICK_DELAY (MACHINE_TIMER_HZ/200) //Faster timer tick in simulation to avoid having to wait too long
+#else
+    #define TIMER_TICK_DELAY (MACHINE_TIMER_HZ)
+#endif
 
 void main() {
 	init();
@@ -44,10 +28,42 @@ void main() {
 	while(1); //Idle
 }
 
+
+void init(){
+	//configure PLIC
+	plic_set_threshold(PLIC, PLIC_CPU_0, 0); //cpu 0 accept all interrupts with priority above 0
+
+	//enable GPIO_A pin 0 rising edge interrupt
+	plic_set_enable(PLIC, PLIC_CPU_0, PLIC_GPIO_A_0, 1);
+	plic_set_priority(PLIC, PLIC_GPIO_A_0, 1);
+	GPIO_A->INTERRUPT_RISE_ENABLE = 1; //Enable pin 1 rising edge interrupts
+
+	//configure timer
+	initTimer();
+
+	//enable interrupts
+	csr_write(mtvec, trap_entry); //Set the machine trap vector (../common/trap.S)
+	csr_set(mie, MIE_MTIE | MIE_MEIE); //Enable machine timer and external interrupts
+	csr_write(mstatus, MSTATUS_MPP | MSTATUS_MIE);
+}
+
+uint64_t timerCmp; //Store the next interrupt time
+
+void initTimer(){
+    timerCmp = machineTimer_getTime(MACHINE_TIMER);
+    scheduleTimer();
+}
+
+//Make the timer tick in 1 second. (if SPINAL_SIM=yes, then much faster for simulations reasons)
+void scheduleTimer(){
+    timerCmp += TIMER_TICK_DELAY;
+	machineTimer_setCmp(MACHINE_TIMER, timerCmp);
+}
+
 //Called by trap_entry on both exceptions and interrupts events
 void trap(){
 	int32_t mcause = csr_read(mcause);
-	int32_t interrupt = mcause < 0;    //Interrupt if set, exception if cleared
+	int32_t interrupt = mcause < 0;    //Interrupt if true, exception if false
 	int32_t cause     = mcause & 0xF;
 	if(interrupt){
 		switch(cause){
@@ -60,8 +76,10 @@ void trap(){
 	}
 }
 
-uint32_t counter = 0;
+
 void timerInterrupt(){
+    static uint32_t counter = 0;
+
 	scheduleTimer();
 
 	uart_writeStr(UART_A, "MACHINE_TIMER ");
@@ -82,15 +100,7 @@ void externalInterrupt(){
 	}
 }
 
-
-
-void scheduleTimer(){
-	uint64_t time = machineTimer_getTime(MACHINE_TIMER);
-	uint64_t cmp = time + MACHINE_TIMER_HZ;
-	machineTimer_setCmp(MACHINE_TIMER, cmp);
-}
-
-
+//Used on unexpected trap/interrupt codes
 void crash(){
 	uart_writeStr(UART_A, "\n*** CRASH ***\n");
 	while(1);
