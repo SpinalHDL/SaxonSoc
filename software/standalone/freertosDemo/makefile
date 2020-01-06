@@ -1,4 +1,4 @@
-PROJ_NAME=freertos
+PROJ_NAME=freertosDemo
 
 STANDALONE = ..
 FREERTOS=../../../ext/FreeRTOS-mirror/FreeRTOS/Source
