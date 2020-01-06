@@ -11,6 +11,21 @@ A few kits are supported :
 - ...
 
 
+## Repository structure
+
+```
+- hardware
+  - scala      : SpinalHDL hardware description
+  - netlist    : Folder used by SpinalHDL to generate the netlist
+  - synthesis  : Contains synthesis scripts for various boards
+- bsp          : Contains multiple Board Support Package used to build the software
+- software
+  - standalone : Contains multiple demo software to run in the CPU
+- ext
+  - SpinalHDL  : Hardware description language compiler
+  - VexRiscv   : CPU hardware description
+```
+
 ## Dependencies
 
 On Ubuntu 14 :
