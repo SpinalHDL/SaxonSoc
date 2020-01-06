@@ -1,9 +1,16 @@
 [submodule "ext/SpinalHDL"]
 	path = ext/SpinalHDL
 	url = https://github.com/SpinalHDL/SpinalHDL.git
+	shallow = true
 [submodule "ext/VexRiscv"]
 	path = ext/VexRiscv
 	url = https://github.com/SpinalHDL/VexRiscv.git
+	shallow = true
 [submodule "ext/sd_device"]
 	path = ext/sd_device
 	url = https://github.com/SpinalHDL/sd_device.git
+    shallow = true
+[submodule "ext/FreeRTOS-mirror"]
+	path = ext/FreeRTOS-mirror
+	url = https://github.com/coldnew/FreeRTOS-mirror.git
+    shallow = true
