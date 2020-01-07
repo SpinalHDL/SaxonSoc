@@ -4,9 +4,9 @@ STANDALONE = ..
 FREERTOS=../../../ext/FreeRTOS-mirror/FreeRTOS/Source
 FREERTOS_RISCV=${FREERTOS}/portable/GCC/RISC-V
 
-SRCS = 	${shell find src -type f -name \*.c} \
-		${shell find src -type f -name \*.cpp}  \
-		${shell find src -type f -name \*.S} \
+SRCS = 	${shell find src -type f -name *.c} \
+		${shell find src -type f -name *.cpp}  \
+		${shell find src -type f -name *.S} \
     	${shell find ${FREERTOS} -maxdepth 1 -type f -name \*.c} \
         ${FREERTOS}/portable/MemMang/heap_4.c \
         ${FREERTOS_RISCV}/port.c \
