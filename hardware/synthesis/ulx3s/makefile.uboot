@@ -1,6 +1,26 @@
 VERILOG = ../../netlist/Ulx3sLinuxUboot.v pll_linux.v
 
-IDCODE ?= 0x21111043 # 12f
+FPGA_SIZE ?= 12
+
+SDRAM_SIZE ?= 32
+
+FPGA_KS ?= $(FPGA_SIZE)k
+
+ifeq ($(FPGA_SIZE), 12)
+	CHIP_ID=0x21111043
+	FPGA_KS = 25k
+endif
+ifeq ($(FPGA_SIZE), 25)
+	CHIP_ID=0x41111043
+endif
+ifeq ($(FPGA_SIZE), 45)
+	CHIP_ID=0x41112043
+endif
+ifeq ($(FPGA_SIZE), 85)
+	CHIP_ID=0x41113043
+endif
+
+IDCODE ?= $(CHIP_ID)
 
 compile : bin/toplevel.bit
 
@@ -8,7 +28,7 @@ prog: bin/toplevel.bit
 	ujprog $<
 
 generate:
-	(cd ../../..; sbt "runMain saxon.board.ulx3s.Ulx3sLinuxUboot")
+	(cd ../../..; sbt "runMain saxon.board.ulx3s.Ulx3sLinuxUboot $(SDRAM_SIZE)")
 
 sim:
 	(cd ../../..; sbt "runMain saxon.board.ulx3s.Ulx3sLinuxUbootSystemSim")
@@ -26,13 +46,13 @@ bin/toplevel.config: bin/toplevel.json
 		--json $< \
 		--textcfg $@ \
 		--lpf ulx3s_v20_linux_uboot.lpf \
-		--25k \
+		--$(FPGA_KS) \
 		--freq 50 \
 		--package CABGA381 \
 		--lpf-allow-unconstrained
 
 bin/toplevel.bit: bin/toplevel.config
-	ecppack --idcode $(IDCODE) $< $@
+	ecppack --compress --idcode $(IDCODE) $< $@
 
 pll:
 	ecppll \
