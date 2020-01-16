@@ -293,14 +293,15 @@ case class RtlPhyGenerator()extends Generator{
   }
 }
 
-case class BmbOnChipRamGenerator(address: Handle[BigInt] = Unset)
-                           (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+case class BmbOnChipRamGenerator(val address: Handle[BigInt] = Unset)
+                                (implicit interconnect: BmbInterconnectGenerator) extends Generator {
   val size      = Handle[BigInt]
   val dataWidth = Handle[Int]
   val hexInit = createDependency[String]
   val requirements = createDependency[BmbParameter]
   val bmb = produce(logic.io.bus)
 
+  dependencies += address
 
   interconnect.addSlave(
     capabilities = Dependable(size, dataWidth)(BmbOnChipRam.busCapabilities(size, dataWidth)),

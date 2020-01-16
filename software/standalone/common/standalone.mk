@@ -13,16 +13,16 @@ CFLAGS += -I${STANDALONE}/driver
 LDFLAGS +=  -nostdlib -lgcc -nostartfiles -ffreestanding -Wl,-Bstatic,-T,$(LDSCRIPT),-Map,$(OBJDIR)/$(PROJ_NAME).map,--print-memory-usage
 
 DOT:= .
+COLON:=:
 
 OBJS := $(SRCS)
-OBJS := $(shell realpath --relative-to // $(OBJS))
-OBJS := $(addprefix //,$(OBJS))
+OBJS := $(realpath $(OBJS))
+OBJS := $(subst $(COLON),,$(OBJS))
 OBJS := $(OBJS:.c=.o)
 OBJS := $(OBJS:.cpp=.o)
 OBJS := $(OBJS:.S=.o)
 OBJS := $(OBJS:.s=.o)
 OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
-
 
 
 all: $(OBJDIR)/$(PROJ_NAME).elf $(OBJDIR)/$(PROJ_NAME).hex $(OBJDIR)/$(PROJ_NAME).asm $(OBJDIR)/$(PROJ_NAME).bin
@@ -42,17 +42,15 @@ $(OBJDIR)/%.elf: $(OBJS) | $(OBJDIR)
 %.asm: %.elf
 	$(RISCV_OBJDUMP) -S -d $^ > $@
 
-$(OBJDIR)/%.o: %.c
-	mkdir -p $(dir $@)
-	$(RISCV_CC) -c $(CFLAGS)  $(INC) -o $@ $^
+define LIST_RULE
+$(1)
+	mkdir -p $(dir $(word 1, $(subst $(COLON), ,$(1))))
+	$(RISCV_CC) -c $(CFLAGS)  $(INC) -o $(subst $(COLON), ,$(1))
+endef
 
-$(OBJDIR)/%.o: %.cpp
-	mkdir -p $(dir $@)
-	$(RISCV_CC) -c $(CFLAGS)  $(INC) -o $@ $^
-
-$(OBJDIR)/%.o: %.S
-	mkdir -p $(dir $@)
-	$(RISCV_CC) -c $(CFLAGS) -o $@ $^ -D__ASSEMBLY__=1
+CAT:= $(addsuffix  $(COLON), $(OBJS))
+CAT:= $(join  $(CAT), $(SRCS))
+$(foreach i,$(CAT),$(eval $(call LIST_RULE,$(i))))
 
 $(OBJDIR):
 	mkdir -p $@
