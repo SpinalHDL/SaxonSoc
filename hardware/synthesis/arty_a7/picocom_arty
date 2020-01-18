@@ -1,0 +1,2 @@
+echo "Ctrl-a then Ctrl-x to quit"
+picocom --baud 115200 --imap lfcrlf /dev/ttyUSB1
