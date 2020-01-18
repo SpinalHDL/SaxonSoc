@@ -18,8 +18,8 @@ repo-setup:
 
 spi-flash-sw:
 	RISCV_BIN=$(RISCV_BIN) make -C $(SWBASE)/machineModeSbi clean all BSP=Arty7Linux
-	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot make saxon_arty7_defconfig
-	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot make -j$(nproc))
+	(cd $(ROOT)/../u-boot;CROSS_COMPILE=$(RISCV_BIN) make saxon_arty7_defconfig)
+	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot -j$(nproc)
 
 $(TOPV) : $(SOCMEM)
 	(cd ../../..; sbt "runMain saxon.board.digilent.Arty7Linux")
