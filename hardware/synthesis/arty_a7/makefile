@@ -17,19 +17,16 @@ repo-setup:
 	git submodule update --init --recursive
 	cd ..
 	git clone https://github.com/SpinalHDL/u-boot.git -b saxon u-boot
-	cd -
 
 spi-flash-sw:
-	cd $(ROOT)
-
-	cd software/standalone/machineModeSbi/
+	pwd
+	cd $(ROOT)/software/standalone/machineModeSbi/
 	RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- make clean all BSP=Arty7Linux
 	cd -
 
 	cd ../u-boot/
 	CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make saxon_arty7_defconfig
 	CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make -j$(nproc)
-	cd -
 
 git clone https://github.com/SpinalHDL/u-boot.git -b saxon u-boot
 
