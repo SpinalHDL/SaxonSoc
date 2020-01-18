@@ -13,22 +13,13 @@ RISCV_BIN?=/opt/riscv/bin/riscv64-unknown-elf-
 all : build/latest.bit
 
 repo-setup:
-	cd $(ROOT)
 	git submodule update --init --recursive
-	cd ..
-	git clone https://github.com/SpinalHDL/u-boot.git -b saxon u-boot
+	(cd $(ROOT)/..;git clone https://github.com/SpinalHDL/u-boot.git -b saxon u-boot)
 
 spi-flash-sw:
-	pwd
-	cd $(ROOT)/software/standalone/machineModeSbi/
-	RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- make clean all BSP=Arty7Linux
-	cd -
-
-	cd ../u-boot/
-	CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make saxon_arty7_defconfig
-	CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make -j$(nproc)
-
-git clone https://github.com/SpinalHDL/u-boot.git -b saxon u-boot
+	RISCV_BIN=$(RISCV_BIN) make -C $(SWBASE)/machineModeSbi clean all BSP=Arty7Linux
+	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot make saxon_arty7_defconfig
+	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot make -j$(nproc))
 
 $(TOPV) : $(SOCMEM)
 	(cd ../../..; sbt "runMain saxon.board.digilent.Arty7Linux")
