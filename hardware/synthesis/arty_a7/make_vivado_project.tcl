@@ -24,7 +24,7 @@ add_files [glob $topv]
 add_files -fileset constrs_1 $base/arty_a7.xdc
 
 #set top level module and update compile order
-set_property top toplevel [current_fileset]
+set_property top $top [current_fileset]
 update_compile_order -fileset sources_1
 #update_compile_order -fileset sim_1
 

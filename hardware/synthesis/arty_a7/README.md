@@ -111,9 +111,11 @@ NOTE: the RESET button is not connected to the design. To reboot, use the
  ON and something shall be sent on the uart.
 
 
-### Direct FPGA RAM programming (update only hardware)
+### Direct FPGA RAM programming (update only hardware for quick test)
 
 Run `make prog` to program the bit file directly to FPGA RAM.
+Next time you power up the board the FPGA RAM will be reloaded with content from
+QSPI flash so remember that anything loaded using this method is only temporary.
 
 You should get output like the following;
 ```
@@ -153,3 +155,22 @@ Parameters:
 * parity is      : none
 * databits are   : 8
 * stopbits are   : 1
+
+Output when no sdcard is present:
+```
+*** VexRiscv BIOS ***
+*** Supervisor ***
+
+
+U-Boot 2019.10-02536-gefeedc3 (Jan 18 2020 - 14:18:57 +0100)
+
+DRAM:  31.9 MiB
+MMC:   spi@10020000:mmc@1: 0
+Loading Environment from EXT4... In:    serial@10010000
+Out:   serial@10010000
+Err:   serial@10010000
+Hit any key to stop autoboot:  2  1  0
+Wrong Image Format for bootm command
+ERROR: can't get kernel image!
+=>
+```

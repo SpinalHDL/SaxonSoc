@@ -21,8 +21,11 @@ spi-flash-sw:
 	(cd $(ROOT)/../u-boot;CROSS_COMPILE=$(RISCV_BIN) make saxon_arty7_defconfig)
 	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot -j$(nproc)
 
-$(TOPV) : $(SOCMEM)
+generate:
 	(cd ../../..; sbt "runMain saxon.board.digilent.Arty7Linux")
+
+$(TOPV) : $(SOCMEM)
+	generate
 
 .PHONY: $(SOCMEMSRC)
 $(SOCMEMSRC):
