@@ -215,16 +215,20 @@ echo 488 > unexport
 
 ## Different Ulx3s boards
 
-The build instructions are for a Ulx3s 12F board, but a variety of Ulx3s boards are available.
+The build instructions above are for a Ulx3s 12F board, but a variety of Ulx3s boards are available.
 
 Some of the 85F boards, particularly the ones with a blue PCB, have a 64MB SDRAM chip.
 
-To build for an 85F board with a 64MB SDRAM chip, you should use the makefile.uboot85 variant from SaxonSoc/hardware/synthesis/ulx3s.
+To build for other boards you can use the FPGA_SIZE and SDRAM_SIZE parameters to the make file. SDRAM_SIZE can be 32 or 64,
+and FPGA_SIZE can be 12, 25, 45 or 85.
 
-The differences are the IDCODE used by ecppack and the device parameter to nextpnr-ecp5. For a 12F or 25F device the parameter is --25k. For the 45F device it is --45k, and for the 85F, --85k.
+Also, if you have a board, such as a blue 85F, with a 64MB SDRAM chip, you need to build the bootloader for that SDRAM chip - see the Bootloader section of *Building everything* above. For such boards, you also need to tell Linux that 64MB of memory is available. This can be done by using a dtb that specifies 64MB of memory, but a better solution is to use the standard dtb that specifies 32MB of memory, but then use u-boot comnmands to override it. You only have to execute these u-boot commands once, as the u-boot environment is saved on the SD card, The u-boot commands are:
 
-Also, if you have an 85F with a 64MB SDRAM chip, you need to build the bootloader for that chip - see *Building everything* above.
-And in that case you need the parameter to `sbt "runMain saxon.board.ulx3s.Ulx3sLinuxUboot 64"` in the makefile set to 64. For a 32MB SDRAM chip it should be set to 32, or omitted. And lastly for the 64MB SDRAM chip, you need to tell Linux that it has 64 MB of memory by using the spinal_saxon_ulx3s_64.dts variant of the dts and dtb, when you build your sdcard.
+```
+fdt add 0x81EF0000
+fdt memory 0x80000000 0x04000000
+saveenv
+```
 
 ## Simulation
 
