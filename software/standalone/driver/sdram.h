@@ -224,7 +224,7 @@ static void sdram_sdr_init(u32 core,  u32 rl, u32 ctrlBurstLength, u32 phyClkRat
 	case 8: blMod = 3; break;
 	}
 
-    write_u32(rl-1, SYSTEM_SDRAM_A_APB + SDRAM_READ_LATENCY);
+    write_u32(rl-1, core + SDRAM_READ_LATENCY);
 
     write_u32(0, core + SDRAM_SOFT_CLOCKING); sdram_udelay(100);
     write_u32(SDRAM_CKE, core + SDRAM_SOFT_CLOCKING); sdram_udelay(100);
