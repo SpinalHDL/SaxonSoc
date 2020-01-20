@@ -1,6 +1,6 @@
 package saxon.board.scarab
 
-import saxon.{ResetSensitivity, _}
+import saxon._
 import spinal.core._
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
@@ -8,11 +8,14 @@ import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
+import spinal.lib.memory.sdram._
 import spinal.lib.memory.sdram.sdr._
-import spinal.lib.memory.sdram.sdr.sim.SdramModel
+import spinal.lib.memory.sdram.sdr.sim._
+import spinal.lib.com.spi._
 
 class MS6PLinuxSystem extends SaxonSocLinux{
   //Add components
+  val ramA = BmbOnChipRamGenerator(0x20000000l)
   val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
@@ -20,9 +23,15 @@ class MS6PLinuxSystem extends SaxonSocLinux{
 
   //Interconnect specification
   interconnect.addConnection(
-    cpu.iBus -> List(sdramA.bmb),
-    cpu.dBus -> List(sdramA.bmb, peripheralBridge.input)
+    //cpu.iBus -> List(sdramA.bmb),
+    //cpu.dBus -> List(sdramA.bmb, peripheralBridge.input)
+    cpu.iBus -> List(ramA.bmb, sdramA.bmb),
+    cpu.dBus -> List(ramA.bmb, sdramA.bmb, peripheralBridge.input)
   )
+  interconnect.setConnector(sdramA.bmb){case (m,s) =>
+    m.cmd >-> s.cmd
+    m.rsp << s.rsp
+  }
 }
 
 class MS6PLinux extends Generator{
@@ -54,18 +63,19 @@ case class MS6PLinuxPll() extends BlackBox{
   val rst = in Bool()
   val outclk_0 = out Bool()
   val outclk_1 = out Bool()
-  val outclk_2 = out Bool()
-  val outclk_3 = out Bool()
   val locked = out Bool()
 }
 
-
 object MS6PLinuxSystem{
-  def default(g : MS6PLinuxSystem, clockCtrl : ClockDomainGenerator) = g {
+  def default(g : MS6PLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
     import g._
 
-    cpu.config.load(VexRiscvConfigs.linux)
+    cpu.config.load(VexRiscvConfigs.linux(0x20000000l))
     cpu.enableJtag(clockCtrl)
+
+    ramA.dataWidth.load(32)
+    ramA.size.load(2 KiB)
+    ramA.hexInit.load(null)
 
     sdramA.layout.load(W9825G6JH6.layout)
     sdramA.timings.load(W9825G6JH6.timingGrade7)
@@ -89,13 +99,13 @@ object MS6PLinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 0
+          ssWidth = 1
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
       rspFifoDepth = 256
     )
-    spiA.inferSpiSdrIo()
+    if(inferSpiAPhy) spiA.inferSpiSdrIo()
 
     spiB.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
       SpiXdrMasterCtrl.Parameters(
@@ -111,7 +121,7 @@ object MS6PLinuxSystem{
       rspFifoDepth = 256
     )
     spiB.inferSpiSdrIo()
-    spiB.produce(RegNext(spiB.phy.sclk.write(0)).asOutput.setName("system_spiB_spi_sclk2"))
+    //spiB.produce(RegNext(spiB.phy.sclk.write(0)).asOutput.setName("system_spiB_spi_sclk2"))
 
 
 
@@ -127,6 +137,7 @@ object MS6PLinux {
     clockCtrl.clkFrequency.load(50 MHz)
     clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
     MS6PLinuxSystem.default(system, clockCtrl)
+    system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     g
   }
 
@@ -145,13 +156,23 @@ object MS6PLinuxSystemSim {
     val simConfig = SimConfig
     simConfig.allOptimisation
     simConfig.withWave
+
+    val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
+    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v",  "sd_phy.v", "sd_top.v", "sd_wishbone.v")
+    sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
+    simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
+    simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
+
     simConfig.compile(new MS6PLinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
       clockCtrl.makeExternal(ResetSensitivity.HIGH)
       clockCtrl.powerOnReset.load(true)
       clockCtrl.clkFrequency.load(50 MHz)
-      MS6PLinuxSystem.default(this, clockCtrl)
+      clockCtrl.resetHoldDuration.load(15)
+      val sdcard = SdcardEmulatorGenerator()
+      sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
+      MS6PLinuxSystem.default(this, clockCtrl,inferSpiAPhy = false)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
@@ -169,6 +190,12 @@ object MS6PLinuxSystemSim {
           sleep(systemClkPeriod*100)
         }
       }
+
+      val sdcard = SdcardEmulatorIoSpinalSim(
+        io = dut.sdcard.io,
+        nsPeriod = 1000,
+        storagePath = "../sdcard/image"
+      )
 
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,
@@ -194,9 +221,8 @@ object MS6PLinuxSystemSim {
       val linuxPath = "../buildroot/output/images/"
       sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       sdram.loadBin(0x00400000, linuxPath + "Image")
-      sdram.loadBin(0x007F0000, linuxPath + "dtb")
+      sdram.loadBin(0x00FF0000, linuxPath + "dtb")
       sdram.loadBin(0x00800000, linuxPath + "rootfs.cpio")
-
     }
   }
 }
