@@ -1,0 +1,4 @@
+read_verilog TangLinux.v
+read_verilog top.v
+synth_anlogic -top top
+write_verilog full.v

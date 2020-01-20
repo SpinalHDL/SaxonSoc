@@ -1,0 +1,11 @@
+set_pin_assignment {CLK_24} { LOCATION = K14; } ##24MHZ
+#set_pin_assignment {RST_N} { LOCATION = K16; } ##USER_KEY
+set_pin_assignment {RGB_LED[0]} { LOCATION = R3;  }	##LED_R
+set_pin_assignment {RGB_LED[1]} { LOCATION = J14;  } ##LED_G
+set_pin_assignment {RGB_LED[2]} { LOCATION = P13;  } ##LED_B
+set_pin_assignment {U0_RX} { LOCATION = H13; } ##RX
+set_pin_assignment {U0_TX} { LOCATION = J13; } ##TX
+set_pin_assignment {TMS} { LOCATION = C9; } ##TMS
+set_pin_assignment {TDI} { LOCATION = B6; } ##TDI
+set_pin_assignment {TCK} { LOCATION = C5; } ##TCK
+set_pin_assignment {TDO} { LOCATION = A4; } ##TDO
