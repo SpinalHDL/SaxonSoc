@@ -21,6 +21,10 @@ spi-flash-sw:
 	(cd $(ROOT)/../u-boot;CROSS_COMPILE=$(RISCV_BIN) make saxon_arty7_defconfig)
 	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot -j$(nproc)
 
+sdcard:
+	make -C $(ROOT) formatsdcard
+	make -C $(ROOT) linux2sdcard
+
 generate:
 	(cd ../../..; sbt "runMain saxon.board.digilent.Arty7Linux")
 
