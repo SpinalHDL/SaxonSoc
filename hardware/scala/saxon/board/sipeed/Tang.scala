@@ -1,6 +1,6 @@
-package saxon.board.scarab
+package saxon.board.sipeed
 
-import saxon._
+import saxon.{ResetSensitivity, _}
 import spinal.core._
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
@@ -8,12 +8,10 @@ import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
-import spinal.lib.memory.sdram._
 import spinal.lib.memory.sdram.sdr._
-import spinal.lib.memory.sdram.sdr.sim._
-import spinal.lib.com.spi._
+import spinal.lib.memory.sdram.sdr.sim.SdramModel
 
-class MS6PLinuxSystem extends SaxonSocLinux{
+class TangLinuxSystem extends SaxonSocLinux{
   //Add components
   val ramA = BmbOnChipRamGenerator(0x20000000l)
   val sdramA = SdramSdrBmbGenerator(0x80000000l)
@@ -34,22 +32,22 @@ class MS6PLinuxSystem extends SaxonSocLinux{
   }
 }
 
-class MS6PLinux extends Generator{
+class TangLinux extends Generator{
   val clockCtrl = ClockDomainGenerator()
   clockCtrl.resetHoldDuration.load(255)
   clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
 
-  val system = new MS6PLinuxSystem()
+  val system = new TangLinuxSystem()
   system.onClockDomain(clockCtrl.clockDomain)
 
   val clocking = add task new Area{
-    val CLOCK_50 = in Bool()
+    val CLOCK_24 = in Bool()
     val resetN = in Bool()
     val sdramClk = out Bool()
 
-    val pll = MS6PLinuxPll()
-    pll.refclk := CLOCK_50
+    val pll = TangLinuxPll()
+    pll.refclk := CLOCK_24
     pll.rst := False
     sdramClk := pll.outclk_1
     clockCtrl.clock.load(pll.outclk_0)
@@ -57,7 +55,7 @@ class MS6PLinux extends Generator{
   }
 }
 
-case class MS6PLinuxPll() extends BlackBox{
+case class TangLinuxPll() extends BlackBox{
   setDefinitionName("pll_0002")
   val refclk = in Bool()
   val rst = in Bool()
@@ -66,8 +64,8 @@ case class MS6PLinuxPll() extends BlackBox{
   val locked = out Bool()
 }
 
-object MS6PLinuxSystem{
-  def default(g : MS6PLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
+object TangLinuxSystem{
+  def default(g : TangLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.linux(0x20000000l))
@@ -130,25 +128,25 @@ object MS6PLinuxSystem{
 }
 
 
-object MS6PLinux {
+object TangLinux {
   //Function used to configure the SoC
-  def default(g : MS6PLinux) = g{
+  def default(g : TangLinux) = g{
     import g._
-    clockCtrl.clkFrequency.load(50 MHz)
+    clockCtrl.clkFrequency.load(24 MHz)
     clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
-    MS6PLinuxSystem.default(system, clockCtrl)
+    TangLinuxSystem.default(system, clockCtrl)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     g
   }
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new MS6PLinux()).toComponent()))
-    BspGenerator("MS6PLinux", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
+    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new TangLinux()).toComponent()))
+    BspGenerator("TangLinux", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
   }
 }
 
-object MS6PLinuxSystemSim {
+object TangLinuxSystemSim {
   import spinal.core.sim._
 
   def main(args: Array[String]): Unit = {
@@ -163,16 +161,16 @@ object MS6PLinuxSystemSim {
     simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
     simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
 
-    simConfig.compile(new MS6PLinuxSystem(){
+    simConfig.compile(new TangLinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
       clockCtrl.makeExternal(ResetSensitivity.HIGH)
       clockCtrl.powerOnReset.load(true)
-      clockCtrl.clkFrequency.load(50 MHz)
+      clockCtrl.clkFrequency.load(24 MHz)
       clockCtrl.resetHoldDuration.load(15)
       val sdcard = SdcardEmulatorGenerator()
       sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
-      MS6PLinuxSystem.default(this, clockCtrl,inferSpiAPhy = false)
+      TangLinuxSystem.default(this, clockCtrl,inferSpiAPhy = false)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
