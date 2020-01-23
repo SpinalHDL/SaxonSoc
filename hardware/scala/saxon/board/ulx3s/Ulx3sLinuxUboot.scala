@@ -119,8 +119,10 @@ object Ulx3sLinuxUbootSystem{
 
     uartB.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,
-      txFifoDepth = 128,
-      rxFifoDepth = 128
+      txFifoDepth = 512,
+      rxFifoDepth = 512,
+      writeableConfig = true,
+      clockDividerWidth = 20
     )
 
     uartB.connectInterrupt(plic, 2)
