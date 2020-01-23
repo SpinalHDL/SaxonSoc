@@ -28,8 +28,8 @@ sdcard:
 generate:
 	(cd ../../..; sbt "runMain saxon.board.digilent.Arty7Linux")
 
-$(TOPV) : $(SOCMEM)
-	generate
+$(TOPV) : $(SOCMEM) generate
+
 
 .PHONY: $(SOCMEMSRC)
 $(SOCMEMSRC):

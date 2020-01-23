@@ -214,10 +214,10 @@ Out:   serial@10010000
 Err:   serial@10010000
 Hit any key to stop autoboot:  0
 ```
-and after about 6 minutes...
+and after some time... (depends mostly on "spi-max-frequency" set in u-boot/drivers/spi/vexriscv_spi.c)
 ```
-4676772 bytes read in 380006 ms (11.7 KiB/s)
-2632 bytes read in 341 ms (6.8 KiB/s)
+4676772 bytes read in 2736 ms (1.6 MiB/s)
+2632 bytes read in 5 ms (513.7 KiB/s)
 ## Booting kernel from Legacy Image at 80000000 ...
    Image Name:   Linux
    Image Type:   RISC-V Linux Kernel Image (uncompressed)
