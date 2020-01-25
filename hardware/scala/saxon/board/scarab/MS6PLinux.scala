@@ -1,6 +1,6 @@
 package saxon.board.scarab
 
-import saxon._
+import saxon.{ResetSensitivity, _}
 import spinal.core._
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
@@ -8,10 +8,8 @@ import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
-import spinal.lib.memory.sdram._
 import spinal.lib.memory.sdram.sdr._
-import spinal.lib.memory.sdram.sdr.sim._
-import spinal.lib.com.spi._
+import spinal.lib.memory.sdram.sdr.sim.SdramModel
 
 class MS6PLinuxSystem extends SaxonSocLinux{
   //Add components
@@ -23,15 +21,9 @@ class MS6PLinuxSystem extends SaxonSocLinux{
 
   //Interconnect specification
   interconnect.addConnection(
-    //cpu.iBus -> List(sdramA.bmb),
-    //cpu.dBus -> List(sdramA.bmb, peripheralBridge.input)
     cpu.iBus -> List(ramA.bmb, sdramA.bmb),
     cpu.dBus -> List(ramA.bmb, sdramA.bmb, peripheralBridge.input)
   )
-  interconnect.setConnector(sdramA.bmb){case (m,s) =>
-    m.cmd >-> s.cmd
-    m.rsp << s.rsp
-  }
 }
 
 class MS6PLinux extends Generator{
@@ -114,16 +106,13 @@ object MS6PLinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 0
+          ssWidth = 1
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
       rspFifoDepth = 256
     )
     spiB.inferSpiSdrIo()
-    //spiB.produce(RegNext(spiB.phy.sclk.write(0)).asOutput.setName("system_spiB_spi_sclk2"))
-
-
 
     g
   }

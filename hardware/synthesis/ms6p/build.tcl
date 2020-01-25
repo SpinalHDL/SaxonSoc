@@ -5,7 +5,7 @@
 # 
 # This file contains several Tcl procedures (procs) that you can use to automate
 # your project by running from xtclsh or the Project Navigator Tcl console.
-# If you load this file (using the Tcl command: source make.tcl), then you can
+# If you load this file (using the Tcl command: source build.tcl), then you can
 # run any of the procs included here.
 # 
 # This script is generated assuming your project has HDL sources.
@@ -36,7 +36,7 @@
 # 
 
 set myProject "top"
-set myScript "make.tcl"
+set myScript "build.tcl"
 
 # 
 # Main (top-level) routines
@@ -231,13 +231,9 @@ proc add_source_files {} {
 
    puts "$myScript: Adding sources to project..."
 
-   xfile add "miniSpartan6-plus.ucf"
    xfile add "../../netlist/MS6PLinux.v"
-   xfile add "clock.v"
+   xfile add "miniSpartan6-plus.ucf"
    xfile add "top.v"
-   puts ""
-   puts "WARNING: project contains IP cores, synthesis will fail if any of the cores require regenerating."
-   puts ""
 
    # Set the Top Module as well...
    project set top "top"
@@ -382,7 +378,7 @@ proc set_process_props {} {
    project set "Enable Outputs (Output Events)" "Default (5)" -process "Generate Programming File"
    project set "Wait for DCM and PLL Lock (Output Events)" "Default (NoWait)" -process "Generate Programming File"
    project set "Release Write Enable (Output Events)" "Default (6)" -process "Generate Programming File"
-   project set "Enable Internal Done Pipe" "true" -process "Generate Programming File"
+   project set "Enable Internal Done Pipe" "false" -process "Generate Programming File"
    project set "Drive Awake Pin During Suspend/Wake Sequence" "false" -process "Generate Programming File"
    project set "Enable Suspend/Wake Global Set/Reset" "false" -process "Generate Programming File"
    project set "Enable Multi-Pin Wake-Up Suspend Mode" "false" -process "Generate Programming File"
