@@ -21,15 +21,9 @@ class TangLinuxSystem extends SaxonSocLinux{
 
   //Interconnect specification
   interconnect.addConnection(
-    //cpu.iBus -> List(sdramA.bmb),
-    //cpu.dBus -> List(sdramA.bmb, peripheralBridge.input)
     cpu.iBus -> List(ramA.bmb, sdramA.bmb),
     cpu.dBus -> List(ramA.bmb, sdramA.bmb, peripheralBridge.input)
   )
-  interconnect.setConnector(sdramA.bmb){case (m,s) =>
-    m.cmd >-> s.cmd
-    m.rsp << s.rsp
-  }
 }
 
 class TangLinux extends Generator{
@@ -75,8 +69,8 @@ object TangLinuxSystem{
     ramA.size.load(2 KiB)
     ramA.hexInit.load(null)
 
-    sdramA.layout.load(W9825G6JH6.layout)
-    sdramA.timings.load(W9825G6JH6.timingGrade7)
+    sdramA.layout.load(EG4S20.layout)
+    sdramA.timings.load(EG4S20.timingGrade7)
 
     uartA.parameter load UartCtrlMemoryMappedConfig(
       baudrate = 115200,

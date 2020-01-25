@@ -25,21 +25,36 @@ module pll_0002 (
   output outclk_1,
   output locked
 );
-  assign outclk_0 = refclk;
+EG_LOGIC_ODDR ExportClock(
+  .q(outclk_1),
+  .clk(outclk_0),
+  .d1(1'b0),
+  .d0(1'b1),
+  .rst(rst)
+);
+EG_LOGIC_BUFG BufferClock(
+  .o(outclk_0),
+  .i(refclk)
+);
 endmodule
+
 module top (
   input wire CLK_24,
+  input wire RST_N,
   input wire U0_RX,
   output wire U0_TX,
   input wire TMS,
   input wire TCK,
   input wire TDI,
   output wire TDO,
+  output SD_CLK,
+  output SD_D3,
+  inout SD_D0,
+  inout SD_CMD,
   output wire[2:0] RGB_LED
 );
 
 wire sdram_clk;
-
 wire sdram_ras_n;
 wire sdram_cas_n;
 wire sdram_we_n;
@@ -67,29 +82,33 @@ EG_PHY_SDRAM_2M_32 U_EG_PHY_SDRAM_2M_32(
 );
 
 TangLinux SoC(
-	.CLOCK_24(CLK_24),
-	.resetN(1'b1),
-	.system_uartA_uart_txd(U0_TX),
-	.system_uartA_uart_rxd(U0_RX),
-	.system_cpu_tms(TMS),
-	.system_cpu_tdi(TDI),
-	.system_cpu_tdo(TDO),
-	.system_cpu_tck(TCK),
+  .CLOCK_24(CLK_24),
+  .resetN(RST_N),
 
-	.sdramClk(sdram_clk),
-	.system_sdramA_sdram_ADDR(sdram_addr),
-	.system_sdramA_sdram_BA(sdram_ba),
-	.system_sdramA_sdram_DQ(sdram_dq),
-	.system_sdramA_sdram_DQM(sdram_dm),
-	.system_sdramA_sdram_CASn(sdram_cas_n),
-	.system_sdramA_sdram_CKE(sdram_cke),
-	.system_sdramA_sdram_CSn(sdram_cs_n),
-	.system_sdramA_sdram_RASn(sdram_ras_n),
-	.system_sdramA_sdram_WEn(sdram_we_n),
+  .system_uartA_uart_txd(U0_TX),
+  .system_uartA_uart_rxd(U0_RX),
 
-	.system_gpioA_gpio(RGB_LED),
-	.system_spiA_spi_sclk(),
-	.system_spiA_spi_data()
+  .system_cpu_tms(TMS),
+  .system_cpu_tdi(TDI),
+  .system_cpu_tdo(TDO),
+  .system_cpu_tck(TCK),
+
+  .sdramClk(sdram_clk),
+  .system_sdramA_sdram_ADDR(sdram_addr),
+  .system_sdramA_sdram_BA(sdram_ba),
+  .system_sdramA_sdram_DQ(sdram_dq),
+  .system_sdramA_sdram_DQM(sdram_dm),
+  .system_sdramA_sdram_CASn(sdram_cas_n),
+  .system_sdramA_sdram_CKE(sdram_cke),
+  .system_sdramA_sdram_CSn(sdram_cs_n),
+  .system_sdramA_sdram_RASn(sdram_ras_n),
+  .system_sdramA_sdram_WEn(sdram_we_n),
+
+  .system_spiA_spi_ss({SD_D3}),
+  .system_spiA_spi_sclk(SD_CLK),
+  .system_spiA_spi_data({SD_D0, SD_CMD}),
+
+  .system_gpioA_gpio(RGB_LED)
 );
 
 endmodule
