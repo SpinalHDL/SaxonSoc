@@ -41,16 +41,19 @@ endmodule
 module top (
   input wire CLK_24,
   input wire RST_N,
-  input wire U0_RX,
-  output wire U0_TX,
+  input wire UART1_RX,
+  output wire UART1_TX,
   input wire TMS,
   input wire TCK,
   input wire TDI,
   output wire TDO,
-  output SD_CLK,
-  output SD_D3,
-  inout SD_D0,
-  inout SD_CMD,
+  output wire SD_CLK,
+  output wire SD_D3,
+  inout wire SD_D0,
+  inout wire SD_CMD,
+  output wire NOR_CLK,
+  output wire NOR_CS,
+  inout wire[3:0] NOR_IO,
   output wire[2:0] RGB_LED
 );
 
@@ -85,8 +88,8 @@ TangLinux SoC(
   .CLOCK_24(CLK_24),
   .resetN(RST_N),
 
-  .system_uartA_uart_txd(U0_TX),
-  .system_uartA_uart_rxd(U0_RX),
+  .system_uartA_uart_txd(UART1_TX),
+  .system_uartA_uart_rxd(UART1_RX),
 
   .system_cpu_tms(TMS),
   .system_cpu_tdi(TDI),
@@ -107,6 +110,10 @@ TangLinux SoC(
   .system_spiA_spi_ss({SD_D3}),
   .system_spiA_spi_sclk(SD_CLK),
   .system_spiA_spi_data({SD_D0, SD_CMD}),
+
+  .system_spiB_spi_ss({NOR_CS}),
+  .system_spiB_spi_sclk(NOR_SCK),
+  .system_spiB_spi_data(NOR_IO),
 
   .system_gpioA_gpio(RGB_LED)
 );

@@ -104,18 +104,15 @@ object TangLinuxSystem{
         dataWidth = 8,
         timerWidth = 12,
         spi = SpiXdrParameter(
-          dataWidth = 2,
+          dataWidth = 4,
           ioRate = 1,
-          ssWidth = 0
+          ssWidth = 1
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
       rspFifoDepth = 256
     )
     spiB.inferSpiSdrIo()
-    //spiB.produce(RegNext(spiB.phy.sclk.write(0)).asOutput.setName("system_spiB_spi_sclk2"))
-
-
 
     g
   }
