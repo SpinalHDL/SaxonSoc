@@ -139,6 +139,27 @@ After programming the bootloader included in the bit file is started
 (no visual feedback of any kind).
 It shall launch the software installed in the QSPI flash.
 
+### SD card Programming
+Identify the sdcard in your system, usually something like `sdb` or `mmcblk0`.
+One way is to insert it and type `dmesg|tail`:
+```
+user@lafite:~/Downloads/SaxonSoc/hardware/synthesis/arty_a7$ dmesg|tail
+[14396.176825] sd 1:0:0:0: [sdb] Mode Sense: 03 00 00 00
+[14396.176965] sd 1:0:0:0: [sdb] No Caching mode page found
+[14396.176973] sd 1:0:0:0: [sdb] Assuming drive cache: write through
+[14396.179585]  sdb: sdb1 sdb2
+[14396.181975] sd 1:0:0:0: [sdb] Attached SCSI removable disk
+[14396.633059] EXT4-fs (sdb1): mounting ext2 file system using the ext4 subsystem
+[14396.641204] EXT4-fs (sdb1): mounted filesystem without journal. Opts: (null)
+[14396.650952] EXT4-fs (sdb2): mounting ext2 file system using the ext4 subsystem
+[14396.652644] EXT4-fs (sdb2): warning: mounting unchecked fs, running e2fsck is recommended
+[14396.656826] EXT4-fs (sdb2): mounted filesystem without journal. Opts: (null)
+```
+So here the sdcard is `sdb`. Program it as follow:
+```
+make sdcard SDCARD=sdb
+```
+
 ## Connect
 
 After programming you should be able to connect to the serial port and have some output.
@@ -173,4 +194,68 @@ Hit any key to stop autoboot:  2  1  0
 Wrong Image Format for bootm command
 ERROR: can't get kernel image!
 =>
+```
+
+Output when sdcard is present:
+```
+*** VexRiscv BIOS ***
+*** Supervisor ***
+
+
+U-Boot 2019.10-02536-gefeedc3 (Jan 18 2020 - 12:51:00 +0100)
+
+DRAM:  31.9 MiB
+MMC:   spi@10020000:mmc@1: 0
+Loading Environment from EXT4... ** File not found /uboot.env **
+
+** Unable to read "/uboot.env" from mmc0:1 **
+In:    serial@10010000
+Out:   serial@10010000
+Err:   serial@10010000
+Hit any key to stop autoboot:  0
+```
+and after some time... (depends mostly on "spi-max-frequency" set in u-boot/drivers/spi/vexriscv_spi.c)
+```
+4676772 bytes read in 2736 ms (1.6 MiB/s)
+2632 bytes read in 5 ms (513.7 KiB/s)
+## Booting kernel from Legacy Image at 80000000 ...
+   Image Name:   Linux
+   Image Type:   RISC-V Linux Kernel Image (uncompressed)
+   Data Size:    4676708 Bytes = 4.5 MiB
+   Load Address: 80000000
+   Entry Point:  80000000
+   Verifying Checksum ... OK
+## Flattened Device Tree blob at 81e00000
+   Booting using the fdt blob at 0x81e00000
+   Loading Kernel Image
+   Using Device Tree in place at 81e00000, end 81e03a47
+
+Starting kernel ...
+
+[    0.000000] No DTB passed to the kernel
+[    0.000000] Linux version 5.0.9 (user@lafite) (gcc version 8.3.0 (Buildroot 2019.05-git-00657-g2b0446e)) #1 Fri Jan 17 22:36:11 CET 2020
+...
+[    1.439131] This architecture does not have kernel memory protection.
+[    1.441785] Run /sbin/init as init process
+Starting syslogd: OK
+Starting klogd: OK
+Initializing random number generator... [    4.265503] random: dd: uninitialized urandom read (512 bytes read)
+done.
+Starting network: OK
+
+Welcome to Buildroot
+buildroot login:
+```
+At this point you can login as root (no password)
+```
+buildroot login: root
+            ___                                             ___     ___     ___   
+    o O O  / __|   __ _    __ __    ___    _ _      ___    / __|   / _ \   / __|  
+   o       \__ \  / _` |   \ \ /   / _ \  | ' \    |___|   \__ \  | (_) | | (__   
+  TS__[O]  |___/  \__,_|   /_\_\   \___/  |_||_|   _____   |___/   \___/   \___|  
+ {======|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|     |_|"""""|_|"""""|_|"""""|
+./o--000'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'
+
+login[71]: root login on 'hvc0'
+root@buildroot:~#
 ```
