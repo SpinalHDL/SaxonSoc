@@ -19,19 +19,18 @@
 //
 ////////////////////////////////////////////////////////////////////////
 module pll_0002 ( 
-  input refclk,
-  input rst,
-  output outclk_0,
-  output outclk_1,
-  output locked
+	input refclk,
+	input rst,
+	output outclk_0,
+	output outclk_1,
+	output locked
 );
 
-  Clock Clock(
-	.CLK_IN1(refclk),
-	.CLK_OUT1(outclk_0),
-	.CLK_OUT2());
+	BUFG BufClock(
+	.O(outclk_0),
+	.I(refclk));
 
-  ODDR2 ExportClock(
+	ODDR2 ExportClock(
 	.D0(1'b1),
 	.D1(1'b0),
 	.C0(outclk_0),
@@ -41,42 +40,45 @@ module pll_0002 (
 	.R(1'b0),
 	.CE(1'b1));
 
-	//assign outclk_0 = refclk;
-
 endmodule
 
 module top
 (
-  input CLK50,
-  
-  input  UART0_RXD,
-  output UART0_TXD,
- 
-  input  TCK,
-  input  TDI,
-  output TDO,
-  input  TMS,
+	input CLK50,
 
-  output [7:0] LEDS,
+	input  UART0_RXD,
+	output UART0_TXD,
 
-  output [12:0] SDRAM_ADDR,
-  inout  [15:0] SDRAM_DATA,
-  output [1:0]  SDRAM_BA,
-  output [1:0]  SDRAM_DQM,
-  output SDRAM_CLK,
-  output SDRAM_CKE,
-  output SDRAM_CSn,
-  output SDRAM_RASn,
-  output SDRAM_CASn,
-  output SDRAM_WEn,
+	input  TCK,
+	input  TDI,
+	output TDO,
+	input  TMS,
+
+	output [7:0] LEDS,
+
+	output [12:0] SDRAM_ADDR,
+	inout  [15:0] SDRAM_DATA,
+	output [1:0]  SDRAM_BA,
+	output [1:0]  SDRAM_DQM,
+	output SDRAM_CLK,
+	output SDRAM_CKE,
+	output SDRAM_CSn,
+	output SDRAM_RASn,
+	output SDRAM_CASn,
+	output SDRAM_WEn,
 
 	output SD_CLK,
 	output SD_DAT3,
 	inout SD_DAT0,
-	inout SD_CMD
+	inout SD_CMD,
+
+	output FLASH_CS,
+	output FLASH_CCLK,
+	inout FLASH_MOSI,
+	inout FLASH_MISO
 );
 
-  MS6PLinux SoC(
+	MS6PLinux SoC(
 	.resetN(1'b1),
 	.CLOCK_50(CLK50),
 	.sdramClk(SDRAM_CLK),
@@ -98,6 +100,10 @@ module top
 	.system_gpioA_gpio(LEDS),
 	.system_spiA_spi_ss({SD_DAT3}),
 	.system_spiA_spi_sclk(SD_CLK),
-	.system_spiA_spi_data({SD_DAT0, SD_CMD}));
+	.system_spiA_spi_data({SD_DAT0, SD_CMD}),
+	.system_spiB_spi_ss(FLASH_CS),
+	.system_spiB_spi_sclk(FLASH_CCLK),
+	.system_spiB_spi_data({FLASH_MISO, FLASH_MOSI})
+	);
 
 endmodule
