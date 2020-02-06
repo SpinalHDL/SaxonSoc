@@ -5,9 +5,10 @@ lazy val root = (project in file(".")).
       scalaVersion := "2.11.12",
       version      := "1.0.0"
     )),
+    scalacOptions +=  s"-Xplugin:${new File(baseDirectory.value + "/ext/SpinalHDL/idslplugin/target/scala-2.11/spinalhdl-idsl-plugin_2.11-1.3.9.jar")}",
+    scalacOptions += s"-Xplugin-require:idsl-plugin",
+
     libraryDependencies ++= Seq(
-//      "com.github.spinalhdl" % "spinalhdl-core_2.11" % "1.3.1",
-//      "com.github.spinalhdl" % "spinalhdl-lib_2.11" % "1.3.1",
       "org.scalatest" % "scalatest_2.11" % "2.2.1",
       "org.yaml" % "snakeyaml" % "1.8"
     ),
