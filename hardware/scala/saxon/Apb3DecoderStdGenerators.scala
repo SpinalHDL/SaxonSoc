@@ -105,6 +105,12 @@ class Apb3SpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Bi
     interruptId = id
   }
 
+  def inferSpiSdrIo() = this(Dependable(phy)(spi.load(master(phy.toSpi().setPartialName(spi, ""))))) //TODO automated naming
+  def inferSpiIce40() = this(Dependable(phy)(spi.load{
+    phy.toSpiIce40().asInOut().setPartialName(spi, "")
+  }))
+  def phyAsIo() = produceIo(phy.get)
+
   dts(apb) {
     s"""${apb.getName()}: spi@${apbOffset.toString(16)} {
        |  compatible = "spinal-lib,spi-1.0";
@@ -114,11 +120,6 @@ class Apb3SpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Bi
        |}""".stripMargin
   }
 
-  def inferSpiSdrIo() = this(Dependable(phy)(spi.load(master(phy.toSpi().setPartialName(spi, ""))))) //TODO automated naming
-  def inferSpiIce40() = this(Dependable(phy)(spi.load{
-    phy.toSpiIce40().asInOut().setPartialName(spi, "")
-  }))
-  def phyAsIo() = produceIo(phy.get)
 }
 
 

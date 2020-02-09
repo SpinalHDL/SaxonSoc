@@ -12,7 +12,8 @@ import java.io._
 
 import spinal.core.ClockDomain.FixedFrequency
 import spinal.lib.bus.wishbone.{Wishbone, WishboneConfig}
-import spinal.lib.com.spi.ddr.SpiXdrMaster
+import spinal.lib.com.spi.SpiHalfDuplexMaster
+import spinal.lib.com.spi.ddr.{SpiXdrMaster, SpiXdrParameter}
 
 object BspGenerator {
   def apply[T <: Nameable](name : String, root: Generator, memoryView : Handle[T]) {
@@ -64,7 +65,7 @@ object BspGenerator {
       }
       g.tags.foreach {
         case t : Export => rec(camelToUpperCase(t.name), t.value)
-        case t : Dts[Nameable] => dtss(t.node) = t
+        case t : Dts[_] => dtss(t.node) = t
         case t : MemoryConnection[_,_] => connections += t
         case _ =>
       }
@@ -125,3 +126,53 @@ object BspGenerator {
 }
 
 
+
+class SpiPhyDecoderGenerator extends Generator{
+  val phy = createDependency[SpiXdrMaster]
+
+  case class Spec(dataWidth : Int,
+                  ssGen : Boolean,
+                  ssMask : Int,
+                  ssValue : Int,
+                  spi : Handle[SpiXdrMaster])
+
+  val specs = ArrayBuffer[Spec]()
+
+  private def ssFullMask = (1 << phy.p.ssWidth)-1
+
+  def decode(ssMask : Int, ssValue : Int, ssGen : Boolean, dataWidth : Int = -1) : Handle[SpiXdrMaster] = {
+    val spec = Spec(
+      dataWidth = dataWidth,
+      ssGen = ssGen,
+      ssMask = ssMask,
+      ssValue = ssValue,
+      spi = product[SpiXdrMaster]
+    )
+    specs += spec
+    spec.spi
+  }
+
+  def decodeId(ssId : Int, dataWidth : Int = -1) : Handle[SpiXdrMaster] = decode(1 << ssId, 0, true)
+  def decodeNone(dataWidth : Int = -1) : Handle[SpiXdrMaster] = decode(ssFullMask,ssFullMask, false)
+
+  val logic = add task new Area{
+    phy.data.foreach(_.read.assignDontCare())
+    val ports = for(spec <- specs) yield new Area{
+      spec.spi.load(SpiXdrMaster(SpiXdrParameter(
+        dataWidth  = if(spec.dataWidth == -1) phy.p.dataWidth else spec.dataWidth,
+        ioRate     = phy.p.ioRate,
+        ssWidth    = if(spec.ssGen) 1 else 0
+      )))
+      val selected = (phy.ss & spec.ssMask) === spec.ssValue
+      spec.spi.sclk := phy.sclk
+      if(spec.spi.p.ssWidth != 0) spec.spi.ss(0) := !selected
+      for((m,s) <- (phy.data, spec.spi.data).zipped){
+        s.write := m.write
+        s.writeEnable := m.writeEnable
+        when(selected){
+          m.read := s.read
+        }
+      }
+    }
+  }
+}

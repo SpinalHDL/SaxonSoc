@@ -32,6 +32,7 @@ class Arty7LinuxSystem() extends SaxonSocLinux{
     val flash = produce(master(phy.decode(ssId = 0).toSpi()))
     val sdcard = produce(master(phy.decode(ssId = 1).toSpi()))
   }
+  //TODO use SpiPhyDecoderGenerator instead
 
 
   val ramA = BmbOnChipRamGenerator(0x20000000l)
