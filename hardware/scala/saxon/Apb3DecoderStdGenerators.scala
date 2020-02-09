@@ -182,7 +182,7 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
     dependencies += target
 
     //TODO remove the need of delaying stuff for name capture
-    Dependable()(tags += new Export(Apb3PlicGenerator.this.getName() + "_" + target.getName, id))
+    add task(tags += new Export(Apb3PlicGenerator.this.getName() + "_" + target.getName, id))
   }
 
   override def addInterrupt(source : Handle[Bool], id : Int) = {

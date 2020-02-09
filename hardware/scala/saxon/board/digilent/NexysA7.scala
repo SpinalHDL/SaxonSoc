@@ -28,9 +28,9 @@ class NexysA7LinuxSystem() extends SaxonSocLinux{
   //Add components
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = new Apb3SpiGenerator(0x20000){
-    val user = produce(master(phy.withoutSs.toSpi()).setName("system_spiA_user")) //TODO automatic naming
-    val flash = produce(master(phy.decode(ssId = 0).toSpi()).setName("system_spiA_flash")) //TODO automatic naming
-    val sdcard = produce(master(phy.decode(ssId = 1).toSpi()).setName("system_spiA_sdcard")) //TODO automatic naming
+    val user = produce(master(phy.withoutSs.toSpi()))
+    val flash = produce(master(phy.decode(ssId = 0).toSpi()))
+    val sdcard = produce(master(phy.decode(ssId = 1).toSpi()))
   }
 
 
