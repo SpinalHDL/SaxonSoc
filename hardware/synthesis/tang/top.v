@@ -18,26 +18,6 @@
 // Additional Comments: 
 //
 ////////////////////////////////////////////////////////////////////////
-module pll_0002 ( 
-  input refclk,
-  input rst,
-  output outclk_0,
-  output outclk_1,
-  output locked
-);
-EG_LOGIC_ODDR ExportClock(
-  .q(outclk_1),
-  .clk(outclk_0),
-  .d1(1'b0),
-  .d0(1'b1),
-  .rst(rst)
-);
-EG_LOGIC_BUFG BufferClock(
-  .o(outclk_0),
-  .i(refclk)
-);
-endmodule
-
 module top (
   input wire CLK_24,
   input wire RST_N,
