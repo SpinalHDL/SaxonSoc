@@ -31,7 +31,7 @@ object IceStormInOutWrapper {
     c.rework {
       for ((dataParent, count) <- dataParents) {
         dataParent match {
-          case bundle: TriState[Data]   if bundle.writeEnable.isOutput  => {
+          case bundle: TriState[_]   if bundle.writeEnable.isOutput  => {
             if (bundle.read.isInstanceOf[Bits]) {
               val bitsBundle = bundle.asInstanceOf[TriState[Bits]]
               for(i <- 0 until bitsBundle.read.getBitsWidth) {

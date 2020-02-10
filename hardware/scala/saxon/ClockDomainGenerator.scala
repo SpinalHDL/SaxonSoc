@@ -213,6 +213,7 @@ case class ClockDomainResetGenerator() extends Generator {
             case ResetSensitivity.FALL => BufferCC(reset.get).fall
           }
         }
+        case BOOT => ???
       }
       dady.logic.inputResetTrigger setWhen(syncTrigger)
     }
