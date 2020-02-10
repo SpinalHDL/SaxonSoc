@@ -126,8 +126,14 @@ object BspGenerator {
 }
 
 
-
-class SpiPhyDecoderGenerator extends Generator{
+object SpiPhyDecoderGenerator{
+  def apply(phy : Handle[SpiXdrMaster]) : SpiPhyDecoderGenerator = {
+    val g = SpiPhyDecoderGenerator()
+    g.phy.merge(phy)
+    g
+  }
+}
+case class SpiPhyDecoderGenerator() extends Generator{
   val phy = createDependency[SpiXdrMaster]
 
   case class Spec(dataWidth : Int,
@@ -140,7 +146,7 @@ class SpiPhyDecoderGenerator extends Generator{
 
   private def ssFullMask = (1 << phy.p.ssWidth)-1
 
-  def decode(ssMask : Int, ssValue : Int, ssGen : Boolean, dataWidth : Int = -1) : Handle[SpiXdrMaster] = {
+  def whenRaw(ssMask : Int, ssValue : Int, ssGen : Boolean, dataWidth : Int = -1) : Handle[SpiXdrMaster] = {
     val spec = Spec(
       dataWidth = dataWidth,
       ssGen = ssGen,
@@ -152,8 +158,12 @@ class SpiPhyDecoderGenerator extends Generator{
     spec.spi
   }
 
-  def decodeId(ssId : Int, dataWidth : Int = -1) : Handle[SpiXdrMaster] = decode(1 << ssId, 0, true)
-  def decodeNone(dataWidth : Int = -1) : Handle[SpiXdrMaster] = decode(ssFullMask,ssFullMask, false)
+  def phyId(ssId : Int, dataWidth : Int = -1) : Handle[SpiXdrMaster] = whenRaw(1 << ssId, 0, true)
+  def phyNone(dataWidth : Int = -1) : Handle[SpiXdrMaster] = whenRaw(-1,-1, false)
+
+  def spiMasterId(ssId : Int, dataWidth : Int = -1) = phyId(ssId, dataWidth).derivate(phy => master(phy.toSpi()))
+  def spiMasterNone(dataWidth : Int = -1) = phyNone(dataWidth).derivate(phy => master(phy.toSpi()))
+
 
   val logic = add task new Area{
     phy.data.foreach(_.read.assignDontCare())
@@ -163,7 +173,9 @@ class SpiPhyDecoderGenerator extends Generator{
         ioRate     = phy.p.ioRate,
         ssWidth    = if(spec.ssGen) 1 else 0
       )))
-      val selected = (phy.ss & spec.ssMask) === spec.ssValue
+      val ssMask = if(spec.ssMask == -1) ssFullMask else spec.ssMask
+      val ssValue = if(spec.ssValue == -1) ssFullMask else spec.ssValue
+      val selected = (phy.ss & ssMask) === ssValue
       spec.spi.sclk := phy.sclk
       if(spec.spi.p.ssWidth != 0) spec.spi.ss(0) := !selected
       for((m,s) <- (phy.data, spec.spi.data).zipped){
