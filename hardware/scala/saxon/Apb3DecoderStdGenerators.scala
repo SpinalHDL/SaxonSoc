@@ -54,8 +54,6 @@ case class Apb3UartGenerator(apbOffset : Handle[BigInt] = Unset)
        |}""".stripMargin
   }
   export(parameter)
-//  interrupt-parent = <&periph_intc>;
-//  interrupts = <2>;
 }
 
 object Apb3SpiGenerator{
@@ -119,7 +117,6 @@ class Apb3SpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Bi
        |  reg = <0x${apbOffset.toString(16)} 0x1000>;
        |}""".stripMargin
   }
-
 }
 
 
