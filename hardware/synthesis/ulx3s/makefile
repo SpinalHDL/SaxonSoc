@@ -48,8 +48,7 @@ bin/toplevel.config: bin/toplevel.json
 		--lpf ulx3s_v20_linux_uboot.lpf \
 		--$(FPGA_KS) \
 		--freq 50 \
-		--package CABGA381 \
-		--lpf-allow-unconstrained
+		--package CABGA381
 
 bin/toplevel.bit: bin/toplevel.config
 	ecppack --compress --idcode $(IDCODE) $< $@
