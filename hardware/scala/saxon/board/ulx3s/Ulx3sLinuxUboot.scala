@@ -96,7 +96,7 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
 }
 
 object Ulx3sLinuxUbootSystem{
-  def default(g : Ulx3sLinuxUbootSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator, inferSpiAPhy : Boolean = true, sdramSize: Int) = g {
+  def default(g : Ulx3sLinuxUbootSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator, sdramSize: Int) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.ulx3sLinux(0x20000000l))
@@ -226,7 +226,7 @@ object Ulx3sLinuxUbootSystemSim {
 
       val sdcard = SdcardEmulatorGenerator()
       sdcard.connectSpi(spiA.flash, spiA.flash.derivate(_.ss.lsb))
-      Ulx3sLinuxUbootSystem.default(this, globalCd, systemCd, sdramSize = 32, inferSpiAPhy = false)
+      Ulx3sLinuxUbootSystem.default(this, globalCd, systemCd, sdramSize = 32)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.globalCd.outputClockDomain.frequency.getValue.toDouble).toLong
