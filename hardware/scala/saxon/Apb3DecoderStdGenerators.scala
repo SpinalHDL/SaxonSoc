@@ -184,7 +184,7 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
   }
 
   override def addInterrupt(source : Handle[Bool], id : Int) = {
-    this.dependencies += wrap(new Generator {
+    this.dependencies += new Generator {
       dependencies += source
       add task new Area {
         gateways += PlicGatewayActiveHigh(
@@ -195,7 +195,7 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
 
         tags += new Export(Apb3PlicGenerator.this.getName() + "_" + source.getName, id)
       }
-    })
+    }
   }
 
   override def getBus(): Handle[Nameable] = apb
