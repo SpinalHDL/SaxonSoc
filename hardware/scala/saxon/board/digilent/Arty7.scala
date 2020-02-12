@@ -257,7 +257,10 @@ object Arty7LinuxSystemSim {
       )
 
       val systemCd = ClockDomainResetGenerator()
+      systemCd.holdDuration.load(63)
       systemCd.setInput(debugCd)
+
+      this.onClockDomain(systemCd.outputClockDomain)
 
       val phy = RtlPhyGenerator()
       phy.layout.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))

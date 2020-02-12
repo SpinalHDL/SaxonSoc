@@ -4,16 +4,16 @@ set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 3.3 [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 
-create_clock -name GCLK100 -period 10.0 [get_nets GCLK100]
+create_clock -name clocking_GCLK100 -period 10.0 [get_nets clocking_GCLK100]
 #TODO
 #set_clock_groups -asynchronous -group pll_CLKOUT0 -group pll_CLKOUT1
 
 # JTAG
-set_property -dict { PACKAGE_PIN T18   IOSTANDARD LVCMOS33 } [get_ports { system_cpu_tms }]; #IO_L7N_T1_D10_14 Sch=ck_io[38]
-set_property -dict { PACKAGE_PIN R18   IOSTANDARD LVCMOS33 } [get_ports { system_cpu_tdo }]; #IO_L7P_T1_D09_14 Sch=ck_io[39]
-set_property -dict { PACKAGE_PIN P18   IOSTANDARD LVCMOS33 } [get_ports { system_cpu_tdi }]; #IO_L9N_T1_DQS_D13_14 Sch=ck_io[40]
-set_property -dict { PACKAGE_PIN N17   IOSTANDARD LVCMOS33 } [get_ports { system_cpu_tck }]; #IO_L9P_T1_DQS_14 Sch=ck_io[41]
-set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets system_cpu_tck_IBUF]
+set_property -dict { PACKAGE_PIN T18   IOSTANDARD LVCMOS33 } [get_ports { system_cpu_jtag_tms }]; #IO_L7N_T1_D10_14 Sch=ck_io[38]
+set_property -dict { PACKAGE_PIN R18   IOSTANDARD LVCMOS33 } [get_ports { system_cpu_jtag_tdo }]; #IO_L7P_T1_D09_14 Sch=ck_io[39]
+set_property -dict { PACKAGE_PIN P18   IOSTANDARD LVCMOS33 } [get_ports { system_cpu_jtag_tdi }]; #IO_L9N_T1_DQS_D13_14 Sch=ck_io[40]
+set_property -dict { PACKAGE_PIN N17   IOSTANDARD LVCMOS33 } [get_ports { system_cpu_jtag_tck }]; #IO_L9P_T1_DQS_14 Sch=ck_io[41]
+set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets system_cpu_jtag_tck_IBUF]
 
 # UART
 set_property -dict { PACKAGE_PIN D10   IOSTANDARD LVCMOS33 } [get_ports { system_uartA_uart_txd }]; #IO_L19N_T3_VREF_16 Sch=uart_rxd_out
@@ -53,9 +53,9 @@ set_property -dict { PACKAGE_PIN F1    IOSTANDARD LVCMOS33 } [get_ports { system
 #set_property -dict { PACKAGE_PIN C1    IOSTANDARD LVCMOS33 } [get_ports { ck_ss }]; #IO_L16N_T2_35 Sch=ck_ss
 
 set_property -dict { PACKAGE_PIN U11   IOSTANDARD LVCMOS33 } [get_ports { inWfi }]; #IO_L19N_T3_A09_D25_VREF_14 Sch=ck_io[26]
- 
 
-set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports GCLK100]
+
+set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports clocking_GCLK100]
 
 create_clock -period 3.333 -name {sdramDomain_phyA_sdram_DQS[0]} -waveform {0.000 1.667} [get_ports {sdramDomain_phyA_sdram_DQS[0]}]
 create_clock -period 3.333 -name {sdramDomain_phyA_sdram_DQS[1]} -waveform {0.000 1.667} [get_ports {sdramDomain_phyA_sdram_DQS[1]}]
