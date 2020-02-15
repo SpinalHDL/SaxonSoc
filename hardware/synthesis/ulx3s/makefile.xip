@@ -28,8 +28,7 @@ bin/toplevel.config: bin/toplevel.json
 		--lpf ulx3s_v20_xip.lpf \
 		--25k \
 		--freq 50 \
-		--package CABGA381 \
-		--lpf-allow-unconstrained
+		--package CABGA381
 
 bin/toplevel.bit: bin/toplevel.config
 	ecppack --idcode $(IDCODE) $< $@
