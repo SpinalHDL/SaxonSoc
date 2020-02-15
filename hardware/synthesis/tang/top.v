@@ -65,18 +65,18 @@ EG_PHY_SDRAM_2M_32 U_EG_PHY_SDRAM_2M_32(
 );
 
 TangLinux SoC(
-  .CLOCK_24(CLK_24),
-  .resetN(RST_N),
+  .clocking_CLOCK_24(CLK_24),
+  .clocking_resetN(RST_N),
 
   .system_uartA_uart_txd(UART1_TX),
   .system_uartA_uart_rxd(UART1_RX),
 
-  .system_cpu_tms(TMS),
-  .system_cpu_tdi(TDI),
-  .system_cpu_tdo(TDO),
-  .system_cpu_tck(TCK),
+  .system_cpu_jtag_tms(TMS),
+  .system_cpu_jtag_tdi(TDI),
+  .system_cpu_jtag_tdo(TDO),
+  .system_cpu_jtag_tck(TCK),
 
-  .sdramClk(sdram_clk),
+  .clocking_sdramClk(sdram_clk),
   .system_sdramA_sdram_ADDR(sdram_addr),
   .system_sdramA_sdram_BA(sdram_ba),
   .system_sdramA_sdram_DQ(sdram_dq),

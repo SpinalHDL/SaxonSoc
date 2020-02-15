@@ -14,8 +14,7 @@ import spinal.lib.blackbox.anlogic.eagle._
 
 class TangLinuxSystem extends SaxonSocLinux{
   //Add components
-  //val ramA = BmbEg4S20Bram32Generator(0x20000000l)
-  val ramA = BmbOnChipRamGenerator(0x20000000l)
+  val ramA = BmbEg4S20Bram32Generator(0x20000000l)
   val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
@@ -63,9 +62,7 @@ object TangLinuxSystem{
     cpu.config.load(VexRiscvConfigs.linux(0x20000000l))
     cpu.enableJtag(clockCtrl)
 
-    ramA.dataWidth.load(32)
-    ramA.size.load(32 KiB)
-    ramA.hexInit.load(null)
+    ramA.size.load(64 KiB)
 
     sdramA.layout.load(EG4S20.layout)
     sdramA.timings.load(EG4S20.timingGrade7)
@@ -118,13 +115,12 @@ object TangLinuxSystem{
 
 
 object TangLinux {
-  //Function used to configure the SoC
+  //Configure the SoC
   def default(g : TangLinux) = g{
     import g._
     clockCtrl.clkFrequency.load(24 MHz)
     clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
     TangLinuxSystem.default(system, clockCtrl)
-    system.ramA.hexInit.load("software/standalone/machineModeSbi/build/machineModeSbi.hex")
     g
   }
 
