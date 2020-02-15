@@ -147,4 +147,5 @@ case class SdcardEmulatorGenerator() extends Generator{
   def connect(phy : Handle[SpiXdrMaster], ss : Handle[Bool]): Unit = {
     connectSpi(phy.produce(phy.toSpi()), ss)
   }
+
 }

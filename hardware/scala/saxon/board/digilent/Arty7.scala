@@ -23,16 +23,14 @@ import vexriscv.plugin.CsrPlugin
 
 
 
-
 class Arty7LinuxSystem() extends SaxonSocLinux{
-  //Add components
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = new Apb3SpiGenerator(0x20000){
-    val user = produce(master(phy.withoutSs.toSpi()).setName("system_spiA_user")) //TODO automatic naming
-    val flash = produce(master(phy.decode(ssId = 0).toSpi()).setName("system_spiA_flash")) //TODO automatic naming
-    val sdcard = produce(master(phy.decode(ssId = 1).toSpi()).setName("system_spiA_sdcard")) //TODO automatic naming
+    val decoder = SpiPhyDecoderGenerator(phy)
+    val user = decoder.spiMasterNone()
+    val flash = decoder.spiMasterId(0)
+    val sdcard = decoder.spiMasterId(1)
   }
-
 
   val ramA = BmbOnChipRamGenerator(0x20000000l)
   ramA.dataWidth.load(32)
@@ -49,49 +47,31 @@ class Arty7LinuxSystem() extends SaxonSocLinux{
     cpu.dBus -> List(bridge.bmb),
     bridge.bmb -> List(ramA.bmb, sdramA0.bmb, peripheralBridge.input)
   )
-
-//Interconnect specification
-//  interconnect.addConnection(
-//    cpu.iBus -> List(sdramA0.bmb),
-//    cpu.dBus -> List(sdramA0.bmb, peripheralBridge.input)
-//  )
-
-
-  //  val bridge = BmbBridgeGenerator()
-//  interconnect.addConnection(
-//    cpu.iBus -> List(sdramA1.bmb),
-//    cpu.dBus -> List(ramA.bmb, sdramA0.bmb, peripheralBridge.input)
-//  )
-//
-//  interconnect.setConnector(sdramA1.bmb){case (m,s) =>
-//    m.cmd.halfPipe() >> s.cmd
-//    m.rsp << s.rsp.halfPipe()
-//  }
 }
 
 class Arty7Linux extends Generator{
-  val mainClockCtrl = ClockDomainGenerator()
-  mainClockCtrl.resetHoldDuration.load(255)
-  mainClockCtrl.resetSynchronous.load(false)
-  mainClockCtrl.powerOnReset.load(true)
-  mainClockCtrl.resetBuffer.load(e => BUFG.on(e))
+  val debugCd = ClockDomainResetGenerator()
+  debugCd.holdDuration.load(4095)
+  debugCd.enablePowerOnReset()
 
+  val sdramCd = ClockDomainResetGenerator()
+  sdramCd.holdDuration.load(63)
+  sdramCd.asyncReset(debugCd)
 
-  val sdramClockCtrl = ClockDomainGenerator()
-  sdramClockCtrl.resetHoldDuration.load(0)
-  sdramClockCtrl.resetSynchronous.load(false)
-  sdramClockCtrl.powerOnReset.load(false)
-  sdramClockCtrl.resetBuffer.load(e => BUFG.on(e))
-  sdramClockCtrl.resetSensitivity.load(ResetSensitivity.HIGH)
-  mainClockCtrl.clockDomain.produce(sdramClockCtrl.reset.load(mainClockCtrl.clockDomain.reset))
-
+  val systemCd = ClockDomainResetGenerator()
+  systemCd.holdDuration.load(63)
+  systemCd.asyncReset(sdramCd)
+  systemCd.setInput(
+    debugCd.outputClockDomain,
+    omitReset = true
+  )
 
   val system = new Arty7LinuxSystem()
-  system.onClockDomain(mainClockCtrl.clockDomain)
-  system.sdramA.onClockDomain(sdramClockCtrl.clockDomain)
+  system.onClockDomain(systemCd.outputClockDomain)
+  system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
   val sdramDomain = new Generator{
-    onClockDomain(sdramClockCtrl.clockDomain)
+    onClockDomain(sdramCd.outputClockDomain)
 
     val apbDecoder = Apb3DecoderGenerator()
     apbDecoder.addSlave(system.sdramA.apb, 0x0000)
@@ -102,16 +82,13 @@ class Arty7Linux extends Generator{
     val sdramApbBridge = Apb3CCGenerator() //TODO size optimisation
     sdramApbBridge.mapAt(0x100000l)(system.apbDecoder)
     sdramApbBridge.setOutput(apbDecoder.input)
-    sdramApbBridge.inputClockDomain.merge(mainClockCtrl.clockDomain)
-    sdramApbBridge.outputClockDomain.merge(sdramClockCtrl.clockDomain)
+    sdramApbBridge.inputClockDomain.merge(systemCd.outputClockDomain)
+    sdramApbBridge.outputClockDomain.merge(sdramCd.outputClockDomain)
   }
 
   val clocking = add task new Area{
     val GCLK100 = in Bool()
 
-
-    mainClockCtrl.clkFrequency.load(100 MHz)
-    sdramClockCtrl.clkFrequency.load(150 MHz)
     val pll = new BlackBox{
       setDefinitionName("PLLE2_ADV")
 
@@ -148,9 +125,18 @@ class Arty7Linux extends Generator{
     pll.CLKFBIN := pll.CLKFBOUT
     pll.CLKIN1 := GCLK100
 
-    mainClockCtrl.clock.load(pll.CLKOUT0)
-
-    sdramClockCtrl.clock.load(pll.CLKOUT1)
+    debugCd.setInput(
+      ClockDomain(
+        clock = pll.CLKOUT0,
+        frequency = FixedFrequency(100 MHz)
+      )
+    )
+    sdramCd.setInput(
+      ClockDomain(
+        clock = pll.CLKOUT1,
+        frequency = FixedFrequency(150 MHz)
+      )
+    )
     sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
     sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
     sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
@@ -164,11 +150,11 @@ class Arty7Linux extends Generator{
 
 
 object Arty7LinuxSystem{
-  def default(g : Arty7LinuxSystem, clockCtrl : ClockDomainGenerator) = g {
+  def default(g : Arty7LinuxSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.linuxTest(0x20000000l))
-    cpu.enableJtag(clockCtrl)
+    cpu.enableJtag(debugCd, resetCd)
 
     ramA.size.load(8 KiB)
     ramA.hexInit.load(null)
@@ -216,14 +202,6 @@ object Arty7LinuxSystem{
       m.cmd >/-> s.cmd
       m.rsp <-< s.rsp
     }
-//    interconnect.setConnector(cpu.iBus){case (m,s) =>
-//      m.cmd.halfPipe() >> s.cmd
-//      m.rsp << s.rsp.halfPipe()
-//    }
-//    interconnect.setConnector(cpu.dBus){case (m,s) =>
-//      m.cmd.halfPipe() >> s.cmd
-//      m.rsp << s.rsp.halfPipe()
-//    }
     interconnect.setConnector(bridge.bmb){case (m,s) =>
       m.cmd >/-> s.cmd
       m.rsp <-< s.rsp
@@ -237,9 +215,8 @@ object Arty7Linux {
   //Function used to configure the SoC
   def default(g : Arty7Linux) = g{
     import g._
-    mainClockCtrl.resetSensitivity.load(ResetSensitivity.NONE)
     sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
-    Arty7LinuxSystem.default(system, mainClockCtrl)
+    Arty7LinuxSystem.default(system, debugCd, sdramCd)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     system.cpu.produce(out(Bool).setName("inWfi") := system.cpu.config.plugins.find(_.isInstanceOf[CsrPlugin]).get.asInstanceOf[CsrPlugin].inWfi)
     g
@@ -271,19 +248,19 @@ object Arty7LinuxSystemSim {
 //    simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-//    val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
-//    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v", "sd_phy.v", "sd_top.v", "sd_wishbone.v")
-//    sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
-//    simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
-//    simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
-
     simConfig.compile(new Arty7LinuxSystem(){
-      val clockCtrl = ClockDomainGenerator()
-      this.onClockDomain(clockCtrl.clockDomain)
-      clockCtrl.makeExternal(ResetSensitivity.HIGH)
-      clockCtrl.powerOnReset.load(true)
-      clockCtrl.clkFrequency.load(100 MHz)
-      clockCtrl.resetHoldDuration.load(15)
+      val debugCd = ClockDomainResetGenerator()
+      debugCd.enablePowerOnReset()
+      debugCd.holdDuration.load(63)
+      debugCd.makeExternal(
+        frequency = FixedFrequency(100 MHz)
+      )
+
+      val systemCd = ClockDomainResetGenerator()
+      systemCd.holdDuration.load(63)
+      systemCd.setInput(debugCd)
+
+      this.onClockDomain(systemCd.outputClockDomain)
 
       val phy = RtlPhyGenerator()
       phy.layout.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))
@@ -291,20 +268,16 @@ object Arty7LinuxSystemSim {
 
       apbDecoder.addSlave(sdramA.apb, 0x100000l)
 
-      Arty7LinuxSystem.default(this, clockCtrl)
+      Arty7LinuxSystem.default(this, debugCd, systemCd)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
-
-//      val sdcard = SdcardEmulatorGenerator()
-//      sdcard.connectSpi(spiA.sdcard, spiA.sdcard.produce(spiA.sdcard.ss(0)))
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
-      val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
-      val jtagClkPeriod = systemClkPeriod*4
+      val debugClkPeriod = (1e12/dut.debugCd.inputClockDomain.frequency.getValue.toDouble).toLong
+      val jtagClkPeriod = debugClkPeriod*4
       val uartBaudRate = 115200
       val uartBaudPeriod = (1e12/uartBaudRate).toLong
 
-      val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
-      clockDomain.forkStimulus(systemClkPeriod)
-//      dut.sdramClockDomain.get.forkStimulus((systemClkPeriod/0.7).toInt)
+      val clockDomain = dut.debugCd.inputClockDomain.get
+      clockDomain.forkStimulus(debugClkPeriod)
 
 
       fork{
@@ -329,20 +302,13 @@ object Arty7LinuxSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
-//      val sdcard = SdcardEmulatorIoSpinalSim(
-//        io = dut.sdcard.io,
-//        nsPeriod = 1000,
-//        storagePath = "/home/miaou/tmp/saxonsoc-ulx3s-bin-master/linux/images/sdimage"
-//      )
-
-
       val linuxPath = "../buildroot/output/images/"
       val uboot = "../u-boot/"
       dut.phy.io.loadBin(0x01FF0000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       dut.phy.io.loadBin(0x01F00000, uboot + "u-boot.bin")
 
 
-      //      val linuxPath = "../buildroot/output/images/"
+//      val linuxPath = "../buildroot/output/images/"
 //      dut.phy.io.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
 //      dut.phy.io.loadBin(0x00400000, linuxPath + "Image")
 //      dut.phy.io.loadBin(0x00BF0000, linuxPath + "dtb")

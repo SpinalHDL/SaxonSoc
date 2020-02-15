@@ -76,7 +76,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
     }
   }
 
-  val parameterGenerator = wrap(new Generator {
+  val parameterGenerator = new Generator {
     val iBusParameter, dBusParameter = product[BmbParameter]
     dependencies += config
 
@@ -89,7 +89,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
         case _ =>
       }
     }
-  })
+  }
 
   if (interconnect != null) {
     interconnect.addMaster(parameterGenerator.iBusParameter, iBus)

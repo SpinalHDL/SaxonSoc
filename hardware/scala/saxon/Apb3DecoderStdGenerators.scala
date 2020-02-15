@@ -54,8 +54,6 @@ case class Apb3UartGenerator(apbOffset : Handle[BigInt] = Unset)
        |}""".stripMargin
   }
   export(parameter)
-//  interrupt-parent = <&periph_intc>;
-//  interrupts = <2>;
 }
 
 object Apb3SpiGenerator{
@@ -105,6 +103,12 @@ class Apb3SpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Bi
     interruptId = id
   }
 
+  def inferSpiSdrIo() = this(Dependable(phy)(spi.load(master(phy.toSpi().setPartialName(spi, ""))))) //TODO automated naming
+  def inferSpiIce40() = this(Dependable(phy)(spi.load{
+    phy.toSpiIce40().asInOut().setPartialName(spi, "")
+  }))
+  def phyAsIo() = produceIo(phy.get)
+
   dts(apb) {
     s"""${apb.getName()}: spi@${apbOffset.toString(16)} {
        |  compatible = "spinal-lib,spi-1.0";
@@ -113,12 +117,6 @@ class Apb3SpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Bi
        |  reg = <0x${apbOffset.toString(16)} 0x1000>;
        |}""".stripMargin
   }
-
-  def inferSpiSdrIo() = this(Dependable(phy)(spi.load(master(phy.toSpi().setPartialName(spi, ""))))) //TODO automated naming
-  def inferSpiIce40() = this(Dependable(phy)(spi.load{
-    phy.toSpiIce40().asInOut().setPartialName(spi, "")
-  }))
-  def phyAsIo() = produceIo(phy.get)
 }
 
 
@@ -182,11 +180,11 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
     dependencies += target
 
     //TODO remove the need of delaying stuff for name capture
-    Dependable()(tags += new Export(Apb3PlicGenerator.this.getName() + "_" + target.getName, id))
+    add task(tags += new Export(Apb3PlicGenerator.this.getName() + "_" + target.getName, id))
   }
 
   override def addInterrupt(source : Handle[Bool], id : Int) = {
-    this.dependencies += wrap(new Generator {
+    this.dependencies += new Generator {
       dependencies += source
       add task new Area {
         gateways += PlicGatewayActiveHigh(
@@ -197,7 +195,7 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
 
         tags += new Export(Apb3PlicGenerator.this.getName() + "_" + source.getName, id)
       }
-    })
+    }
   }
 
   override def getBus(): Handle[Nameable] = apb

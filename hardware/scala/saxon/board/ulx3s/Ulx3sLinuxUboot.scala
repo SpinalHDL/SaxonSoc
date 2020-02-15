@@ -2,6 +2,7 @@ package saxon.board.ulx3s
 
 import saxon._
 import spinal.core._
+import spinal.lib._
 import spinal.lib.blackbox.lattice.ecp5.{BB, ODDRX1F, TSFF}
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
@@ -17,15 +18,18 @@ import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, SdrInferedPhy}
 
 class Ulx3sLinuxUbootSystem extends SaxonSocLinux {
-  //Add components
   val ramA = BmbOnChipRamGenerator(0x20000000l)
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l).mapApbAt(0x0F000)
   val sdramA0 = sdramA.addPort()
 
   val gpioA = Apb3GpioGenerator(0x00000)
-  val spiA = Apb3SpiGenerator(0x20000)
-  val spiB = Apb3SpiGenerator(0x21000)
-  val spiC = Apb3SpiGenerator(0x22000)
+  val spiA = new Apb3SpiGenerator(0x20000){
+    val decoder = SpiPhyDecoderGenerator(phy)
+    val user = decoder.spiMasterNone()
+    val flash = decoder.spiMasterId(0)
+    val sdcard = decoder.spiMasterId(1)
+  }
+
   val uartB = Apb3UartGenerator(0x11000) 
   val noReset = Ulx3sNoResetGenerator()
 
@@ -91,7 +95,7 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
 }
 
 object Ulx3sLinuxUbootSystem{
-  def default(g : Ulx3sLinuxUbootSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator, inferSpiAPhy : Boolean = true, sdramSize: Int) = g {
+  def default(g : Ulx3sLinuxUbootSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator, sdramSize: Int) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.ulx3sLinux(0x20000000l))
@@ -140,37 +144,7 @@ object Ulx3sLinuxUbootSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 1
-        )
-      ) .addFullDuplex(id = 0),
-      cmdFifoDepth = 256,
-      rspFifoDepth = 256
-    )
-    if(inferSpiAPhy) spiA.inferSpiSdrIo()
-
-    spiB.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
-      SpiXdrMasterCtrl.Parameters(
-        dataWidth = 8,
-        timerWidth = 12,
-        spi = SpiXdrParameter(
-          dataWidth = 2,
-          ioRate = 1,
-          ssWidth = 0
-        )
-      ) .addFullDuplex(id = 0),
-      cmdFifoDepth = 256,
-      rspFifoDepth = 256
-    )
-    spiB.inferSpiSdrIo()
-
-    spiC.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
-      SpiXdrMasterCtrl.Parameters(
-        dataWidth = 8,
-        timerWidth = 12,
-        spi = SpiXdrParameter(
-          dataWidth = 2,
-          ioRate = 1,
-          ssWidth = 0
+          ssWidth = 2
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
@@ -186,10 +160,8 @@ object Ulx3sLinuxUboot {
   def default(g : Ulx3sLinuxUboot, sdramSize: Int) = g{
     import g._
 
-    system.spiC.inferSpiSdrIo()
-
-    system.spiC.spi.produce {
-      val sclk = system.spiC.spi.get.asInstanceOf[SpiHalfDuplexMaster].sclk
+    system.spiA.flash.produce {
+      val sclk = system.spiA.flash.sclk
       sclk.setAsDirectionLess()
       val usrMclk = Ulx3sUsrMclk()
       usrMclk.USRMCLKTS := False
@@ -252,9 +224,8 @@ object Ulx3sLinuxUbootSystemSim {
       phyA.connect(sdramA)
 
       val sdcard = SdcardEmulatorGenerator()
-      sdcard.connect(spiA.phy, spiA.phy.produce(RegNext(spiA.phy.ss(0))))
-      Ulx3sLinuxUbootSystem.default(this, globalCd, systemCd, sdramSize = 32, inferSpiAPhy = false)
-      spiC.inferSpiSdrIo()
+      sdcard.connectSpi(spiA.flash, spiA.flash.derivate(_.ss.lsb))
+      Ulx3sLinuxUbootSystem.default(this, globalCd, systemCd, sdramSize = 32)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.globalCd.outputClockDomain.frequency.getValue.toDouble).toLong

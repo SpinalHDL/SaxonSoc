@@ -12,7 +12,8 @@ import java.io._
 
 import spinal.core.ClockDomain.FixedFrequency
 import spinal.lib.bus.wishbone.{Wishbone, WishboneConfig}
-import spinal.lib.com.spi.ddr.SpiXdrMaster
+import spinal.lib.com.spi.SpiHalfDuplexMaster
+import spinal.lib.com.spi.ddr.{SpiXdrMaster, SpiXdrParameter}
 
 object BspGenerator {
   def apply[T <: Nameable](name : String, root: Generator, memoryView : Handle[T]) {
@@ -64,7 +65,7 @@ object BspGenerator {
       }
       g.tags.foreach {
         case t : Export => rec(camelToUpperCase(t.name), t.value)
-        case t : Dts[Nameable] => dtss(t.node) = t
+        case t : Dts[_] => dtss(t.node) = t
         case t : MemoryConnection[_,_] => connections += t
         case _ =>
       }
@@ -125,3 +126,65 @@ object BspGenerator {
 }
 
 
+object SpiPhyDecoderGenerator{
+  def apply(phy : Handle[SpiXdrMaster]) : SpiPhyDecoderGenerator = {
+    val g = SpiPhyDecoderGenerator()
+    g.phy.merge(phy)
+    g
+  }
+}
+case class SpiPhyDecoderGenerator() extends Generator{
+  val phy = createDependency[SpiXdrMaster]
+
+  case class Spec(dataWidth : Int,
+                  ssGen : Boolean,
+                  ssMask : Int,
+                  ssValue : Int,
+                  spi : Handle[SpiXdrMaster])
+
+  val specs = ArrayBuffer[Spec]()
+
+  private def ssFullMask = (1 << phy.p.ssWidth)-1
+
+  def whenRaw(ssMask : Int, ssValue : Int, ssGen : Boolean, dataWidth : Int = -1) : Handle[SpiXdrMaster] = {
+    val spec = Spec(
+      dataWidth = dataWidth,
+      ssGen = ssGen,
+      ssMask = ssMask,
+      ssValue = ssValue,
+      spi = product[SpiXdrMaster]
+    )
+    specs += spec
+    spec.spi
+  }
+
+  def phyId(ssId : Int, dataWidth : Int = -1) : Handle[SpiXdrMaster] = whenRaw(1 << ssId, 0, true)
+  def phyNone(dataWidth : Int = -1) : Handle[SpiXdrMaster] = whenRaw(-1,-1, false)
+
+  def spiMasterId(ssId : Int, dataWidth : Int = -1) = phyId(ssId, dataWidth).derivate(phy => master(phy.toSpi()))
+  def spiMasterNone(dataWidth : Int = -1) = phyNone(dataWidth).derivate(phy => master(phy.toSpi()))
+
+
+  val logic = add task new Area{
+    phy.data.foreach(_.read.assignDontCare())
+    val ports = for(spec <- specs) yield new Area{
+      spec.spi.load(SpiXdrMaster(SpiXdrParameter(
+        dataWidth  = if(spec.dataWidth == -1) phy.p.dataWidth else spec.dataWidth,
+        ioRate     = phy.p.ioRate,
+        ssWidth    = if(spec.ssGen) 1 else 0
+      )))
+      val ssMask = if(spec.ssMask == -1) ssFullMask else spec.ssMask
+      val ssValue = if(spec.ssValue == -1) ssFullMask else spec.ssValue
+      val selected = (phy.ss & ssMask) === ssValue
+      spec.spi.sclk := phy.sclk
+      if(spec.spi.p.ssWidth != 0) spec.spi.ss(0) := !selected
+      for((m,s) <- (phy.data, spec.spi.data).zipped){
+        s.write := m.write
+        s.writeEnable := m.writeEnable
+        when(selected){
+          m.read := s.read
+        }
+      }
+    }
+  }
+}
