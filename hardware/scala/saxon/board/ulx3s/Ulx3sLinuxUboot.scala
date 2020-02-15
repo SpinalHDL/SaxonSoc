@@ -18,7 +18,6 @@ import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, SdrInferedPhy}
 
 class Ulx3sLinuxUbootSystem extends SaxonSocLinux {
-  //Add components
   val ramA = BmbOnChipRamGenerator(0x20000000l)
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l).mapApbAt(0x0F000)
   val sdramA0 = sdramA.addPort()
