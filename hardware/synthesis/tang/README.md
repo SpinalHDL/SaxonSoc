@@ -20,10 +20,6 @@ https://tang.sipeed.com/en/dev-guide/using-yosys/
 ## build software
 
 ```sh
-cd software/standalone/bootloader/
-RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- make clean all BSP=TangLinux
-cd -
-
 cd software/standalone/machineModeSbi/
 RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- make clean all BSP=TangLinux
 cd -
@@ -61,14 +57,9 @@ openocd/src/openocd -f interface/ftdi/ft2232h_breakout.cfg -c "set CPU0_YAML $PW
 /opt/riscv/bin/riscv64-unknown-elf-gdb SaxonSoc/software/standalone/machineModeSbi/build/machineModeSbi.elf --eval-command "target remote :3333"
 monitor reset halt
 load
-restore u-boot/u-boot.bin binary 0x80200000
-#add-symbol-file u-boot/u-boot 0x80200000
-cont
+add-symbol-file u-boot/spl/u-boot-spl 0x20004000
+c
 
 #terminal 3
-minicom -D /dev/ttyUSB1
-mmc info
-load mmc 0:1 80007fc0 uImage
-load mmc 0:1 80007000 dtb
-#bootm 80007fc0 - 80007000
+minicom -D /dev/ttyUSB0
 ```

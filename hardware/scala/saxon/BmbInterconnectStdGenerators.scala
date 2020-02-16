@@ -3,7 +3,7 @@ package saxon
 import spinal.core._
 import spinal.lib.IMasterSlave
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3CC, Apb3Config, Apb3SlaveFactory}
-import spinal.lib.bus.bmb.{Bmb, BmbIce40Spram, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
+import spinal.lib.bus.bmb.{Bmb, BmbIce40Spram, BmbOnChipRam, BmbEg4S20Bram32K, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
 import spinal.lib.bus.misc.{DefaultMapping, SizeMapping}
 import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection, Unset}
 import spinal.lib.memory.sdram.SdramLayout
@@ -338,6 +338,30 @@ case class BmbIce40SpramGenerator(address: BigInt)
 
   val logic = add task BmbIce40Spram(
     p = requirements
+  )
+}
+
+
+case class BmbEg4S20Bram32Generator
+            (address: BigInt)
+            (implicit interconnect: BmbInterconnectGenerator)
+            extends Generator {
+
+  val size = Handle[BigInt]
+  val hexInit = createDependency[String]
+  val requirements = createDependency[BmbParameter]
+  val bmb = produce(logic.io.bus)
+
+  interconnect.addSlave(
+    capabilities = size.produce(BmbEg4S20Bram32K.busCapabilities(size)),
+    requirements = requirements,
+    bus = bmb,
+    mapping = size.produce(SizeMapping(address, BigInt(1) << log2Up(size)))
+  )
+
+  val logic = add task BmbEg4S20Bram32K(
+    p = requirements,
+    hexInit = hexInit
   )
 }
 
