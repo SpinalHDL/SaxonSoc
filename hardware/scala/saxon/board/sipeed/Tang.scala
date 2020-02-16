@@ -63,6 +63,7 @@ object TangLinuxSystem{
     cpu.enableJtag(clockCtrl)
 
     ramA.size.load(64 KiB)
+    ramA.hexInit.load("bram16x32k.bin")
 
     sdramA.layout.load(EG4S20.layout)
     sdramA.timings.load(EG4S20.timingGrade7)

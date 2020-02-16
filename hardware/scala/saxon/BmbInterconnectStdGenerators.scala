@@ -342,10 +342,13 @@ case class BmbIce40SpramGenerator(address: BigInt)
 }
 
 
-case class BmbEg4S20Bram32Generator(address: BigInt)
-                                 (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+case class BmbEg4S20Bram32Generator
+            (address: BigInt)
+            (implicit interconnect: BmbInterconnectGenerator)
+            extends Generator {
 
   val size = Handle[BigInt]
+  val hexInit = createDependency[String]
   val requirements = createDependency[BmbParameter]
   val bmb = produce(logic.io.bus)
 
@@ -357,7 +360,8 @@ case class BmbEg4S20Bram32Generator(address: BigInt)
   )
 
   val logic = add task BmbEg4S20Bram32K(
-    p = requirements
+    p = requirements,
+    hexInit = hexInit
   )
 }
 
