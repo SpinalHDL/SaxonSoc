@@ -1,0 +1,56 @@
+language: scala
+
+dist: xenial
+
+notifications:
+  email:
+    on_success: never
+
+scala:
+   - 2.11.12
+
+sbt_args: -no-colors -J-Xss2m
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - git 
+      - make 
+      - autoconf 
+      - g++ 
+      - flex 
+      - bison
+
+jdk:
+  - openjdk10
+
+jobs:
+  include:
+    - stage: prepare cache-verilator
+      script:
+        - cp ext/VexRiscv/scripts/regression/verilator.mk $HOME/makefile
+        - cd $HOME
+        - make verilator_binary
+    - &test
+      stage: Test
+      name: Compile
+      script:
+        - sbt compile
+
+before_install:
+  - export VERILATOR_ROOT=$HOME/verilator
+  - export PATH=$VERILATOR_ROOT/bin:$PATH
+
+before_cache:
+  - rm -fv $HOME/.ivy2/.sbt.ivy.lock
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+  - find $HOME/.sbt        -name "*.lock"               -print -delete
+
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt
+    - $HOME/verilator
+
