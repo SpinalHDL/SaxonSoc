@@ -37,6 +37,9 @@ module top (
   output wire[2:0] RGB_LED
 );
 
+wire user_clk;
+wire[1:0] user_io;
+
 wire sdram_clk;
 wire sdram_ras_n;
 wire sdram_cas_n;
@@ -87,13 +90,16 @@ TangLinux SoC(
   .system_sdramA_sdram_RASn(sdram_ras_n),
   .system_sdramA_sdram_WEn(sdram_we_n),
 
-  .system_spiA_spi_ss({SD_D3}),
-  .system_spiA_spi_sclk(SD_CLK),
-  .system_spiA_spi_data({SD_D0, SD_CMD}),
+  .system_spiA_user_sclk(user_clk),
+  .system_spiA_user_data(user_io),
 
-  .system_spiB_spi_ss({NOR_CS}),
-  .system_spiB_spi_sclk(NOR_SCK),
-  .system_spiB_spi_data(NOR_IO),
+  .system_spiA_sdcard_ss({SD_D3}),
+  .system_spiA_sdcard_sclk(SD_CLK),
+  .system_spiA_sdcard_data({SD_D0, SD_CMD}),
+
+  .system_spiA_flash_ss({NOR_CS}),
+  .system_spiA_flash_sclk(NOR_SCK),
+  .system_spiA_flash_data(NOR_IO),
 
   .system_gpioA_gpio(RGB_LED)
 );

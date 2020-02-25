@@ -17,8 +17,12 @@ class TangLinuxSystem extends SaxonSocLinux{
   val ramA = BmbEg4S20Bram32Generator(0x20000000l)
   val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
-  val spiA = Apb3SpiGenerator(0x20000)
-  val spiB = Apb3SpiGenerator(0x21000)
+  val spiA = new Apb3SpiGenerator(0x20000){
+    val decoder = SpiPhyDecoderGenerator(phy)
+    val user = decoder.spiMasterNone()
+    val flash = decoder.spiMasterId(0)
+    val sdcard = decoder.spiMasterId(1)
+  }
 
   //Interconnect specification
   interconnect.addConnection(
@@ -45,7 +49,7 @@ class TangLinux extends Generator{
     val bufg = EG_LOGIC_BUFG()
     bufg.i := CLOCK_24
     oddr.clk := bufg.o
-    oddr.rst := False
+    oddr.rst := ~resetN
     oddr.d0 := True
     oddr.d1 := False
     sdramClk := oddr.q
@@ -56,7 +60,7 @@ class TangLinux extends Generator{
 }
 
 object TangLinuxSystem{
-  def default(g : TangLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
+  def default(g : TangLinuxSystem, clockCtrl : ClockDomainGenerator) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.linux(0x20000000l))
@@ -75,7 +79,7 @@ object TangLinuxSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 24,
+      width = 14,
       interrupt = List(0, 1, 2, 3)
     )
     gpioA.connectInterrupts(plic, 4)
@@ -87,28 +91,12 @@ object TangLinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 1
+          ssWidth = 2
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
       rspFifoDepth = 256
     )
-    if(inferSpiAPhy) spiA.inferSpiSdrIo()
-
-    spiB.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
-      SpiXdrMasterCtrl.Parameters(
-        dataWidth = 8,
-        timerWidth = 12,
-        spi = SpiXdrParameter(
-          dataWidth = 4,
-          ioRate = 1,
-          ssWidth = 1
-        )
-      ) .addFullDuplex(id = 0),
-      cmdFifoDepth = 256,
-      rspFifoDepth = 256
-    )
-    spiB.inferSpiSdrIo()
 
     g
   }
@@ -156,7 +144,7 @@ object TangLinuxSystemSim {
       clockCtrl.resetHoldDuration.load(15)
       val sdcard = SdcardEmulatorGenerator()
       sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
-      TangLinuxSystem.default(this, clockCtrl,inferSpiAPhy = false)
+      TangLinuxSystem.default(this, clockCtrl)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
