@@ -19,7 +19,7 @@ void main() {
             GPIO_A->OUTPUT = GPIO_A->OUTPUT + 1;
             counter = 0;
         }
-        while(UART_A->STATUS >> 24){ //UART RX interrupt
+        while(UART_A->STATUS >> 24){ //UART RX not empty
             UART_A->DATA = (UART_A->DATA) & 0xFF;
         }
     }
