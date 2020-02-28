@@ -272,8 +272,9 @@ void externalInterrupt_i2c(){
 		state = x60_DATA_3;
 		break;
 	case x60_DATA_3:
-		i2c_txNack(I2C_A);
-		i2c_txByte(I2C_A, 0xFF); //Used to not interfere with the master stop sequence
+	    //End of the frame, do not interfere with it anymore
+        i2c_txNackRepeat(I2C_A);
+        i2c_txByteRepeat(I2C_A, 0xFF);
 		assert(i2c_rxData(I2C_A) == 0x48); // Expected value
 		I2C_A->INTERRUPT_ENABLE &= ~I2C_INTERRUPT_TX_DATA; //Do not listen that interrupt
 		state = IDLE;
@@ -288,8 +289,9 @@ void externalInterrupt_i2c(){
 		state = x61_DATA_3;
 		break;
 	case x61_DATA_3:
-		i2c_txNack(I2C_A);
-		i2c_txByte(I2C_A, 0xFF); //Used to not interfere with the master stop sequence
+	    //End of the frame, do not interfere with it anymore
+        i2c_txNackRepeat(I2C_A);
+        i2c_txByteRepeat(I2C_A, 0xFF);
 		I2C_A->INTERRUPT_ENABLE &= ~I2C_INTERRUPT_TX_DATA; //Do not listen that interrupt
 		state = IDLE;
 

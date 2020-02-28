@@ -166,6 +166,13 @@ static int i2c_rxAck(I2c_Reg *reg){
 	return (reg->RX_ACK & I2C_RX_VALUE) == 0;
 }
 
+static void i2c_txByteRepeat(I2c_Reg *reg,u8 byte){
+    reg->TX_DATA = byte | I2C_TX_VALID | I2C_TX_ENABLE | I2C_TX_DISABLE_ON_DATA_CONFLICT | I2C_TX_REPEAT;
+}
+
+static void i2c_txNackRepeat(I2c_Reg *reg){
+    reg->TX_ACK = 1 | I2C_TX_VALID | I2C_TX_ENABLE | I2C_TX_REPEAT;
+}
 
 #endif /* I2C_H_ */
 
