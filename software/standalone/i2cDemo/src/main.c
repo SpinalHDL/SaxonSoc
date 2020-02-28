@@ -219,9 +219,11 @@ void externalInterrupt_i2c(){
 		if(i2c_rxData(I2C_A) != 0x42){ //Another master used a higher priority address at the same time
 			i2c_masterDrop(I2C_A);
 			I2C_A->INTERRUPT_ENABLE &= ~I2C_INTERRUPT_TX_ACK;
+            state = IDLE;
 		} else if(i2c_rxNack(I2C_A)){ //No slave ACK the address byte
 			i2c_masterStop(I2C_A);
 			I2C_A->INTERRUPT_ENABLE &= ~I2C_INTERRUPT_TX_ACK;
+            state = IDLE;
 		} else { //Everything is ok
 			//Write the first data byte
 			i2c_txByte(I2C_A, 0x95); //Write 0x95 as the first data byte of the frame
