@@ -190,12 +190,12 @@ void externalInterrupt_i2c(){
 		if(I2C_A->FILTERING_HIT == 1){ //I2C filter 0 hit => frame for us
 			if(I2C_A->FILTERING_STATUS == 1){ //read (0x61)
 				i2c_txAck(I2C_A);
-				i2c_txByte(I2C_A, 0xFF);
+				i2c_txByte(I2C_A, 0x9A);
 				I2C_A->INTERRUPT_ENABLE |= I2C_INTERRUPT_TX_DATA; //Interrupt when the tx data buffer is empty again
 				state = x61_DATA_2;
 			} else {  //write (0x60)
 				i2c_txAck(I2C_A);
-				i2c_txByte(I2C_A, 0x9A);
+				i2c_txByte(I2C_A, 0xFF);
 				I2C_A->INTERRUPT_ENABLE |= I2C_INTERRUPT_TX_DATA; //Interrupt when the tx data buffer is empty again
 				state = x60_DATA_2;
 			}
@@ -263,13 +263,13 @@ void externalInterrupt_i2c(){
 
 
 	//Write frame to us
-	case x61_DATA_2:
+	case x60_DATA_2:
 		i2c_txAck(I2C_A);
 		i2c_txByte(I2C_A, 0xFF);
 		assert(i2c_rxData(I2C_A) == 0x33); // Expected value
-		state = x61_DATA_3;
+		state = x60_DATA_3;
 		break;
-	case x61_DATA_3:
+	case x60_DATA_3:
 		i2c_txNack(I2C_A);
 		i2c_txByte(I2C_A, 0xFF); //Used to not interfere with the master stop sequence
 		assert(i2c_rxData(I2C_A) == 0x48); // Expected value
@@ -279,13 +279,13 @@ void externalInterrupt_i2c(){
 
 
 	//Read frame to us
-	case x60_DATA_2:
+	case x61_DATA_2:
 		i2c_txNack(I2C_A);
 		i2c_txByte(I2C_A, 0x7E);
 		assert(i2c_rxAck(I2C_A)); // Expected value
-		state = x60_DATA_3;
+		state = x61_DATA_3;
 		break;
-	case x60_DATA_3:
+	case x61_DATA_3:
 		i2c_txNack(I2C_A);
 		i2c_txByte(I2C_A, 0xFF); //Used to not interfere with the master stop sequence
 		I2C_A->INTERRUPT_ENABLE &= ~I2C_INTERRUPT_TX_DATA; //Do not listen that interrupt
