@@ -58,7 +58,6 @@ obj_dir
 .vdbs
 *.log
 *.log.bak
-*.tcl
 *.twr
 *_prim.v
 *.arearep
