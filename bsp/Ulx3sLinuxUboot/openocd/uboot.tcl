@@ -39,11 +39,13 @@ set linuxPath ../buildroot/output/images/
 load_image software/standalone/machineModeSbi/build/machineModeSbi.bin 0x80800000
 load_image ../u-boot/u-boot.bin 0x81F00000
 load_image ${linuxPath}dtb 0x81D00000
-load_image ${linuxPath}uImage 0x80000000
+
+#load_image ${linuxPath}uImage 0x80000000
+#load_image ${linuxPath}rootfs.cpio.uboot  0x80C00000
 
 
-load_image software/standalone/machineModeSbi/build/machineModeSbi.bin 0x80A00000
-load_image ../u-boot/u-boot.bin 0x80B00000
+#load_image software/standalone/machineModeSbi/build/machineModeSbi.bin 0x80A00000
+#load_image ../u-boot/u-boot.bin 0x80B00000
 
 
 #save mmc 0 0x81D00000 /boot/dtb 2670
@@ -57,3 +59,4 @@ sleep 20
 resume
 #exit
 #bootm 0x80000000 - 0x81D00000
+#bootm 0x80000000 0x80C00000 0x81D00000

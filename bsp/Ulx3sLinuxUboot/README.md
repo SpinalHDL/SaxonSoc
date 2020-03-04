@@ -119,9 +119,29 @@ cd ..
 The sdcard need an ext2 partition, for u-boot and linux
 
 ```
-# Assumes you have an sdcard with an empty ext2 filesystem parition created
+## Sdcard
+
+The sdcard need one partition used for both uboot and linux. The following example show how to initialize the sdcard, assuming the sdcard is /dev/mmcblk0 : 
+
+```
+# Create a 100 MB partition on the sdcard 
+(
+echo d
+echo
+echo d
+echo
+echo n
+echo p
+echo 1
+echo
+echo +100M
+echo w
+) | sudo fdisk /dev/mmcblk0
+
+# Format the partition in ext2
+sudo mkfs.ext2 -q /dev/mmcblk0p1
+
 mkdir -p sdcard
-# Change sdcard device name to one used on your system
 # unmount it, if automatically mounted
 sudo mount /dev/mmcblk0p1 sdcard 
 sudo mkdir -p sdcard/boot
