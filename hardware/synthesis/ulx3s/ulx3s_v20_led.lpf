@@ -3,15 +3,15 @@ BLOCK ASYNCPATHS;
 ## ULX3S v2.x.x and v3.0.x
 
 # The clock "usb" and "gpdi" sheet
-LOCATE COMP "clk_25mhz" SITE "G2";
-IOBUF PORT "clk_25mhz" PULLMODE=NONE IO_TYPE=LVCMOS33;
-FREQUENCY PORT "clk_25mhz" 25 MHZ;
+LOCATE COMP "clocking_clk_25mhz" SITE "G2";
+IOBUF PORT "clocking_clk_25mhz" PULLMODE=NONE IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clocking_clk_25mhz" 25 MHZ;
 
 # JTAG and SPI FLASH voltage 3.3V and options to boot from SPI flash
 # write to FLASH possible any time from JTAG:
 #SYSCONFIG CONFIG_IOVOLTAGE=3.3 COMPRESS_CONFIG=ON MCCLK_FREQ=62 MASTER_SPI_PORT=ENABLE SLAVE_SPI_PORT=DISABLE SLAVE_PARALLEL_PORT=DISABLE;
 # write to FLASH possible from user bitstream:
-SYSCONFIG CONFIG_IOVOLTAGE=3.3 COMPRESS_CONFIG=ON MCCLK_FREQ=62 MASTER_SPI_PORT=DISABLE SLAVE_SPI_PORT=DISABLE SLAVE_PARALLEL_PORT=DISABLE;
+#SYSCONFIG CONFIG_IOVOLTAGE=3.3 COMPRESS_CONFIG=ON MCCLK_FREQ=62 MASTER_SPI_PORT=DISABLE SLAVE_SPI_PORT=DISABLE SLAVE_PARALLEL_PORT=DISABLE;
 
 ## USBSERIAL FTDI-FPGA serial port "usb" sheet
 LOCATE COMP "system_uartA_uart_txd" SITE "L4"; # FPGA transmits to ftdi
@@ -296,32 +296,32 @@ IOBUF PORT "system_sdramA_sdram_DQ[14]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "system_sdramA_sdram_DQ[15]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
 
 # GPDI differential interface (Video) "gpdi" sheet
-LOCATE COMP "gpdi_dp[0]" SITE "A16"; # Blue +
-LOCATE COMP "gpdi_dn[0]" SITE "B16"; # Blue -
-LOCATE COMP "gpdi_dp[1]" SITE "A14"; # Green +
-LOCATE COMP "gpdi_dn[1]" SITE "C14"; # Green -
-LOCATE COMP "gpdi_dp[2]" SITE "A12"; # Red +
-LOCATE COMP "gpdi_dn[2]" SITE "A13"; # Red -
-LOCATE COMP "gpdi_dp[3]" SITE "A17"; # Clock +
-LOCATE COMP "gpdi_dn[3]" SITE "B18"; # Clock -
-LOCATE COMP "gpdi_ethp" SITE "A19"; # Ethernet +
-LOCATE COMP "gpdi_ethn" SITE "B20"; # Ethernet -
-LOCATE COMP "gpdi_cec" SITE "A18";
-LOCATE COMP "gpdi_sda" SITE "B19"; # I2C shared with RTC
-LOCATE COMP "gpdi_scl" SITE "E12"; # I2C shared with RTC C12->E12
-IOBUF PORT "gpdi_dp[0]" IO_TYPE=LVCMOS33D DRIVE=4;
-IOBUF PORT "gpdi_dn[0]" IO_TYPE=LVCMOS33D DRIVE=4;
-IOBUF PORT "gpdi_dp[1]" IO_TYPE=LVCMOS33D DRIVE=4;
-IOBUF PORT "gpdi_dn[1]" IO_TYPE=LVCMOS33D DRIVE=4;
-IOBUF PORT "gpdi_dp[2]" IO_TYPE=LVCMOS33D DRIVE=4;
-IOBUF PORT "gpdi_dn[2]" IO_TYPE=LVCMOS33D DRIVE=4;
-IOBUF PORT "gpdi_dp[3]" IO_TYPE=LVCMOS33D DRIVE=4;
-IOBUF PORT "gpdi_dn[3]" IO_TYPE=LVCMOS33D DRIVE=4;
-IOBUF PORT "gpdi_ethp" IO_TYPE=LVCMOS33D DRIVE=4;
-IOBUF PORT "gpdi_ethn" IO_TYPE=LVCMOS33D DRIVE=4;
-IOBUF PORT "gpdi_cec" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "gpdi_sda" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "gpdi_scl" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dp[0]" SITE "A16"; # Blue +
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dn[0]" SITE "B16"; # Blue -
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dp[1]" SITE "A14"; # Green +
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dn[1]" SITE "C14"; # Green -
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dp[2]" SITE "A12"; # Red +
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dn[2]" SITE "A13"; # Red -
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dp[3]" SITE "A17"; # Clock +
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dn[3]" SITE "B18"; # Clock -
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_ethp" SITE "A19"; # Ethernet +
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_ethn" SITE "B20"; # Ethernet -
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_cec" SITE "A18";
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_sda" SITE "B19"; # I2C shared with RTC
+LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_scl" SITE "E12"; # I2C shared with RTC C12->E12
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dp[0]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dn[0]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dp[1]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dn[1]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dp[2]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dn[2]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dp[3]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dn[3]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_ethp" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_ethn" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_cec" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_sda" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_scl" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 
 # GPIO (default single-ended) "gpio", "ram", "gpdi" sheet
 # Physical connector pins:
@@ -339,13 +339,13 @@ IOBUF PORT "gpdi_scl" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 # To enable clock i/o, add this (example):
 #FREQUENCY PORT "gp[12]" 25.00 MHZ;
 LOCATE COMP "gp[0]" SITE "B11"; # J1_5+  GP0 PCLK
-LOCATE COMP "gn[0]" SITE "C11"; # J1_5-  GN0 PCLK
+LOCATE COMP "system_cpu_jtag_tms" SITE "C11"; # J1_5-  GN0 PCLK
 LOCATE COMP "gp[1]" SITE "A10"; # J1_7+  GP1 PCLK
-LOCATE COMP "gn[1]" SITE "A11"; # J1_7-  GN1 PCLK
+LOCATE COMP "system_cpu_jtag_tdo" SITE "A11"; # J1_7-  GN1 PCLK
 LOCATE COMP "gp[2]" SITE "A9";  # J1_9+  GP2 GR_PCLK
-LOCATE COMP "gn[2]" SITE "B10"; # J1_9-  GN2 GR_PCLK
+LOCATE COMP "system_cpu_jtag_tdi" SITE "B10"; # J1_9-  GN2 GR_PCLK
 LOCATE COMP "gp[3]" SITE "B9";  # J1_11+ GP3
-LOCATE COMP "gn[3]" SITE "C10"; # J1_11- GN3
+LOCATE COMP "system_cpu_jtag_tck" SITE "C10"; # J1_11- GN3
 LOCATE COMP "gp[4]" SITE "A7";  # J1_13+ GP4
 LOCATE COMP "gn[4]" SITE "A8";  # J1_13- GN4
 LOCATE COMP "gp[5]" SITE "C8";  # J1_15+ GP5
@@ -353,13 +353,13 @@ LOCATE COMP "gn[5]" SITE "B8";  # J1_15- GN5
 LOCATE COMP "gp[6]" SITE "C6";  # J1_17+ GP6
 LOCATE COMP "gn[6]" SITE "C7";  # J1_17- GN6
 IOBUF PORT "gp[0]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "gn[0]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_cpu_jtag_tms" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "gp[1]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "gn[1]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_cpu_jtag_tdo" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "gp[2]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "gn[2]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_cpu_jtag_tdi" PULLMODE=NONE IO_TYPE=LVCMOS33;
 IOBUF PORT "gp[3]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "gn[3]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_cpu_jtag_tck" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "gp[4]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "gn[4]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "gp[5]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
