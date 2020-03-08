@@ -57,8 +57,8 @@ pll:
 	ecppll \
                 -i 25 \
                 -o 50 \
-		--clkout1 50 \
-		--phase1 90 \
+		--clkout1 100 \
+		--phase1 270 \
                 -n  pll_linux\
                 -f pll_linux.v
 clean:
