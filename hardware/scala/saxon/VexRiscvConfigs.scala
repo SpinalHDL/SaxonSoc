@@ -1,9 +1,9 @@
 package saxon
 
 import spinal.core._
-import vexriscv.ip.{DataCacheConfig, InstructionCacheConfig}
-import vexriscv.{VexRiscvConfig, plugin}
-import vexriscv.plugin.{BranchPlugin, CsrAccess, CsrPlugin, CsrPluginConfig, DBusCachedPlugin, DBusSimplePlugin, DecoderSimplePlugin, FullBarrelShifterPlugin, HazardSimplePlugin, IBusCachedPlugin, IBusSimplePlugin, IntAluPlugin, LightShifterPlugin, MmuPlugin, MmuPortConfig, MulDivIterativePlugin, MulPlugin, RegFilePlugin, STATIC, SrcPlugin, StaticMemoryTranslatorPlugin, YamlPlugin}
+import vexriscv.ip._
+import vexriscv._
+import vexriscv.plugin._
 
 object VexRiscvConfigs {
     val withMemoryStage = false
@@ -110,8 +110,9 @@ object VexRiscvConfigs {
       new IBusCachedPlugin(
         resetVector = resetVector,
         compressedGen = false,
-        prediction = STATIC,
+        prediction = NONE,
         injectorStage = false,
+        relaxedPcCalculation = false,
         config = InstructionCacheConfig(
           cacheSize = 4096*1,
           bytePerLine = 64,
@@ -122,7 +123,7 @@ object VexRiscvConfigs {
           catchIllegalAccess = true,
           catchAccessFault = true,
           asyncTagMemory = false,
-          twoCycleRam = false,
+          twoCycleRam = true,
           twoCycleCache = true
         ),
         memoryTranslatorPortConfig = MmuPortConfig(
@@ -145,7 +146,6 @@ object VexRiscvConfigs {
           catchUnaligned    = true,
           withLrSc = true,
           withAmo = true
-          //          )
         ),
         memoryTranslatorPortConfig = MmuPortConfig(
           portTlbSize = 4
@@ -155,7 +155,7 @@ object VexRiscvConfigs {
         catchIllegalInstruction = true
       ),
       new RegFilePlugin(
-        regFileReadyKind = plugin.SYNC,
+        regFileReadyKind = plugin.ASYNC,
         zeroBoot = true
       ),
       new IntAluPlugin,
