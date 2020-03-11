@@ -7,6 +7,10 @@
 #include "soc.h"
 #include "uart.h"
 
+#ifdef HDMI_CONSOLE
+#include "console.h"
+#endif
+
 #ifndef UART_A
 #define UART_A ((Uart_Reg*)(SYSTEM_UART_A_APB))
 #endif
@@ -24,6 +28,9 @@ void stopSim(){
 
 void putC(char c){
 	uart_write(UART_A, c);
+#ifdef HDMI_CONSOLE
+	console_write(c);
+#endif
 }
 
 int32_t getC(){
