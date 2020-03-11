@@ -30,23 +30,28 @@ class Ulx3sHdmi extends Generator{
   clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
   clockCtrl.clkFrequency.load(25 MHz)
+  clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
+  clockCtrl.resetSynchronous.load(true)
 
   val system = new Ulx3sHdmiSystem
   system.onClockDomain(clockCtrl.clockDomain)
 
   val clocking = add task new Area{
     val clk_25mhz = in Bool()
+    val resetn = in Bool()
 
     val pll = HdmiPll()
     
     pll.io.clkin := clk_25mhz
 
     clockCtrl.clock.load(pll.io.clkout1)
+    clockCtrl.reset.load(resetn)
   }
 
   Dependable(system, system.hdmiConsoleA){
     system.hdmiConsoleA.pixclk := clocking.pll.io.clkout1
     system.hdmiConsoleA.pixclk_x5 := clocking.pll.io.clkout0
+    system.hdmiConsoleA.resetn := clocking.resetn
   }
 }
 
