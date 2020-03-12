@@ -11,6 +11,10 @@
 #include "console.h"
 #endif
 
+#ifdef PS2_KEYBOARD
+#include "io.h"
+#endif
+
 #ifndef UART_A
 #define UART_A ((Uart_Reg*)(SYSTEM_UART_A_APB))
 #endif
@@ -34,6 +38,10 @@ void putC(char c){
 }
 
 int32_t getC(){
+#ifdef PS2_KEYBOARD
+    uint32_t key = read_u32(SYSTEM_PS2_KEYBOARD_A_APB);
+    if(key >> 8) return key & 0xFF;
+#endif
     if(uart_readOccupancy(UART_A) == 0) return -1;
     return uart_read(UART_A);
 }
