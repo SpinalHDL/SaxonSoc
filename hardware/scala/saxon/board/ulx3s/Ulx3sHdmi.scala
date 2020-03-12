@@ -14,6 +14,7 @@ class Ulx3sHdmiSystem extends BmbApbVexRiscvGenerator{
   val gpioA = Apb3GpioGenerator(0x00000)
   val noReset = Ulx3sNoResetGenerator()
   val hdmiConsoleA = Apb3HdmiConsoleGenerator(0x20000)
+  val ps2KeyboardA = Apb3Ps2KeyboardGenerator(0x30000)
 
   ramA.dataWidth.load(32)
 

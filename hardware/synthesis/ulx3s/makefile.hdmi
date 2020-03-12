@@ -1,6 +1,26 @@
 VERILOG = ../../netlist/Ulx3sHdmi.v hdmi.v hdmi_pll.v
 
-IDCODE ?= 0x21111043 # 12f
+FPGA_SIZE ?= 12
+
+SDRAM_SIZE ?= 32
+
+FPGA_KS ?= $(FPGA_SIZE)k
+
+ifeq ($(FPGA_SIZE), 12)
+        CHIP_ID=0x21111043
+        FPGA_KS = 25k
+endif
+ifeq ($(FPGA_SIZE), 25)
+        CHIP_ID=0x41111043
+endif
+ifeq ($(FPGA_SIZE), 45)
+        CHIP_ID=0x41112043
+endif
+ifeq ($(FPGA_SIZE), 85)
+        CHIP_ID=0x41113043
+endif
+
+IDCODE ?= $(CHIP_ID)
 
 compile : bin/toplevel.bit
 
@@ -23,11 +43,11 @@ bin/toplevel.config: bin/toplevel.json
 		--json $< \
 		--textcfg $@ \
 		--lpf ulx3s_v20_led.lpf \
-		--25k \
+		--${FPGA_KS} \
 		--package CABGA381
 
 bin/toplevel.bit: bin/toplevel.config
-	ecppack --idcode $(IDCODE) $< $@
+	ecppack --compress --idcode $(IDCODE) $< $@
 
 clean:
 	$(RM) -rf bin *.bin

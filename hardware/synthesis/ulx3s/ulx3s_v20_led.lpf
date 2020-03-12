@@ -193,14 +193,14 @@ LOCATE COMP "usb_fpga_dp" SITE "E16"; # single ended or differential input only
 LOCATE COMP "usb_fpga_dn" SITE "F16";
 IOBUF PORT "usb_fpga_dp" PULLMODE=NONE IO_TYPE=LVCMOS33D DRIVE=16;
 IOBUF PORT "usb_fpga_dn" PULLMODE=NONE IO_TYPE=LVCMOS33D DRIVE=16;
-LOCATE COMP "usb_fpga_bd_dp" SITE "D15"; # single-ended bidirectional
-LOCATE COMP "usb_fpga_bd_dn" SITE "E15";
-IOBUF PORT "usb_fpga_bd_dp" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "usb_fpga_bd_dn" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
-LOCATE COMP "usb_fpga_pu_dp" SITE "B12"; # pull up/down control
-LOCATE COMP "usb_fpga_pu_dn" SITE "C12";
-IOBUF PORT "usb_fpga_pu_dp" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=16;
-IOBUF PORT "usb_fpga_pu_dn" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=16;
+LOCATE COMP "system_ps2KeyboardA_ps2_ps2Clk" SITE "D15"; # single-ended bidirectional
+LOCATE COMP "system_ps2KeyboardA_ps2_ps2Data" SITE "E15";
+IOBUF PORT "system_ps2KeyboardA_ps2_ps2Clk" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_ps2KeyboardA_ps2_ps2Data" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
+LOCATE COMP "system_ps2KeyboardA_ps2_usbPuDp" SITE "B12"; # pull up/down control
+LOCATE COMP "system_ps2KeyboardA_ps2_usbPuDn" SITE "C12";
+IOBUF PORT "system_ps2KeyboardA_ps2_usbPuDp" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=16;
+IOBUF PORT "system_ps2KeyboardA_ps2_usbPuDn" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=16;
 
 ## JTAG ESP-32 "usb" sheet
 # connected to FT231X and ESP-32
