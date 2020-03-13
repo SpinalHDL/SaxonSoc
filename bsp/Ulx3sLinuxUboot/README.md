@@ -84,6 +84,7 @@ make clean all BSP=Ulx3sLinuxUboot
 # Or if you want to include support for an HDMI console and a PS/2 keyboard
 make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSHDMI_CONSOLE -DPS2_KEYBOARD"
 cd ../../../..
+
 # Netlist
 cd SaxonSoc/hardware/synthesis/ulx3s
 cp makefile.uboot makefile

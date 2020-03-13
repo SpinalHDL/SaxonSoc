@@ -1,4 +1,4 @@
-VERILOG = ../../netlist/Ulx3sLinuxUboot.v pll_linux.v
+VERILOG = ../../netlist/Ulx3sLinuxUboot.v pll_linux.v hdmi.v
 
 FPGA_SIZE ?= 12
 
@@ -56,8 +56,10 @@ bin/toplevel.bit: bin/toplevel.config
 pll:
 	ecppll \
                 -i 25 \
-                -o 50 \
+                --clkout0 125 \
 		--clkout1 100 \
+		--clkout2 50 \
+		--clkout3 25 \
 		--phase1 270 \
                 -n  pll_linux\
                 -f pll_linux.v

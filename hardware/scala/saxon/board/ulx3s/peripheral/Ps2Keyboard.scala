@@ -104,7 +104,7 @@ case class PS2KeyboardCtrl() extends Component {
             } elsewhen (scanCode === 0x11) {
               alt := released(1)
             } otherwise {
-              valid := !released(1)
+              valid := released === B"01"
             }
           }
         } otherwise {

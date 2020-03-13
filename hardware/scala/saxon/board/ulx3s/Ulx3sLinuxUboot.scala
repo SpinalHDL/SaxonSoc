@@ -1,6 +1,7 @@
 package saxon.board.ulx3s
 
 import saxon._
+import saxon.board.ulx3s.peripheral._
 import spinal.core._
 import spinal.lib._
 import spinal.lib.blackbox.lattice.ecp5.{BB, ODDRX1F, TSFF}
@@ -31,6 +32,8 @@ class Ulx3sLinuxUbootSystem extends SaxonSocLinux {
   }
 
   val uartB = Apb3UartGenerator(0x11000) 
+  val hdmiConsoleA = Apb3HdmiConsoleGenerator(0x30000)
+  val ps2KeyboardA = Apb3Ps2KeyboardGenerator(0x40000)
   val noReset = Ulx3sNoResetGenerator()
 
   val bridge = BmbBridgeGenerator()
@@ -69,9 +72,9 @@ class Ulx3sLinuxUboot extends Generator{
     pll.clkin := clk_25mhz
     globalCd.setInput(
       ClockDomain(
-        clock = pll.clkout0,
+        clock = pll.clkout2,
         reset = resetn,
-        frequency = FixedFrequency(50 MHz),
+        frequency = FixedFrequency(52 MHz),
         config = ClockDomainConfig(
           resetKind = ASYNC,
           resetActiveLevel = LOW
@@ -84,6 +87,12 @@ class Ulx3sLinuxUboot extends Generator{
     bb.D1 <> False
     bb.Q <> sdram_clk
   }
+    
+  Dependable(system, system.hdmiConsoleA){
+    system.hdmiConsoleA.pixclk := clocking.pll.clkout3
+    system.hdmiConsoleA.pixclk_x5 := clocking.pll.clkout0
+    system.hdmiConsoleA.resetn := clocking.resetn
+  }
 }
 
 case class Ulx3sLinuxUbootPll() extends BlackBox{
@@ -91,6 +100,8 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
   val clkin = in Bool()
   val clkout0 = out Bool()
   val clkout1 = out Bool()
+  val clkout2 = out Bool()
+  val clkout3 = out Bool()
   val locked = out Bool()
 }
 
@@ -216,7 +227,7 @@ object Ulx3sLinuxUbootSystemSim {
       this.onClockDomain(systemCd.outputClockDomain)
 
       globalCd.makeExternal(
-        frequency = FixedFrequency(50 MHz)
+        frequency = FixedFrequency(52 MHz)
       )
 
       val phyA = RtlPhyGenerator()

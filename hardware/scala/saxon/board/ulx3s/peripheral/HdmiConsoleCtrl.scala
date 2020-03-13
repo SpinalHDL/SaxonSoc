@@ -117,8 +117,8 @@ class HdmiConsoleCtrl(rgbConfig: RgbConfig = RgbConfig(8, 8, 8)) extends Compone
 
   // Write incoming character to the next position in the current line in the frame buffer
   when (io.chars.valid) {
-    // Put the character in the frame buffer, unless a newline
-    when (io.chars.payload =/= 0x0a) {
+    // Put the character in the frame buffer, unless a newline or backspace
+    when (io.chars.payload =/= 0x0a && io.chars.payload =/= 0x08) {
       frameBuffer(lineStart(currLine) + linePos) := attributes ## io.chars.payload
       linePos := linePos + 1
       lineLength(currLine) := lineLength(currLine) + 1
@@ -129,6 +129,9 @@ class HdmiConsoleCtrl(rgbConfig: RgbConfig = RgbConfig(8, 8, 8)) extends Compone
       linePos := 0
       lineLength(nextLine) := U(0, wBits bits)
       currLine := nextLine
+    } elsewhen (io.chars.payload === 0x08 && lineLength(currLine) > 0) {
+      lineLength(currLine) := lineLength(currLine) - 1 // backspace
+      linePos := linePos - 1
     }
   }
 
