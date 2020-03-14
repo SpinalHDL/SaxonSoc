@@ -18,6 +18,7 @@ ifeq ($(FPGA_SIZE), 45)
 endif
 ifeq ($(FPGA_SIZE), 85)
 	CHIP_ID=0x41113043
+	NEXTPNR_FLAGS += "--timing-allow-fail"
 endif
 
 IDCODE ?= $(CHIP_ID)
@@ -48,7 +49,7 @@ bin/toplevel.config: bin/toplevel.json
 		--lpf ulx3s_v20_linux_uboot.lpf \
 		--$(FPGA_KS) \
 		--freq 50 \
-		--package CABGA381
+		--package CABGA381 ${NEXTPNR_FLAGS}
 
 bin/toplevel.bit: bin/toplevel.config
 	ecppack --compress --idcode $(IDCODE) $< $@
