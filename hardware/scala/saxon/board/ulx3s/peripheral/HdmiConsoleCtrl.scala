@@ -104,10 +104,10 @@ class HdmiConsoleCtrl(rgbConfig: RgbConfig = RgbConfig(8, 8, 8)) extends Compone
   val linePos = Reg(UInt(wBits bits)) init 0       // The character position in the line being written
 
   // The line after the current one with wraparound. 
-  // This is also the start line of the screen,
-  // as the line being written to is always at the bottom of the screen
-  val nextLine = (currLine < h - 1) ? (currLine + U(1, hBits bits)) | U(0, hBits bits)
-  val startLine = (currLine < h - 5) ? (currLine + U(5, hBits bits)) | U(0, hBits bits)
+  val nextLine = RegNext((currLine < h - 1) ? (currLine + U(1, hBits bits)) | U(0, hBits bits))
+
+  // Set start line to 55 lines before current line as the screen only seems to display 55 lines
+  val startLine = RegNext((currLine < h - 5) ? (currLine + U(5, hBits bits)) | currLine - U(55, hBits bits)) addTag(crossClockDomain)
 
   // Set up the line start and lengths arrays
   for (i <- 0 to h - 1) {
@@ -115,23 +115,28 @@ class HdmiConsoleCtrl(rgbConfig: RgbConfig = RgbConfig(8, 8, 8)) extends Compone
     lineLength(i).init(0)
   }
 
+  val writeAddr = RegNext(lineStart(currLine) + linePos)
+  val currLineLength = RegNext(lineLength(currLine))
+  val payload = RegNext(io.chars.payload)
+  val valid = RegNext(io.chars.valid)
+
   // Write incoming character to the next position in the current line in the frame buffer
-  when (io.chars.valid) {
+  when (valid) {
     // Put the character in the frame buffer, unless a newline or backspace
-    when (io.chars.payload =/= 0x0a && io.chars.payload =/= 0x08) {
-      frameBuffer(lineStart(currLine) + linePos) := attributes ## io.chars.payload
-      linePos := linePos + 1
-      lineLength(currLine) := lineLength(currLine) + 1
+    when (payload =/= 0x0a && payload =/= 0x08) {
+      frameBuffer(writeAddr) := attributes ## payload
+      linePos := RegNext(linePos + 1)
+      lineLength(currLine) := RegNext(currLineLength + 1)
     }
 
     // Start new line when current full or newline character received
-    when (linePos === w - 1 || io.chars.payload === 0x0a) {
+    when (linePos === w - 1 || payload === 0x0a) {
       linePos := 0
       lineLength(nextLine) := U(0, wBits bits)
       currLine := nextLine
-    } elsewhen (io.chars.payload === 0x08 && lineLength(currLine) > 0) {
-      lineLength(currLine) := lineLength(currLine) - 1 // backspace
-      linePos := linePos - 1
+    } elsewhen (payload === 0x08 && lineLength(currLine) > 0) {
+      lineLength(currLine) := RegNext(currLineLength - 1) // backspace
+      linePos := RegNext(linePos - 1)
     }
   }
 
