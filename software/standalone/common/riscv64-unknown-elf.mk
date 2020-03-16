@@ -24,15 +24,15 @@ endif
 
 
 ifeq ($(DEBUG),yes)
-ifeq ($(DEBUG_Og),no)
+ifneq ($(DEBUG_Og),yes)
 	CFLAGS += -g3 -O0
 else
 	CFLAGS += -g3 -Og
 endif
 endif
 
-ifeq ($(DEBUG),no)
-ifeq ($(BENCH),no)
+ifneq ($(DEBUG),yes)
+ifneq ($(BENCH),yes)
 	CFLAGS += -Os
 else
 	CFLAGS += -O3
