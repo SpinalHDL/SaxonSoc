@@ -76,23 +76,23 @@ git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev --recursive SaxonSoc
 
 # Bootloader
 cd SaxonSoc/software/standalone/bootloader
-make clean all BSP=Arty7Linux
+make clean all BSP=ArtyA7Linux
 cd ../../../..
 
 # MachineModeSbi
 cd SaxonSoc/software/standalone/machineModeSbi
-make clean all BSP=Arty7Linux
+make clean all BSP=ArtyA7Linux
 cd ../../../..
 
 # Netlist
 cd SaxonSoc
-sbt "runMain saxon.board.digilent.Arty7Linux"
+sbt "runMain saxon.board.digilent.ArtyA7Linux"
 cd ..
 
 # U-Boot
 git clone https://github.com/SpinalHDL/u-boot.git -b saxon u-boot
 cd u-boot
-CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make saxon_arty7_defconfig
+CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make saxon_arty_a7_defconfig
 CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make -j$(nproc)
 cd ..
 
@@ -100,10 +100,10 @@ cd ..
 git clone https://github.com/SpinalHDL/buildroot.git -b saxon buildroot
 git clone https://github.com/SpinalHDL/linux.git -b vexriscv --depth 100 linux
 cd buildroot
-make spinal_saxon_arty7_defconfig
+make spinal_saxon_arty_a7_defconfig
 make linux-rebuild all -j$(nproc)
 output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
-dtc -O dtb -o output/images/dtb board/spinal/saxon_arty7/spinal_saxon_arty7.dts
+dtc -O dtb -o output/images/dtb board/spinal/saxon_arty_a7/spinal_saxon_arty_a7.dts
 output/host/bin/mkimage -A riscv -O linux -T kernel -C none -a 0x80000000 -e 0x80000000 -n Linux -d output/images/Image output/images/uImage
 cd ..
 ```
@@ -154,7 +154,7 @@ sudo umount sdcard
 ## FPGA flashing
 
 ```
-write_cfgmem  -format mcs -size 16 -interface SPIx4 -loadbit {up 0x00000000 "/home/miaou/pro/riscv/SaxonSocArtyA7/arty7_linux/arty7_linux.runs/impl_3/Arty7Linux.bit" } -loaddata {up 0x00400000 "/home/miaou/pro/riscv/SaxonSocArtyA7/SaxonSoc.git/software/standalone/machineModeSbi/build/machineModeSbi.bin" up 0x00410000 "/home/miaou/pro/riscv/SaxonSocArtyA7/u-boot/u-boot.bin" } -force -file "/home/miaou/pro/riscv/SaxonSocArtyA7/arty7_linux/prog.mcs"
+write_cfgmem  -format mcs -size 16 -interface SPIx4 -loadbit {up 0x00000000 "/home/miaou/pro/riscv/SaxonSocArtyA7/arty_a7_linux/arty_a7_linux.runs/impl_3/ArtyA7Linux.bit" } -loaddata {up 0x00400000 "/home/miaou/pro/riscv/SaxonSocArtyA7/SaxonSoc.git/software/standalone/machineModeSbi/build/machineModeSbi.bin" up 0x00410000 "/home/miaou/pro/riscv/SaxonSocArtyA7/u-boot/u-boot.bin" } -force -file "/home/miaou/pro/riscv/SaxonSocArtyA7/artyA7_linux/prog.mcs"
 ```
 
 ## Connecting to the USB uart
@@ -171,7 +171,7 @@ WIP
 
 ```
 cd SaxonSoc/software/standalone/bootloader
-make clean all BSP=Arty7Linux SPINAL_SIM=yes
+make clean all BSP=ArtyA7Linux SPINAL_SIM=yes
 cd ../../../..
 ```
 

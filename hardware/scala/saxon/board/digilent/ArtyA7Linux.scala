@@ -23,7 +23,7 @@ import vexriscv.plugin.CsrPlugin
 
 
 
-class Arty7LinuxSystem() extends SaxonSocLinux{
+class ArtyA7LinuxSystem() extends SaxonSocLinux{
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = new Apb3SpiGenerator(0x20000){
     val decoder = SpiPhyDecoderGenerator(phy)
@@ -49,7 +49,7 @@ class Arty7LinuxSystem() extends SaxonSocLinux{
   )
 }
 
-class Arty7Linux extends Generator{
+class ArtyA7Linux extends Generator{
   val debugCd = ClockDomainResetGenerator()
   debugCd.holdDuration.load(4095)
   debugCd.enablePowerOnReset()
@@ -66,7 +66,7 @@ class Arty7Linux extends Generator{
     omitReset = true
   )
 
-  val system = new Arty7LinuxSystem()
+  val system = new ArtyA7LinuxSystem()
   system.onClockDomain(systemCd.outputClockDomain)
   system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
@@ -149,8 +149,8 @@ class Arty7Linux extends Generator{
 
 
 
-object Arty7LinuxSystem{
-  def default(g : Arty7LinuxSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) = g {
+object ArtyA7LinuxSystem{
+  def default(g : ArtyA7LinuxSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) = g {
     import g._
 
     cpu.config.load(VexRiscvConfigs.linuxTest(0x20000000l))
@@ -211,12 +211,12 @@ object Arty7LinuxSystem{
 }
 
 
-object Arty7Linux {
+object ArtyA7Linux {
   //Function used to configure the SoC
-  def default(g : Arty7Linux) = g{
+  def default(g : ArtyA7Linux) = g{
     import g._
     sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
-    Arty7LinuxSystem.default(system, debugCd, sdramCd)
+    ArtyA7LinuxSystem.default(system, debugCd, sdramCd)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     system.cpu.produce(out(Bool).setName("inWfi") := system.cpu.config.plugins.find(_.isInstanceOf[CsrPlugin]).get.asInstanceOf[CsrPlugin].inWfi)
     g
@@ -228,8 +228,8 @@ object Arty7Linux {
       .copy(
         defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC),
         inlineRom = true
-      ).generateVerilog(InOutWrapper(default(new Arty7Linux()).toComponent()))
-    BspGenerator("Arty7Linux", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
+      ).generateVerilog(InOutWrapper(default(new ArtyA7Linux()).toComponent()))
+    BspGenerator("ArtyA7Linux", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
   }
 }
 
@@ -238,7 +238,7 @@ object Arty7Linux {
 
 
 
-object Arty7LinuxSystemSim {
+object ArtyA7LinuxSystemSim {
   import spinal.core.sim._
 
   def main(args: Array[String]): Unit = {
@@ -248,7 +248,7 @@ object Arty7LinuxSystemSim {
 //    simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-    simConfig.compile(new Arty7LinuxSystem(){
+    simConfig.compile(new ArtyA7LinuxSystem(){
       val debugCd = ClockDomainResetGenerator()
       debugCd.enablePowerOnReset()
       debugCd.holdDuration.load(63)
@@ -268,7 +268,7 @@ object Arty7LinuxSystemSim {
 
       apbDecoder.addSlave(sdramA.apb, 0x100000l)
 
-      Arty7LinuxSystem.default(this, debugCd, systemCd)
+      ArtyA7LinuxSystem.default(this, debugCd, systemCd)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val debugClkPeriod = (1e12/dut.debugCd.inputClockDomain.frequency.getValue.toDouble).toLong
@@ -323,13 +323,13 @@ object Arty7LinuxSystemSim {
 
 
 //
-//object Arty7LinuxSynthesis{
+//object ArtyA7LinuxSynthesis{
 //  def main(args: Array[String]): Unit = {
 //    val soc = new Rtl {
-//      override def getName(): String = "Arty7Linux"
-//      override def getRtlPath(): String = "Arty7Linux.v"
+//      override def getName(): String = "ArtyA7Linux"
+//      override def getRtlPath(): String = "ArtyA7Linux.v"
 //      SpinalConfig(defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC), inlineRom = true)
-//        .generateVerilog(InOutWrapper(Arty7Linux.default(new Arty7Linux()).toComponent()).setDefinitionName(getRtlPath().split("\\.").head))
+//        .generateVerilog(InOutWrapper(ArtyA7Linux.default(new ArtyA7Linux()).toComponent()).setDefinitionName(getRtlPath().split("\\.").head))
 //    }
 //
 //    val rtls = List(soc)
