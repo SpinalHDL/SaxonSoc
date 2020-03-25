@@ -14,7 +14,7 @@ class Ulx3sHdmiSystem extends BmbApbVexRiscvGenerator{
   val gpioA = Apb3GpioGenerator(0x00000)
   val noReset = Ulx3sNoResetGenerator()
   val hdmiConsoleA = Apb3HdmiConsoleGenerator(0x20000)
-  val ps2KeyboardA = Apb3Ps2KeyboardGenerator(0x30000)
+  val usbKeyboardA = Apb3UsbKeyboardGenerator(0x30000)
 
   ramA.dataWidth.load(32)
 
@@ -30,7 +30,7 @@ class Ulx3sHdmi extends Generator{
   clockCtrl.resetHoldDuration.load(255)
   clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
-  clockCtrl.clkFrequency.load(25 MHz)
+  clockCtrl.clkFrequency.load(48 MHz)
   clockCtrl.resetSensitivity.load(ResetSensitivity.LOW)
   clockCtrl.resetSynchronous.load(true)
 
@@ -45,12 +45,12 @@ class Ulx3sHdmi extends Generator{
     
     pll.io.clkin := clk_25mhz
 
-    clockCtrl.clock.load(pll.io.clkout1)
+    clockCtrl.clock.load(pll.io.clkout2)
     clockCtrl.reset.load(resetn)
   }
 
   Dependable(system, system.hdmiConsoleA){
-    system.hdmiConsoleA.pixclk := clocking.pll.io.clkout1
+    system.hdmiConsoleA.pixclk := clocking.pll.io.clkout3
     system.hdmiConsoleA.pixclk_x5 := clocking.pll.io.clkout0
     system.hdmiConsoleA.resetn := clocking.resetn
   }

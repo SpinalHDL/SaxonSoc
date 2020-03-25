@@ -8,6 +8,8 @@ case class HdmiPll() extends BlackBox {
     val clkin     = in  Bool
     val clkout0    = out Bool
     val clkout1    = out Bool
+    val clkout2    = out Bool
+    val clkout3    = out Bool
     val locked     = out Bool
   }
   noIoPrefix()
