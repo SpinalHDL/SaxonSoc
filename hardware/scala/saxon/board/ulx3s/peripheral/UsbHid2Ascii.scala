@@ -15,7 +15,7 @@ class UsbHid2Ascii extends Component {
   when (key >= U(0x04, 8 bits) && key <= U(0x1d, 8 bits)) {
     io.ascii := (shift ? (key + U(0x3D, 8 bits)) | (key + U(0x5D, 8 bits))).asBits
   } elsewhen (key >= U(0x1e, 8 bits) && key <= U(0x26, 8 bits)) {
-    io.ascii := (shift ? (key + U(0x04, 8 bits)) | (key + U(0x12, 8 bits))).asBits
+    io.ascii := (shift ? (key + U(0x03, 8 bits)) | (key + U(0x13, 8 bits))).asBits
   } elsewhen (key === U(0x27)) {
     io.ascii := (shift ? (key + U(0x02, 8 bits)) | (key + U(0x09, 8 bits))).asBits
   } elsewhen (key === U(0x28)) {

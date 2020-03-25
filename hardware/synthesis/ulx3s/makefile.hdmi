@@ -42,7 +42,7 @@ bin/toplevel.config: bin/toplevel.json
 	nextpnr-ecp5 \
 		--json $< \
 		--textcfg $@ \
-		--lpf ulx3s_v20_led.lpf \
+		--lpf ulx3s_v20_hdmi.lpf \
 		--${FPGA_KS} \
 		--package CABGA381
 
