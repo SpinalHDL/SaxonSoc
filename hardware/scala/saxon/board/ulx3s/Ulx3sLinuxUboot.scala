@@ -33,7 +33,7 @@ class Ulx3sLinuxUbootSystem extends SaxonSocLinux {
 
   val uartB = Apb3UartGenerator(0x11000) 
   val hdmiConsoleA = Apb3HdmiConsoleGenerator(0x30000)
-  val ps2KeyboardA = Apb3Ps2KeyboardGenerator(0x40000)
+  val usbKeyboardA = Apb3UsbKeyboardGenerator(0x40000)
   val noReset = Ulx3sNoResetGenerator()
 
   val bridge = BmbBridgeGenerator()

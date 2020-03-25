@@ -11,7 +11,7 @@
 #include "console.h"
 #endif
 
-#ifdef PS2_KEYBOARD
+#if  defined(PS2_KEYBOARD) || defined(USB_KEYBOARD)
 #include "io.h"
 #endif
 
@@ -40,6 +40,10 @@ void putC(char c){
 int32_t getC(){
 #ifdef PS2_KEYBOARD
     uint32_t key = read_u32(SYSTEM_PS2_KEYBOARD_A_APB);
+    if(key >> 8) return key & 0xFF;
+#endif
+#ifdef USB_KEYBOARD
+    uint32_t key = read_u32(SYSTEM_USB_KEYBOARD_A_APB);
     if(key >> 8) return key & 0xFF;
 #endif
     if(uart_readOccupancy(UART_A) == 0) return -1;

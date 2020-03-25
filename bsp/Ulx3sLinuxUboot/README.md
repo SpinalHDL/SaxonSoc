@@ -81,8 +81,9 @@ cd ../../../..
 # MachineModeSbi
 cd SaxonSoc/software/standalone/machineModeSbi
 make clean all BSP=Ulx3sLinuxUboot
-# Or if you want to include support for an HDMI console and a PS/2 keyboard
-make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DHDMI_CONSOLE -DPS2_KEYBOARD"
+# Or if you want to include support for an HDMI console and a USB keyboard
+# Use -DPS2_KEYBOARD instead for a PS/2 keyboard
+make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DHDMI_CONSOLE -DUSB_KEYBOARD"
 cd ../../../..
 
 # Netlist
