@@ -96,7 +96,7 @@ class UsbhSie extends Component {
   val autorespThreshW = rSendAckQ && rRxTimeEnQ && (rRxTimeQ === RX_TIME_READY)
   val rxRespTimeoutW =  (rLastTxTimeQ >= RX_TIMEOUT) && rWaitRespQ
   val txIfsReadyW = rLastTxTimeQ > TX_IFS
-  val statusResponseDataW = (rStatusResponseQ === PID_DATA0 || rStatusResponseQ === PID_DATA1)
+  val statusResponseAllowW = (rStatusResponseQ =/= PID_NAK)
   val crcErrorW = rCrcSumQ =/= 0xb001
 
   val rxDataW = rDataBufferQ(7 downto 0)
@@ -113,8 +113,7 @@ class UsbhSie extends Component {
   //val crcErrorW = rStateQ === STATE_RX_DATA &&
   //                !rxActiveW &&
   //                !rInTransferQ &&
-  //                rStatusResponseQ =/= PID_DATA0 &&
-  //                rStatusResponseQ =/= PID_DATA1 &&
+  //                rStatusResponseAllowW &&
   //                rCrcSumQ =/= 0xb001
 
   val nextStateR = Bits(4 bits)
@@ -202,9 +201,8 @@ class UsbhSie extends Component {
     }
     is(STATE_RX_DATA) {
       when (!rxActiveW) {
-        when (crcErrorW && rSendAckQ && statusResponseDataW) {
-          nextStateR := STATE_IDLE
-        } elsewhen (rSendAckQ && statusResponseDataW) {
+        // Send ACK if CRC OK
+        when (rSendAckQ && statusResponseAllowW && !crcErrorW) {
           nextStateR := STATE_TX_WAIT
         } otherwise {
           nextStateR := STATE_IDLE
@@ -347,7 +345,7 @@ class UsbhSie extends Component {
       when (dataReadyW) {
         rCrcSumQ := crcOutW
       } elsewhen (!rxActiveW) {
-        rStatusCrcErrQ := crcErrorW && statusResponseDataW
+        rStatusCrcErrQ := crcErrorW && statusResponseAllowW
       }
     }
     is(STATE_IDLE) {

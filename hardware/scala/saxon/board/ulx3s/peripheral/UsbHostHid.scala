@@ -64,6 +64,9 @@ case class UsbKeyboardCtrl() extends Component {
   io.usbPu.dp := False
   io.usbPu.dn := False
 
+  val valid = Bool
+  io.read.valid := valid && !RegNext(valid)
+
   // Reduce clock from 48Mhz to 6Mhz for slow speed USB
   val enableArea = new ClockEnableArea(counter === 7) {
     val usbHostHid = new UsbHostHid(UsbHostHidGenerics())
@@ -75,9 +78,8 @@ case class UsbKeyboardCtrl() extends Component {
     usbHid2Ascii.io.hidReport := hidReport(23 downto 16) ## hidReport(7 downto 0)
 
     io.diag := usbHostHid.io.led
-    io.read.valid := usbHostHid.io.hid.valid
+    valid := usbHostHid.io.hid.valid
     io.read.payload := usbHid2Ascii.io.ascii
-
   }
   
   def driveFrom(busCtrl : BusSlaveFactory, baseAddress : Int = 0) () = new Area {
@@ -267,7 +269,7 @@ class UsbHostHid(g: UsbHostHidGenerics) extends Component {
     }
   }
 
-  // Setup rom address advance, retry logic and adrress acceptance
+  // Setup rom address advance, retry logic and address acceptance
   when (rResetAccepted) {
     rSetupRomAddr := 0
     rSetupRomAddrAcked := 0
@@ -648,7 +650,7 @@ class UsbHostHid(g: UsbHostHidGenerics) extends Component {
     io.hid.report(i*8+7 downto i*8) := rReportBuf(U(i, log2Up(g.reportLength) bits))
   }
 
-  io.hid.valid := rHidValid
+  io.hid.valid := rHidValid && rReportBuf(U(2, log2Up(g.reportLength) bits)) =/= 0
 
   io.led := B"0" ## rResetPending.asBits ## rTxOverDebug.asBits ## 
             rSetupRomAddrAcked(3).asBits ## sLINESTATE ## rState
