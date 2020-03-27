@@ -282,89 +282,75 @@ static void sdram_ddr3_init(u32 core,  u32 rl, u32 wl, u32 ctrlBurstLength, u32 
     write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
 }
 
+static u32 sdram_mem_test(u32 address, u32 range){
+	write_u32(0xFFFF0000, address + 0);
+	write_u32(0x5555AAAA, address + 4);
+	write_u32(0x11112222, address + 8);
+	write_u32(0x33334444, address + 12);
+
+	asm(".word(0x500F)"); //Flush data cache
+	u32 d0 = read_u32(0x80000000);
+	u32 d1 = read_u32(0x80000004);
+	u32 d2 = read_u32(0x80000008);
+	u32 d3 = read_u32(0x8000000C);
+
+	return d0 != 0xFFFF0000 || d1 != 0x5555AAAA || d2 != 0x11112222 || d3 != 0x33334444;
+}
+
+
+#include "log.h"
+
 static void sdram_phy_s7(u32 core, u32 phy){
-	write_u32(10, phy + SDRAM_S7_IDELAY_VALUE);
-	write_u32(0xFFFFFFFF, phy + SDRAM_S7_IDELAY_LOAD_DQ);
-	write_u32(0x00000000, phy + SDRAM_S7_IDELAY_LOAD_DQ);
+	putString("\nS7 phy calibration\n");
+	while(1){
+		putString("  DQ eye : ");
 
+		u32 eye_start      = 0;
+		u32 eye_best_start = 0;
+		u32 eye_best_last  = 0;
+		for(u32 dq_delay = 0; dq_delay < 64; dq_delay++){
+			write_u32(dq_delay, phy + SDRAM_S7_IDELAY_VALUE);
+			write_u32(0xFFFFFFFF, phy + SDRAM_S7_IDELAY_LOAD_DQ);
+			write_u32(0x00000000, phy + SDRAM_S7_IDELAY_LOAD_DQ);
+			u32 mem_test_success = 0;
+			for(s32 readLatency = 0;readLatency < 4;readLatency++){
+				write_u32(readLatency, core + SDRAM_READ_LATENCY);
 
-	asm(".word(0x500F)");
-	write_u32(0xFFFF0000, 0x80000000);
-	write_u32(0x5555AAAA, 0x80000004);
-	write_u32(0x11112222, 0x80000008);
-	write_u32(0x33334444, 0x8000000C);
-	asm(".word(0x500F)");
-
-
-	for(s32 readLatency = 0;readLatency < 2;readLatency++){
-	    write_u32(readLatency, core + SDRAM_READ_LATENCY);
-		for(s32 bitsleep = 0; bitsleep < 4;bitsleep++){
-			write_u32(0xFFFFFFFF, phy + SDRAM_S7_BITSLEEP);
-			asm(".word(0x500F)"); //Flush data cache
-			u32 d0 = read_u32(0x80000000);
-			u32 d1 = read_u32(0x80000004);
-			u32 d2 = read_u32(0x80000008);
-			u32 d3 = read_u32(0x8000000C);
-			if(d0 == 0xFFFF0000) {
-				readLatency = 10;
-				break;
+				for(s32 bitsleep = 0; bitsleep < 8;bitsleep++){
+					write_u32(0xFFFFFFFF, phy + SDRAM_S7_BITSLEEP);
+					mem_test_success |= sdram_mem_test(0x80000000, 16) == 0;
+				}
 			}
-			asm("nop");
+			if(mem_test_success){
+				putChar('X');
+				if(dq_delay - eye_start > eye_best_last - eye_best_start){
+					eye_best_start = eye_start;
+					eye_best_last = dq_delay;
+				}
+			}else{
+				putChar('.');
+				eye_start = dq_delay + 1;
+			}
+		}
+
+		putChar('\n');
+
+		write_u32((eye_best_start + eye_best_last) >> 2, phy + SDRAM_S7_IDELAY_VALUE);
+		write_u32(0xFFFFFFFF, phy + SDRAM_S7_IDELAY_LOAD_DQ);
+		write_u32(0x00000000, phy + SDRAM_S7_IDELAY_LOAD_DQ);
+		for(s32 readLatency = 0;readLatency < 4;readLatency++){
+			write_u32(readLatency, core + SDRAM_READ_LATENCY);
+
+			for(s32 bitsleep = 0; bitsleep < 8;bitsleep++){
+				write_u32(0xFFFFFFFF, phy + SDRAM_S7_BITSLEEP);
+				u32 memTest = sdram_mem_test(0x80000000, 16);
+				if(!memTest) {
+					putString("  OK\n");
+					return;
+				}
+			}
 		}
 	}
-
-	//	return;
-	//    sdram_command(core, SDRAM_MOD, 3, SDRAM_MPR);
-
-	    //0x1E 0x0A
-	////    for(s32 dqsDelay = 0; dqsDelay < 16;dqsDelay++){
-	//		for(s32 dqDelay = 0; dqDelay < 32;dqDelay++){
-	////    	s32 dqDelay = dqsDelay + 16;
-	//    		write_u32_ad(phy + SDRAM_S7_BITSLEEP, 0x01);
-	////	    	write_u32_ad(phy + SDRAM_S7_IDELAY_VALUE, dqsDelay);
-	////	    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQS, 0xFFFFFFFF);
-	////	    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQS, 0x00000000);
-	//	    	write_u32_ad(phy + SDRAM_S7_IDELAY_VALUE, dqDelay);
-	//	    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0xFFFFFFFF);
-	//	    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0x00000000);
-	//			//TODO iserdes flush
-	//	    	asm(".word(0x500F)"); //Flush data cache
-	//	    	read_u32(0x80000000);
-	//		}
-	////    }
-
-
-
-//	    for(u32 idx = 0;idx < 32;idx++){
-//	    	write_u32_ad(phy + SDRAM_S7_IDELAY_VALUE, idx);
-//	    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0xFFFFFFFF);
-//	    	write_u32_ad(phy + SDRAM_S7_IDELAY_LOAD_DQ, 0x00000000);
-//
-//	    	asm(".word(0x500F)"); //Flush data cache
-//			u32 d0 = read_u32(0x80000000);
-//			u32 d1 = read_u32(0x80000004);
-//			u32 d2 = read_u32(0x80000008);
-//			u32 d3 = read_u32(0x8000000C);
-//			asm("nop");
-//	    }
-//		asm(".word(0x500F)");
-//		write_u32(28-16, phy + SDRAM_S7_IDELAY_VALUE);
-//
-
-
-//
-//
-//		for(u32 idx = 0;idx < 100;idx++){
-//			write_u32(idx, idx);
-//		}
-//
-//		asm(".word(0x500F)"); //Flush data cache
-//
-//		for(u32 idx = 0;idx < 100;idx++){
-//			if(read_u32(idx) == idx){
-//				asm("nop");
-//			}
-//		}
 }
 
 #endif /* SDRAM_H_ */
