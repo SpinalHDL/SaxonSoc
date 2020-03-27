@@ -231,7 +231,7 @@ object ArtyA7Linux {
         defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC),
         inlineRom = true
       ).generateVerilog(InOutWrapper(default(new ArtyA7Linux()).toComponent()))
-    BspGenerator("ArtyA7Linux", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
+    BspGenerator("digilent/ArtyA7Linux", report.toplevel.generator, report.toplevel.generator.system.cpu.dBus)
   }
 }
 

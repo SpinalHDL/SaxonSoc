@@ -76,12 +76,12 @@ git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev --recursive SaxonSoc
 
 # Bootloader
 cd SaxonSoc/software/standalone/bootloader
-make clean all BSP=ArtyA7Linux
+make clean all BSP=digilent/ArtyA7Linux
 cd ../../../..
 
 # MachineModeSbi
 cd SaxonSoc/software/standalone/machineModeSbi
-make clean all BSP=ArtyA7Linux
+make clean all BSP=digilent/ArtyA7Linux
 cd ../../../..
 
 # Netlist
@@ -171,7 +171,7 @@ WIP
 
 ```
 cd SaxonSoc/software/standalone/bootloader
-make clean all BSP=ArtyA7Linux SPINAL_SIM=yes
+make clean all BSP=digilent/ArtyA7Linux SPINAL_SIM=yes
 cd ../../../..
 ```
 
