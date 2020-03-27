@@ -164,6 +164,8 @@ object ArtyA7LinuxSystem{
       portTockenMax = 8,
       timingWidth = 4,
       refWidth = 16,
+      stationCount  = 2,
+      bytePerTaskMax = 64,
       writeLatencies = List(3),
       readLatencies = List(5+3, 5+4)
     ))

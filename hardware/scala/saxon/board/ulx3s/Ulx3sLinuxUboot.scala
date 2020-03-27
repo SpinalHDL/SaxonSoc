@@ -122,6 +122,8 @@ object Ulx3sLinuxUbootSystem{
       portTockenMax = 32,
       timingWidth = 4,
       refWidth = 16,
+      stationCount  = 2,
+      bytePerTaskMax = 64,
       writeLatencies = List(0),
       readLatencies = List(5, 6, 7)
     ))
