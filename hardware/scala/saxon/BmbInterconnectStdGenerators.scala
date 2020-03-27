@@ -194,8 +194,8 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
           bmb = requirements,
           clockDomain = ClockDomain.current,
           cmdBufferSize = 16,
-          dataBufferSize = 16,
-          rspBufferSize = 16
+          dataBufferSize = 32,
+          rspBufferSize = 32
         )
       )
     }
