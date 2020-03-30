@@ -139,7 +139,7 @@ void main() {
       // Check SREC type
       if (pos == 1) {
         if (val >= 7 && val <= 9) { // Start address record
-	  start_prog();
+      start_prog();
         }
         if (val <= 3) len = (val << 1) + 5; // Get length of record
         val = 0;

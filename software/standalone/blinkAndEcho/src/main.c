@@ -1,27 +1,29 @@
 #include <stdint.h>
 
-#include "saxon.h"
-
-volatile char globalC = 'b';
+#include "bsp.h"
+#include "gpio.h"
+#include "uart.h"
 
 void main() {
-	volatile uint32_t a = 1, b = 2, c = 3;
-	uint32_t result = 0;
-    GPIO_A->OUTPUT_ENABLE = 0x000000FF;
-    GPIO_A->OUTPUT = 0x00000000;
+    bsp_init();
 
-    globalC+=1;
-    UART_A->DATA = globalC;
+    gpio_setOutputEnable(BSP_LED_GPIO, BSP_LED_MASK);
+    gpio_setOutput(BSP_LED_GPIO, 0x00000000);
+
+    uart_write(BSP_UART_TERMINAL, '!');
 
     uint32_t counter = 0;
     while(1){
         if(counter++ == 1000){
-            GPIO_A->OUTPUT = GPIO_A->OUTPUT + 1;
+            gpio_setOutput(BSP_LED_GPIO, gpio_getInput(BSP_LED_GPIO) ^ BSP_LED_MASK);
             counter = 0;
         }
-        while(UART_A->STATUS >> 24){ //UART RX interrupt
-            UART_A->DATA = (UART_A->DATA) & 0xFF;
+
+        while(uart_readOccupancy(BSP_UART_TERMINAL)){
+            uart_write(BSP_UART_TERMINAL, uart_read(BSP_UART_TERMINAL));
         }
+
+        bsp_uDelay(100000);
     }
 }
 

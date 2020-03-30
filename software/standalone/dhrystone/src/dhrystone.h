@@ -10,7 +10,7 @@
  *              Siemens Nixdorf, Paderborn/Germany
  *              weicker@specbench.org
  *  Date:       May 25, 1988
- *  Modified:	Steven Pemberton, CWI, Amsterdam; Steven.Pemberton@cwi.nl
+ *  Modified:    Steven Pemberton, CWI, Amsterdam; Steven.Pemberton@cwi.nl
  *  Date:       October, 1993; March 1995
  *              Included both files into one source, that gets compiled
  *              in two passes. Made program auto-compiling, and auto-running,
@@ -93,9 +93,9 @@
  *
  ***************************************************************************
  *
- *  History:	Version C/2.1 was made for two reasons:
+ *  History:    Version C/2.1 was made for two reasons:
  *
- *	1) There was an obvious need for a common C version of
+ *    1) There was an obvious need for a common C version of
  *      Dhrystone, since C is at present the most popular system
  *      programming language for the class of processors
  *      (microcomputers, minicomputers) where Dhrystone is used most.
@@ -165,22 +165,22 @@
  *      Func_3, and a non-executed "else" part removed from Proc_3.
  *
  * Version C/2.2, Steven Pemberton, October 1993
- *	Functionally, identical to version 2.2; the changes are in
- *	how you compile and use it:
- *	- Everything is in one file now, but compiled in 2 passes
- *	- Compile (and run) by running the file through the shell: 'sh dhry.c"
- *	- Uses the system definition of HZ if one can be found
- *	- HZ must be defined, otherwise it won't compile (no defaults here)
- *	- The (uninteresting) output is printed to stderr (dhry2 > /dev/null)
- *	- The number of loops is passed as a parameter, rather than read
- *	  (dhry2 500000)
- *	- If the number of loops is insufficient to get a good result,
- *	  it repeats it with loops*10 until it is enough (rather than just
- *	  stopping)
- *	- Output says which sort of clock it is using, and the HZ value
- *	- You can use -DREG instead of the -DREG=register of previous versions
- *	- Some stylistic cleanups.
- *		
+ *    Functionally, identical to version 2.2; the changes are in
+ *    how you compile and use it:
+ *    - Everything is in one file now, but compiled in 2 passes
+ *    - Compile (and run) by running the file through the shell: 'sh dhry.c"
+ *    - Uses the system definition of HZ if one can be found
+ *    - HZ must be defined, otherwise it won't compile (no defaults here)
+ *    - The (uninteresting) output is printed to stderr (dhry2 > /dev/null)
+ *    - The number of loops is passed as a parameter, rather than read
+ *      (dhry2 500000)
+ *    - If the number of loops is insufficient to get a good result,
+ *      it repeats it with loops*10 until it is enough (rather than just
+ *      stopping)
+ *    - Output says which sort of clock it is using, and the HZ value
+ *    - You can use -DREG instead of the -DREG=register of previous versions
+ *    - Some stylistic cleanups.
+ *        
  ***************************************************************************
  *
  *  Compilation model and measurement (IMPORTANT):
@@ -359,7 +359,7 @@
 
 #define CLOCK_TYPE "time()"
 #undef HZ
-#define HZ	CORE_HZ /* time() returns time in clock cycles*/
+#define HZ    CORE_HZ /* time() returns time in clock cycles*/
 extern long     time(); /* see library function "time"  */
 #define Too_Small_Time 100000 /* Measurements should last at least 2 seconds */
 #define Start_Timer() Begin_Time = time ( (long *) 0)
@@ -372,9 +372,9 @@ extern long     time(); /* see library function "time"  */
 #undef HZ
 #undef TIMES
 #include <time.h>
-#define HZ	CLK_TCK
+#define HZ    CLK_TCK
 #define CLOCK_TYPE "MSC clock()"
-extern clock_t	clock();
+extern clock_t    clock();
 #define Too_Small_Time (2*HZ)
 #define Start_Timer() Begin_Time = clock()
 #define Stop_Timer()  End_Time   = clock()
@@ -393,10 +393,10 @@ extern clock_t	clock();
 #define CLOCK_TYPE "times()"
 #include <sys/types.h>
 #include <sys/times.h>
-#ifndef HZ	/* Added by SP 900619 */
+#ifndef HZ    /* Added by SP 900619 */
 #include <sys/param.h> /* If your system doesn't have this, use -DHZ=xxx */
 #else
-	*** You must define HZ!!! ***
+    *** You must define HZ!!! ***
 #endif /* HZ */
 #ifndef PASS2
 struct tms      time_info;
@@ -413,7 +413,7 @@ struct tms      time_info;
 
 
 #define Mic_secs_Per_Second     1000000
-#define NUMBER_OF_RUNS		500 /* Default number of runs */
+#define NUMBER_OF_RUNS        500 /* Default number of runs */
 
 #ifdef  NOSTRUCTASSIGN
 #define structassign(d, s)      memcpy(&(d), &(s), sizeof(d))

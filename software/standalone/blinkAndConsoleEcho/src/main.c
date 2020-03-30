@@ -6,8 +6,8 @@
 volatile char globalC = 'b';
 
 void main() {
-	volatile uint32_t a = 1, b = 2, c = 3;
-	uint32_t result = 0;
+    volatile uint32_t a = 1, b = 2, c = 3;
+    uint32_t result = 0;
     GPIO_A->OUTPUT_ENABLE = 0x000000FF;
     GPIO_A->OUTPUT = 0x00000000;
 
@@ -21,12 +21,12 @@ void main() {
             counter = 0;
         }
         while(1){
-	    uint32_t key = read_u32(SYSTEM_PS2_KEYBOARD_A_APB);
-	    if (UART_A->STATUS >> 24 || key >> 8) { //UART RX interrupt or key valid
-	        uint32_t ch = (key >> 8) ? key & 0xFF : (UART_A->DATA) & 0xFF;
+        uint32_t key = read_u32(SYSTEM_PS2_KEYBOARD_A_APB);
+        if (UART_A->STATUS >> 24 || key >> 8) { //UART RX interrupt or key valid
+            uint32_t ch = (key >> 8) ? key & 0xFF : (UART_A->DATA) & 0xFF;
                 UART_A->DATA = ch;
-	        write_u32(ch, SYSTEM_HDMI_CONSOLE_A_APB);
-	    }
+            write_u32(ch, SYSTEM_HDMI_CONSOLE_A_APB);
+        }
         }
     }
 }

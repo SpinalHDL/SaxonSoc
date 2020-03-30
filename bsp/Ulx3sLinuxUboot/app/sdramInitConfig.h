@@ -37,7 +37,7 @@ void putHex(int value){
 #define PHY_CLK_RATIO 2
 
 void bspMain() {
-	putString("Starting bootloader\n");
+    putString("Starting bootloader\n");
 
     sdram_init(
         SYSTEM_SDRAM_A_APB,
@@ -56,5 +56,5 @@ void bspMain() {
         PHY_CLK_RATIO
     );
 
-	putString("sdram init done\n");
+    putString("sdram init done\n");
 }

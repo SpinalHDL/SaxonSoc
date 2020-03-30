@@ -1,8 +1,10 @@
 #include "type.h"
 
+#include "bsp.h"
 #include "bootloaderConfig.h"
 
 void main() {
-	bspMain();
+    bsp_init();
+    bspMain();
 }
 

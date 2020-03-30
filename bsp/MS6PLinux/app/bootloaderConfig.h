@@ -21,7 +21,7 @@ void putString(char* s){
   }
 }
 void putHex(int value){
-  for(int i = 7; i >=	  0;i--){
+  for(int i = 7; i >=      0;i--){
     int hex = (value >> i*4) & 0xF;
     UART_A->DATA = (hex > 9 ? 'A' + hex - 10 : '0' + hex);
   }

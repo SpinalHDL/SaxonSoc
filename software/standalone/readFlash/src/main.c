@@ -7,8 +7,8 @@
 
 void print_hex(uint32_t val, uint32_t digits)
 {
-	for (int i = (4*digits)-4; i >= 0; i -= 4)
-		uart_write(UART_A, "0123456789ABCDEF"[(val >> i) % 16]);
+    for (int i = (4*digits)-4; i >= 0; i -= 4)
+        uart_write(UART_A, "0123456789ABCDEF"[(val >> i) % 16]);
 }
 
 void print(uint8_t * data) {

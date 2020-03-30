@@ -26,14 +26,14 @@
 
 void stopSim(){
     uart_writeStr(UART_A, "\nmachineModeSbi exception\n");
-	while(1);
+    while(1);
 }
 
 
 void putC(char c){
-	uart_write(UART_A, c);
+    uart_write(UART_A, c);
 #ifdef HDMI_CONSOLE
-	console_write(c);
+    console_write(c);
 #endif
 }
 
@@ -51,69 +51,69 @@ int32_t getC(){
 }
 
 uint32_t rdtime(){
-	return MACHINE_TIMER[0];
+    return MACHINE_TIMER[0];
 }
 
 uint32_t rdtimeh(){
-	return MACHINE_TIMER[1];
+    return MACHINE_TIMER[1];
 }
 
 void setMachineTimerCmp(uint32_t low, uint32_t high){
-	MACHINE_TIMER[3] = 0xffffffff;
-	MACHINE_TIMER[2] = low;
-	MACHINE_TIMER[3] = high;
+    MACHINE_TIMER[3] = 0xffffffff;
+    MACHINE_TIMER[2] = low;
+    MACHINE_TIMER[3] = high;
 }
 
 
 void halInit(){
-//	putC('*');
-//	putC('*');
-//	putC('*');
-//	while(1){
-//		int32_t c = getC();
-//		if(c > 0) putC(c);
-//	}
+//    putC('*');
+//    putC('*');
+//    putC('*');
+//    while(1){
+//        int32_t c = getC();
+//        if(c > 0) putC(c);
+//    }
 }
 #endif
 
 #ifdef SIM
 void stopSim(){
-	*((volatile uint32_t*) 0xFFFFFFFC) = 0;
-	while(1);
+    *((volatile uint32_t*) 0xFFFFFFFC) = 0;
+    while(1);
 }
 
 void putC(char c){
-	*((volatile uint32_t*) 0xFFFFFFF8) = c;
+    *((volatile uint32_t*) 0xFFFFFFF8) = c;
 }
 
 int32_t getC(){
-	return *((volatile int32_t*) 0xFFFFFFF8);
+    return *((volatile int32_t*) 0xFFFFFFF8);
 }
 
 uint32_t rdtime(){
-	return *((volatile uint32_t*) 0xFFFFFFE0);
+    return *((volatile uint32_t*) 0xFFFFFFE0);
 }
 
 uint32_t rdtimeh(){
-	return *((volatile uint32_t*) 0xFFFFFFE4);
+    return *((volatile uint32_t*) 0xFFFFFFE4);
 }
 
 void setMachineTimerCmp(uint32_t low, uint32_t high){
-	volatile uint32_t* base = (volatile uint32_t*) 0xFFFFFFE8;
-	base[1] = 0xffffffff;
-	base[0] = low;
-	base[1] = high;
+    volatile uint32_t* base = (volatile uint32_t*) 0xFFFFFFE8;
+    base[1] = 0xffffffff;
+    base[0] = low;
+    base[1] = high;
 }
 
 
 void halInit(){
-//	putC('*');
-//	putC('*');
-//	putC('*');
-//	while(1){
-//		int32_t c = getC();
-//		if(c > 0) putC(c);
-//	}
+//    putC('*');
+//    putC('*');
+//    putC('*');
+//    while(1){
+//        int32_t c = getC();
+//        if(c > 0) putC(c);
+//    }
 }
 #endif
 
@@ -155,9 +155,9 @@ static volatile uint8_t *uart;
 
 static void ns16550a_init()
 {
-	uart = (uint8_t *)(void *)(NS16550A_UART0_CTRL_ADDR);
-	uint32_t uart_freq = (UART0_CLOCK_FREQ);
-	uint32_t baud_rate = (UART0_BAUD_RATE);
+    uart = (uint8_t *)(void *)(NS16550A_UART0_CTRL_ADDR);
+    uint32_t uart_freq = (UART0_CLOCK_FREQ);
+    uint32_t baud_rate = (UART0_BAUD_RATE);
     uint32_t divisor = uart_freq / (16 * baud_rate);
     uart[UART_LCR] = UART_LCR_DLAB;
     uart[UART_DLL] = divisor & 0xff;
@@ -181,7 +181,7 @@ static void ns16550a_init()
 //}
 
 void stopSim(){
-	while(1);
+    while(1);
 }
 
 void putC(char ch){
@@ -190,31 +190,31 @@ void putC(char ch){
 }
 
 int32_t getC(){
-	if (uart[UART_LSR] & UART_LSR_DA) {
-		return uart[UART_RBR];
-	} else {
-		return -1;
-	}
+    if (uart[UART_LSR] & UART_LSR_DA) {
+        return uart[UART_RBR];
+    } else {
+        return -1;
+    }
 }
 
 
 uint32_t rdtime(){
-	return *((volatile uint32_t*) SIFIVE_TIME_BASE);
+    return *((volatile uint32_t*) SIFIVE_TIME_BASE);
 }
 
 uint32_t rdtimeh(){
-	return *((volatile uint32_t*) (SIFIVE_TIME_BASE + 4));
+    return *((volatile uint32_t*) (SIFIVE_TIME_BASE + 4));
 }
 
 void setMachineTimerCmp(uint32_t low, uint32_t high){
-	volatile uint32_t* base = (volatile uint32_t*) SIFIVE_TIMECMP_BASE;
-	base[1] = 0xffffffff;
-	base[0] = low;
-	base[1] = high;
+    volatile uint32_t* base = (volatile uint32_t*) SIFIVE_TIMECMP_BASE;
+    base[1] = 0xffffffff;
+    base[0] = low;
+    base[1] = high;
 }
 
 void halInit(){
-	ns16550a_init();
+    ns16550a_init();
 }
 #endif
 

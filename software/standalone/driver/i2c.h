@@ -2,33 +2,25 @@
 #define I2C_H_
 
 #include "type.h"
-
-typedef struct
-{
-	volatile u32 TX_DATA;
-	volatile u32 TX_ACK;
-	volatile u32 RX_DATA;
-	volatile u32 RX_ACK;
-	volatile u32 _a[4];
-	volatile u32 INTERRUPT_ENABLE;
-	volatile u32 INTERRUPT_FLAG;
-	volatile u32 SAMPLING_CLOCK_DIVIDER;
-	volatile u32 TIMEOUT;
-	volatile u32 TSUDAT;
-	volatile u32 _c[3];
-	volatile u32 MASTER_STATUS;
-	volatile u32 _d[3];
-	volatile u32 TLOW;
-	volatile u32 THIGH;
-	volatile u32 TBUF;
-	volatile u32 _e[9];
-	volatile u32 FILTERING_HIT;
-	volatile u32 FILTERING_STATUS;
-	volatile u32 FILTERING_CONFIG[];
-} I2c_Reg;
+#include "io.h"
 
 
-
+#define I2C_TX_DATA                 0x00
+#define I2C_TX_ACK                  0x04
+#define I2C_RX_DATA                 0x08
+#define I2C_RX_ACK                  0x0C
+#define I2C_INTERRUPT_ENABLE        0x20
+#define I2C_INTERRUPT_FLAG          0x24
+#define I2C_SAMPLING_CLOCK_DIVIDER  0x28
+#define I2C_TIMEOUT                 0x2C
+#define I2C_TSUDAT                  0x30
+#define I2C_MASTER_STATUS           0x40
+#define I2C_TLOW                    0x50
+#define I2C_THIGH                   0x54
+#define I2C_TBUF                    0x58
+#define I2C_FILTERING_HIT           0x80
+#define I2C_FILTERING_STATUS        0x84
+#define I2C_FILTERING_CONFIG        0x88
 
 typedef struct {
     //Master/Slave mode
@@ -41,7 +33,6 @@ typedef struct {
     u32 tHigh; //SCL high (cycle count -1)
     u32 tBuf;  //Minimum time between the Stop/Drop -> Start transition
 } I2c_Config;
-
 
 #define I2C_MODE_CPOL (1 << 0)
 #define I2C_MODE_CPHA (1 << 1)
@@ -72,107 +63,127 @@ typedef struct {
 #define I2C_INTERRUPT_CLOCK_GEN_BUSY (1 << 16)
 #define I2C_INTERRUPT_FILTER (1 << 17)
 
-static void i2c_applyConfig(I2c_Reg *reg, I2c_Config *config){
-    reg->SAMPLING_CLOCK_DIVIDER = config->samplingClockDivider;
-    reg->TIMEOUT = config->timeout;
-    reg->TSUDAT = config->tsuDat;
+static void i2c_applyConfig(u32 reg, I2c_Config *config){
+    write_u32(config->samplingClockDivider, reg + I2C_SAMPLING_CLOCK_DIVIDER);
+    write_u32(config->timeout, reg + I2C_TIMEOUT);
+    write_u32(config->tsuDat, reg + I2C_TSUDAT);
 
-    reg->TLOW = config->tLow;
-    reg->THIGH = config->tHigh;
-    reg->TBUF = config->tBuf;
+    write_u32(config->tLow, reg + I2C_TLOW);
+    write_u32(config->tHigh, reg + I2C_THIGH);
+    write_u32(config->tBuf, reg + I2C_TBUF);
 }
 
-static void i2c_filterEnable(I2c_Reg *reg, u32 filterId, u32 config){
-	reg->FILTERING_CONFIG[filterId] = config;
-}
-
-
-
-static void i2c_masterStart(I2c_Reg *reg){
-	reg->MASTER_STATUS = I2C_MASTER_START;
-}
-
-
-static int i2c_masterBusy(I2c_Reg *reg){
-	return (reg->MASTER_STATUS & I2C_MASTER_BUSY) != 0;
-}
-
-static void i2c_masterStartBlocking(I2c_Reg *reg){
-	i2c_masterStart(reg);
-	while(!i2c_masterBusy(reg));
+static inline void i2c_filterEnable(u32 reg, u32 filterId, u32 config){
+    write_u32(config, reg + I2C_FILTERING_CONFIG + 4*filterId);
 }
 
 
 
-
-static void i2c_masterStop(I2c_Reg *reg){
-	reg->MASTER_STATUS = I2C_MASTER_STOP;
+static inline void i2c_masterStart(u32 reg){
+    write_u32(I2C_MASTER_START, reg + I2C_MASTER_STATUS);
 }
 
 
-static void i2c_masterStopWait(I2c_Reg *reg){
-	while(i2c_masterBusy(reg));
+static int i2c_masterBusy(u32 reg){
+    return (read_u32(reg + I2C_MASTER_STATUS) & I2C_MASTER_BUSY) != 0;
 }
 
-static void i2c_masterDrop(I2c_Reg *reg){
-	reg->MASTER_STATUS = I2C_MASTER_DROP;
+static void i2c_masterStartBlocking(u32 reg){
+    i2c_masterStart(reg);
+    while(!i2c_masterBusy(reg));
+}
+static inline void i2c_masterStop(u32 reg){
+    write_u32(I2C_MASTER_STOP, reg + I2C_MASTER_STATUS);
 }
 
-
-static void i2c_masterStopBlocking(I2c_Reg *reg){
-	i2c_masterStop(reg);
-	i2c_masterStopWait(reg);
+static void i2c_masterStopWait(u32 reg){
+    while(i2c_masterBusy(reg));
 }
 
-
-static void i2c_listenAck(I2c_Reg *reg){
-	reg->RX_ACK = I2C_RX_LISTEN;
-}
-
-static void i2c_txByte(I2c_Reg *reg,u8 byte){
-	reg->TX_DATA = byte | I2C_TX_VALID | I2C_TX_ENABLE | I2C_TX_DISABLE_ON_DATA_CONFLICT;
+static inline void i2c_masterDrop(u32 reg){
+    write_u32(I2C_MASTER_DROP, reg + I2C_MASTER_STATUS);
 }
 
 
-static void i2c_txAck(I2c_Reg *reg){
-	reg->TX_ACK = I2C_TX_VALID | I2C_TX_ENABLE;
-}
-static void i2c_txNack(I2c_Reg *reg){
-	reg->TX_ACK = 1 | I2C_TX_VALID | I2C_TX_ENABLE;
-}
-static void i2c_txAckWait(I2c_Reg *reg){
-	while(reg->TX_ACK & I2C_TX_VALID);
+static void i2c_masterStopBlocking(u32 reg){
+    i2c_masterStop(reg);
+    i2c_masterStopWait(reg);
 }
 
 
-static void i2c_txAckBlocking(I2c_Reg *reg){
-	i2c_txAck(reg);
-	i2c_txAckWait(reg);
-}
-static void i2c_txNackBlocking(I2c_Reg *reg){
-	i2c_txNack(reg);
-	i2c_txAckWait(reg);
+static inline void i2c_listenAck(u32 reg){
+    write_u32(I2C_RX_LISTEN ,reg + I2C_RX_ACK);
 }
 
-static u32 i2c_rxData(I2c_Reg *reg){
-	return reg->RX_DATA & I2C_RX_VALUE;
+static inline void i2c_txByte(u32 reg,u8 byte){
+    write_u32(byte | I2C_TX_VALID | I2C_TX_ENABLE | I2C_TX_DISABLE_ON_DATA_CONFLICT, reg + I2C_TX_DATA);
 }
 
-static int i2c_rxNack(I2c_Reg *reg){
-	return (reg->RX_ACK & I2C_RX_VALUE) != 0;
+
+static inline void i2c_txAck(u32 reg){
+    write_u32(I2C_TX_VALID | I2C_TX_ENABLE, reg + I2C_TX_ACK);
+}
+static inline void i2c_txNack(u32 reg){
+    write_u32(1 | I2C_TX_VALID | I2C_TX_ENABLE, reg + I2C_TX_ACK);
+}
+static void i2c_txAckWait(u32 reg){
+    while(read_u32(reg + I2C_TX_ACK) & I2C_TX_VALID);
 }
 
-static int i2c_rxAck(I2c_Reg *reg){
-	return (reg->RX_ACK & I2C_RX_VALUE) == 0;
+
+static void i2c_txAckBlocking(u32 reg){
+    i2c_txAck(reg);
+    i2c_txAckWait(reg);
+}
+static void i2c_txNackBlocking(u32 reg){
+    i2c_txNack(reg);
+    i2c_txAckWait(reg);
 }
 
-static void i2c_txByteRepeat(I2c_Reg *reg,u8 byte){
-    reg->TX_DATA = byte | I2C_TX_VALID | I2C_TX_ENABLE | I2C_TX_DISABLE_ON_DATA_CONFLICT | I2C_TX_REPEAT;
+static u32 i2c_rxData(u32 reg){
+    return read_u32(reg + I2C_RX_DATA) & I2C_RX_VALUE;
 }
 
-static void i2c_txNackRepeat(I2c_Reg *reg){
-    reg->TX_ACK = 1 | I2C_TX_VALID | I2C_TX_ENABLE | I2C_TX_REPEAT;
+static int i2c_rxNack(u32 reg){
+    return (read_u32(reg + I2C_RX_ACK) & I2C_RX_VALUE) != 0;
 }
+
+static int i2c_rxAck(u32 reg){
+    return (read_u32(reg + I2C_RX_ACK) & I2C_RX_VALUE) == 0;
+}
+
+static void i2c_txByteRepeat(u32 reg,u8 byte){
+    write_u32(byte | I2C_TX_VALID | I2C_TX_ENABLE | I2C_TX_DISABLE_ON_DATA_CONFLICT | I2C_TX_REPEAT, reg + I2C_TX_DATA);
+}
+
+static void i2c_txNackRepeat(u32 reg){
+    write_u32(1 | I2C_TX_VALID | I2C_TX_ENABLE | I2C_TX_REPEAT, reg + I2C_TX_ACK);
+}
+
+static inline void i2c_setFilterConfig(u32 reg, u32 filterId, u32 value){
+    write_u32(value, reg + I2C_FILTERING_CONFIG + 4*filterId);
+}
+
+static void i2c_enableInterrupt(u32 reg, u32 value){
+    write_u32(value | read_u32(reg + I2C_INTERRUPT_ENABLE), reg + I2C_INTERRUPT_ENABLE);
+}
+
+static void i2c_disableInterrupt(u32 reg, u32 value){
+    write_u32(~value & read_u32(reg + I2C_INTERRUPT_ENABLE), reg + I2C_INTERRUPT_ENABLE);
+}
+
+
+static inline void i2c_clearInterruptFlag(u32 reg, u32 value){
+    write_u32(value, reg + I2C_INTERRUPT_FLAG);
+}
+
+readReg_u32 (gpio_getInterruptFlag   , I2C_INTERRUPT_FLAG)
+readReg_u32 (gpio_getMasterStatus    , I2C_MASTER_STATUS)
+readReg_u32 (gpio_getFilteringHit    , I2C_FILTERING_HIT)
+readReg_u32 (gpio_getFilteringStatus , I2C_FILTERING_STATUS)
+
+
+
 
 #endif /* I2C_H_ */
 

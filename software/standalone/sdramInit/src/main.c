@@ -3,6 +3,6 @@
 #include "sdramInitConfig.h"
 
 void main() {
-	bspMain();
+    bspMain();
 }
 

@@ -28,24 +28,26 @@ OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
 all: $(OBJDIR)/$(PROJ_NAME).elf $(OBJDIR)/$(PROJ_NAME).hex $(OBJDIR)/$(PROJ_NAME).asm $(OBJDIR)/$(PROJ_NAME).bin
 
 $(OBJDIR)/%.elf: $(OBJS) | $(OBJDIR)
-	$(RISCV_CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
+	@echo "LD $(PROJ_NAME)"
+	@$(RISCV_CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 %.hex: %.elf
-	$(RISCV_OBJCOPY) -O ihex $^ $@
+	@$(RISCV_OBJCOPY) -O ihex $^ $@
 
 %.bin: %.elf
-	$(RISCV_OBJCOPY) -O binary $^ $@
+	@$(RISCV_OBJCOPY) -O binary $^ $@
 
 %.v: %.elf
-	$(RISCV_OBJCOPY) -O verilog $^ $@
+	@$(RISCV_OBJCOPY) -O verilog $^ $@
 
 %.asm: %.elf
-	$(RISCV_OBJDUMP) -S -d $^ > $@
+	@$(RISCV_OBJDUMP) -S -d $^ > $@
 
 define LIST_RULE
 $(1)
-	mkdir -p $(dir $(word 1, $(subst $(COLON), ,$(1))))
-	$(RISCV_CC) -c $(CFLAGS)  $(INC) -o $(subst $(COLON), ,$(1))
+	@mkdir -p $(dir $(word 1, $(subst $(COLON), ,$(1))))
+	@echo "CC $(word 2,$(subst $(COLON), ,$(1)))"
+	@$(RISCV_CC) -c $(CFLAGS)  $(INC) -o $(subst $(COLON), ,$(1))
 endef
 
 CAT:= $(addsuffix  $(COLON), $(OBJS))
@@ -53,9 +55,9 @@ CAT:= $(join  $(CAT), $(SRCS))
 $(foreach i,$(CAT),$(eval $(call LIST_RULE,$(i))))
 
 $(OBJDIR):
-	mkdir -p $@
+	@mkdir -p $@
 
 clean:
-	rm -rf $(OBJDIR)
+	@rm -rf $(OBJDIR)
 
 .SECONDARY: $(OBJS)
