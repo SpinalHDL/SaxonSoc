@@ -314,7 +314,7 @@ object ArtyA7LinuxSystemSim {
 
 //      dut.phy.io.loadBin(0x01FF0000, "software/standalone/blinkAndEcho/build/blinkAndEcho_spinal_sim.bin")
 //      dut.phy.io.loadBin(0x01FF0000, "software/standalone/dhrystone/build/dhrystone.bin")
-      dut.phy.io.loadBin(0x01FF0000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
+//      dut.phy.io.loadBin(0x01FF0000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
 
 //      val linuxPath = "../buildroot/output/images/"
 //      dut.phy.io.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")

@@ -448,7 +448,7 @@ void trap(){
                 csr_write(mepc, csr_read(mepc) + 4);
             }break;
             case SBI_SET_TIMER:{
-                setMachineTimerCmp(a0, a1);
+                setMachineTimerCmp((uint64_t) a1 << 32 | a0);
                 csr_set(mie, MIE_MTIE);
                 csr_clear(sip, MIP_STIP);
                 csr_write(mepc, csr_read(mepc) + 4);
