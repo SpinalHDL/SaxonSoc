@@ -1,4 +1,5 @@
 #pragma once
 
-#define I2C_DEMO 0
-#define PLIC_I2C_INTERRUPT 0
+#define I2C_CTRL 0
+#define I2C_CTRL_HZ 0
+#define I2C_CTRL_PLIC_INTERRUPT 0
