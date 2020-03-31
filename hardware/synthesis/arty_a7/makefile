@@ -5,7 +5,7 @@ SOCSW=bootloader
 SOCMEMSRC=$(SWBASE)/$(SOCSW)/build/$(SOCSW).elf
 SOCMEM=build/soc.mem
 
-TOP=Arty7Linux
+TOP=ArtyA7Linux
 TOPV=../../netlist/$(TOP).v
 
 RISCV_BIN?=/opt/riscv/bin/riscv64-unknown-elf-
@@ -17,7 +17,7 @@ repo-setup:
 	(cd $(ROOT)/..;git clone https://github.com/SpinalHDL/u-boot.git -b saxon u-boot)
 
 spi-flash-sw:
-	RISCV_BIN=$(RISCV_BIN) make -C $(SWBASE)/machineModeSbi clean all BSP=Arty7Linux
+	RISCV_BIN=$(RISCV_BIN) make -C $(SWBASE)/machineModeSbi clean all BSP=digilent/ArtyA7Linux
 	(cd $(ROOT)/../u-boot;CROSS_COMPILE=$(RISCV_BIN) make saxon_arty7_defconfig)
 	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot -j$(nproc)
 
@@ -26,7 +26,7 @@ sdcard:
 	make -C $(ROOT) linux2sdcard
 
 generate:
-	(cd ../../..; sbt "runMain saxon.board.digilent.Arty7Linux")
+	(cd ../../..; sbt "runMain saxon.board.digilent.ArtyA7Linux")
 
 $(TOPV) : $(SOCMEM) generate
 
@@ -34,7 +34,7 @@ $(TOPV) : $(SOCMEM) generate
 .PHONY: $(SOCMEMSRC)
 $(SOCMEMSRC):
 	mkdir -p build
-	RISCV_BIN=$(RISCV_BIN) make -C $(SWBASE)/$(SOCSW) BSP=Arty7Linux
+	RISCV_BIN=$(RISCV_BIN) make -C $(SWBASE)/$(SOCSW) BSP=digilent/ArtyA7Linux
 
 $(SOCMEM) : $(SOCMEMSRC)
 	cp -u $(SOCMEMSRC) $(SOCMEM)
@@ -54,7 +54,7 @@ flash : build/latest.mcs
 	./write_flash
 
 clean-soc-sw:
-	make -C $(SWBASE)/$(SOCSW) clean BSP=Arty7Linux
+	make -C $(SWBASE)/$(SOCSW) clean BSP=digilent/ArtyA7Linux
 
 soc-sw: clean-soc-sw $(SOCMEM)
 

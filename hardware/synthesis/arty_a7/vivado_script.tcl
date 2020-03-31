@@ -6,7 +6,7 @@ set project_name fpga
 variable project_file
 set project_file [file join ${project_base} ${project_name}.xpr]
 variable program_file
-set program_file [file join ${project_base} ${project_name}.runs impl_1 Arty7Linux.bit]
+set program_file [file join ${project_base} ${project_name}.runs impl_1 ArtyA7Linux.bit]
 variable flash_file
 set flash_file latest.mcs
 variable sbi_file
