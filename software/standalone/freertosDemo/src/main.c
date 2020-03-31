@@ -29,7 +29,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 
-#include "saxon.h"
+#include "bsp.h"
 
 /******************************************************************************
  * This project provides two demo applications.  A simple blinky style project,
@@ -114,7 +114,7 @@ static uint32_t ulLEDState = 0;
 
 void vSendString( const char * const pcString )
 {
-    uart_writeStr(UART_A, pcString);
+    bsp_putString(pcString);
 }
 /*-----------------------------------------------------------*/
 

@@ -1,7 +1,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "portmacro.h"
-#include "saxon.h"
+#include "bsp.h"
 #include "freertosHalConfig.h"
 #include "plic.h"
 
@@ -34,9 +34,9 @@ void vPortSetupTimerInterrupt( void ){
     for(int i = 0;i < 4;i++) asm("nop"); //write propagation wait
 
     //configure PLIC
-    plic_set_threshold(PLIC, PLIC_CPU_0, 0); //cpu 0 accept all interrupts with priority above 0
-    plic_set_enable(PLIC, PLIC_CPU_0, PLIC_MACHINE_TIMER_ID, 1);
-    plic_set_priority(PLIC, PLIC_MACHINE_TIMER_ID, 1);
+    plic_set_threshold(BSP_PLIC, BSP_PLIC_CPU_0, 0); //cpu 0 accept all interrupts with priority above 0
+    plic_set_enable(BSP_PLIC, BSP_PLIC_CPU_0, PLIC_MACHINE_TIMER_ID, 1);
+    plic_set_priority(BSP_PLIC, PLIC_MACHINE_TIMER_ID, 1);
 }
 
 void machine_timer_interrupt(){
@@ -52,12 +52,12 @@ void machine_timer_interrupt(){
 
 void external_interrupt_handler(void){
     uint32_t claim;
-    while(claim = plic_claim(PLIC, PLIC_CPU_0)){
+    while(claim = plic_claim(BSP_PLIC, BSP_PLIC_CPU_0)){
         switch(claim){
         case PLIC_MACHINE_TIMER_ID:
             machine_timer_interrupt();
             break;
         }
-        plic_release(PLIC, PLIC_CPU_0, claim); //unmask the claimed interrupt
+        plic_release(BSP_PLIC, BSP_PLIC_CPU_0, claim); //unmask the claimed interrupt
     }
 }

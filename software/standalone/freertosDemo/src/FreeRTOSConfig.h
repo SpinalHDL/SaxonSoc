@@ -71,7 +71,8 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
-#include "saxon.h"
+#include "bsp.h"
+#include "freertosHalConfig.h"
 //#include "hw_platform.h"
 //#include "riscv_plic.h"
 

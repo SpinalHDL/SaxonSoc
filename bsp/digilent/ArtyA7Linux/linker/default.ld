@@ -146,11 +146,11 @@ SECTIONS
   PROVIDE( _end = . );
   PROVIDE( end = . );
 
-  . = ALIGN(16); /* RISC-V stack is 16 byte aligned*/
-  .stack /*ORIGIN(ram) + LENGTH(ram) - __stack_size*/ :
+  .stack  : ALIGN(16)
   {
     PROVIDE( _heap_end = . );
     . = __stack_size;
     PROVIDE( _sp = . );
+	__freertos_irq_stack_top = .;
   } >ram AT>ram :ram
 }

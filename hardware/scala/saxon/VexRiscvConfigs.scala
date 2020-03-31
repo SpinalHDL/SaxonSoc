@@ -269,7 +269,7 @@ object VexRiscvConfigs {
         mulUnrollFactor = 32,
         divUnrollFactor = 1
       ),
-      new CsrPlugin(CsrPluginConfig.linuxMinimal(null).copy(ebreakGen = false, wfiOutput = true)),
+      new CsrPlugin(CsrPluginConfig.linuxMinimal(null).copy(ebreakGen = false, wfiOutput = true, mtvecAccess = CsrAccess.READ_WRITE)), //mtvecAccess read required by freertos
 
       new BranchPlugin(
         earlyBranch = false,

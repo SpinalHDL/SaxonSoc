@@ -39,6 +39,8 @@ class ArtyA7LinuxSystem() extends SaxonSocLinux{
     memoryAddress = 0x80000000l
   )
 
+  plic.addInterrupt(machineTimer.interrupt, 2) //Used for freertos
+
   val sdramA0 = sdramA.addPort()
 
   val bridge = BmbBridgeGenerator()
@@ -282,12 +284,12 @@ object ArtyA7LinuxSystemSim {
       clockDomain.forkStimulus(debugClkPeriod)
 
 
-      fork{
-        disableSimWave()
-        clockDomain.waitSampling(1000)
-        waitUntil(!dut.uartA.uart.rxd.toBoolean)
-        enableSimWave()
-      }
+//      fork{
+//        disableSimWave()
+//        clockDomain.waitSampling(1000)
+//        waitUntil(!dut.uartA.uart.rxd.toBoolean)
+//        enableSimWave()
+//      }
 
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,
@@ -309,6 +311,10 @@ object ArtyA7LinuxSystemSim {
       dut.phy.io.loadBin(0x01FF0000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
       dut.phy.io.loadBin(0x01F00000, uboot + "u-boot.bin")
 
+
+//      dut.phy.io.loadBin(0x01FF0000, "software/standalone/blinkAndEcho/build/blinkAndEcho_spinal_sim.bin")
+//      dut.phy.io.loadBin(0x01FF0000, "software/standalone/dhrystone/build/dhrystone.bin")
+      dut.phy.io.loadBin(0x01FF0000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
 
 //      val linuxPath = "../buildroot/output/images/"
 //      dut.phy.io.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")

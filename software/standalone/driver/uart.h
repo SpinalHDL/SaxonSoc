@@ -31,7 +31,7 @@ static void uart_write(u32 reg, char data){
     write_u32(data, reg + UART_DATA);
 }
 
-static void uart_writeStr(u32 reg, char* str){
+static void uart_writeStr(u32 reg, const char* str){
     while(*str) uart_write(reg, *str++);
 }
 
