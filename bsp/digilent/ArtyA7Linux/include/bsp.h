@@ -10,8 +10,7 @@
 #define BSP_LED_MASK 0x01
 #define BSP_UART_TERMINAL SYSTEM_UART_A_APB
 
-//Minimal HAL
 #define bsp_init() {}
-#define bsp_uDelay(usec) machineTimer_uDelay(usec, SYSTEM_MACHINE_TIMER_HZ, SYSTEM_MACHINE_TIMER_APB);
 #define bsp_putChar(c) uart_write(BSP_UART_TERMINAL, c);
+#define bsp_uDelay(usec) machineTimer_uDelay(usec, SYSTEM_MACHINE_TIMER_HZ, SYSTEM_MACHINE_TIMER_APB);
 #define bsp_putString(s) uart_writeStr(BSP_UART_TERMINAL, s);

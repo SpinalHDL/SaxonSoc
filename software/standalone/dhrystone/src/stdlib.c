@@ -7,13 +7,14 @@
 
 #include <stdarg.h>
 #include <stdint.h>
+#include "dhrystoneHal.h"
 
 void setStats(int enable)
 {
 
 }
 
-#include "saxon.h"
+#include "bsp.h"
 
 #define UART_BASE  ((volatile uint32_t*)(UART_A))
 #define MTIME_BASE ((volatile uint32_t*)(MACHINE_TIMER))
@@ -84,15 +85,11 @@ int puts(char *s){
   return 0;
 }
 
-void putchar(char c){
-    while((UART_BASE[1] & 0xFFFF0000) == 0);
-    UART_BASE[0] = c;
+int putchar(int c){
+    bsp_putChar(c);
+    return c;
 }
 
-//Time in microsecond
-long time(){
-  return MTIME_BASE[0];
-}
 
 //See https://github.com/zephyrproject-rtos/meta-zephyr-sdk/issues/110
 //It does not interfere with the benchmark code.

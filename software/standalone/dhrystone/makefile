@@ -5,6 +5,7 @@ BENCH=yes
 STANDALONE = ..
 
 CFLAGS += -fno-inline -fno-common
+CFLAGS += -Wno-implicit-int -Wno-implicit-function-declaration
 CFLAGS += -DTIME -DCORE_HZ=12000000ll
 
 SRCS = 	$(wildcard src/*.c) \
