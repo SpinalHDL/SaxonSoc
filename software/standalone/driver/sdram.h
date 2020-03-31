@@ -333,7 +333,11 @@ static void sdram_phy_s7(u32 core, u32 phy){
 
         bsp_putChar('\n');
 
-        write_u32((eye_best_start + eye_best_last) >> 2, phy + SDRAM_S7_IDELAY_VALUE);
+        u32 idelay = (eye_best_start + eye_best_last) >> 1;
+        for(u32 i = 0;i < 11 + idelay;i++) bsp_putChar(' ');
+        bsp_putString("^\n");
+
+        write_u32(idelay, phy + SDRAM_S7_IDELAY_VALUE);
         write_u32(0xFFFFFFFF, phy + SDRAM_S7_IDELAY_LOAD_DQ);
         write_u32(0x00000000, phy + SDRAM_S7_IDELAY_LOAD_DQ);
         for(s32 readLatency = 0;readLatency < 4;readLatency++){
