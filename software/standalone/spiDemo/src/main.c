@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "saxon.h"
+#include "bsp.h"
 #include "spi.h"
 #include "spiDemo.h"
 
@@ -18,7 +18,7 @@ void init(){
 }
 
 void print_hex_digit(uint8_t digit){
-    uart_write(UART_A, digit < 10 ? '0' + digit : 'A' + digit - 10);
+    bsp_putChar(digit < 10 ? '0' + digit : 'A' + digit - 10);
 }
 
 
@@ -31,7 +31,7 @@ void print_hex_byte(uint8_t byte){
 void main() {
     init();
 
-    uart_writeStr(UART_A, "Hello world\n");
+    bsp_putString("Hello world\n");
 
     spi_select(SPI, 0);
     spi_write(SPI, 0xAB);
@@ -42,9 +42,9 @@ void main() {
     spi_diselect(SPI, 0);
 
 
-    uart_writeStr(UART_A, "Device ID : ");
+    bsp_putString("Device ID : ");
     print_hex_byte(id);
-    uart_writeStr(UART_A, "\n");
+    bsp_putString("\n");
 
     while(1){
         uint8_t data[3];
@@ -55,11 +55,11 @@ void main() {
         data[2] = spi_read(SPI);
         spi_diselect(SPI, 0);
 
-        uart_writeStr(UART_A, "CMD 0x9F : ");
+        bsp_putString("CMD 0x9F : ");
         print_hex_byte(data[0]);
         print_hex_byte(data[1]);
         print_hex_byte(data[2]);
-        uart_writeStr(UART_A, "\n");
+        bsp_putString("\n");
     }
 }
 
