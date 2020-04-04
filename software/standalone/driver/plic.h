@@ -20,7 +20,7 @@ static void plic_set_priority(u32 plic, u32 gateway, u32 priority){
 }
 
 static void plic_set_enable(u32 plic, u32 target,u32 gateway, u32 enable){
-    u32 word = plic + PLIC_ENABLE_BASE + target * PLIC_ENABLE_PER_HART + (gateway / 32);
+    u32 word = plic + PLIC_ENABLE_BASE + target * PLIC_ENABLE_PER_HART + (gateway / 32 * 4);
     u32 mask = 1 << (gateway % 32);
     if (enable)
         write_u32(read_u32(word) | mask, word);
