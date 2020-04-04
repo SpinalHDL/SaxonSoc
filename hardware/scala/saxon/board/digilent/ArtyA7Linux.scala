@@ -1,11 +1,15 @@
 package saxon.board.digilent
 
+import saxon.board.blackice.peripheral.Apb3I2cGenerator
+import saxon.common.I2cModel
 import saxon.{ResetSensitivity, _}
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib.blackbox.xilinx.s7.{BUFG, STARTUPE2}
 import spinal.lib.bus.amba3.apb.Apb3Config
 import spinal.lib.bus.amba3.apb.sim.{Apb3Listener, Apb3Monitor}
+import spinal.lib.com.i2c.{I2cMasterMemoryMappedGenerics, I2cSlaveGenerics, I2cSlaveMemoryMappedGenerics}
+import spinal.lib.com.i2c.sim.OpenDrainInterconnect
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
@@ -249,7 +253,7 @@ object ArtyA7LinuxSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-//    simConfig.withWave
+    simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
     simConfig.compile(new ArtyA7LinuxSystem(){
@@ -274,6 +278,22 @@ object ArtyA7LinuxSystemSim {
 
       ArtyA7LinuxSystem.default(this, debugCd, systemCd)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
+
+
+      //Simulation only I2C
+      val i2cA = Apb3I2cGenerator(0x30000)
+      i2cA.parameter.load(I2cSlaveMemoryMappedGenerics(
+        ctrlGenerics = I2cSlaveGenerics(
+          samplingWindowSize = 3,
+          samplingClockDividerWidth = 10 bits,
+          timeoutWidth = 20 bits
+        ),
+        addressFilterCount = 2,
+        masterGenerics = I2cMasterMemoryMappedGenerics(
+          timerWidth = 12
+        )
+      ))
+      i2cA.connectInterrupt(plic, 42)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val debugClkPeriod = (1e12/dut.debugCd.inputClockDomain.frequency.getValue.toDouble).toLong
       val jtagClkPeriod = debugClkPeriod*4
@@ -306,6 +326,17 @@ object ArtyA7LinuxSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
+
+      val sda, scl = new OpenDrainInterconnect()
+      sda.addHard(dut.i2cA.i2c.sda)
+      scl.addHard(dut.i2cA.i2c.scl)
+
+      val i2c = new I2cModel(
+        scl = scl.newSoftConnection(),
+        sda = sda.newSoftConnection(),
+        baudPeriod = (1e12/400e3).toInt
+      )
+
       val linuxPath = "../buildroot/output/images/"
       val uboot = "../u-boot/"
       dut.phy.io.loadBin(0x01FF0000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
@@ -315,6 +346,7 @@ object ArtyA7LinuxSystemSim {
 //      dut.phy.io.loadBin(0x01FF0000, "software/standalone/blinkAndEcho/build/blinkAndEcho_spinal_sim.bin")
 //      dut.phy.io.loadBin(0x01FF0000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.io.loadBin(0x01FF0000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
+      dut.phy.io.loadBin(0x01FF0000, "software/standalone/i2cDemo/build/i2cDemo.bin")
 
 //      val linuxPath = "../buildroot/output/images/"
 //      dut.phy.io.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")

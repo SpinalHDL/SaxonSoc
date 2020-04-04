@@ -347,7 +347,6 @@ static void sdram_phy_s7(u32 core, u32 phy){
                 write_u32(0xFFFFFFFF, phy + SDRAM_S7_BITSLEEP);
                 u32 memTest = sdram_mem_test(0x80000000, 16);
                 if(!memTest) {
-                    bsp_putString("  OK\n");
                     return;
                 }
             }
