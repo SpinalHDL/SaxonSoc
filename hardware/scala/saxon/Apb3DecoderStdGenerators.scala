@@ -191,7 +191,7 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
           source = source,
           id = id,
           priorityWidth = priorityWidth
-        )
+        ).setCompositeName(source, "plic_gateway")
 
         tags += new Export(Apb3PlicGenerator.this.getName() + "_" + source.getName, id)
       }
@@ -208,7 +208,7 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
       PlicTarget(
         gateways = gateways.map(_.get),
         priorityWidth = priorityWidth
-      )
+      ).setCompositeName(flag, "plic_target")
     )
 
 //    gateways.foreach(_.priority := 1)
