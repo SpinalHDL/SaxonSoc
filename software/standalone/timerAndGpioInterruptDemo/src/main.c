@@ -1,7 +1,9 @@
 #include <stdint.h>
 
-#include "saxon.h"
+#include "bsp.h"
 #include "machineTimer.h"
+#include "riscv.h"
+#include "gpio.h"
 #include "plic.h"
 #include "timerAndGpioInterruptDemo.h"
 
@@ -16,27 +18,27 @@ void initTimer();
 void scheduleTimer();
 
 #ifdef SPINAL_SIM
-    #define TIMER_TICK_DELAY (MACHINE_TIMER_HZ/200) //Faster timer tick in simulation to avoid having to wait too long
+    #define TIMER_TICK_DELAY (BSP_MACHINE_TIMER_HZ/200) //Faster timer tick in simulation to avoid having to wait too long
 #else
-    #define TIMER_TICK_DELAY (MACHINE_TIMER_HZ)
+    #define TIMER_TICK_DELAY (BSP_MACHINE_TIMER_HZ)
 #endif
 
 void main() {
     init();
 
-    uart_writeStr(UART_A, "Hello world\n");
+    bsp_putString("Hello world\n");
     while(1); //Idle
 }
 
 
 void init(){
     //configure PLIC
-    plic_set_threshold(PLIC, PLIC_CPU_0, 0); //cpu 0 accept all interrupts with priority above 0
+    plic_set_threshold(BSP_PLIC, BSP_PLIC_CPU_0, 0); //cpu 0 accept all interrupts with priority above 0
 
     //enable GPIO_A pin 0 rising edge interrupt
-    plic_set_enable(PLIC, PLIC_CPU_0, PLIC_GPIO_A_0, 1);
-    plic_set_priority(PLIC, PLIC_GPIO_A_0, 1);
-    GPIO_A->INTERRUPT_RISE_ENABLE = 1; //Enable pin 1 rising edge interrupts
+    plic_set_enable(BSP_PLIC, BSP_PLIC_CPU_0, PLIC_GPIO_A_0, 1);
+    plic_set_priority(BSP_PLIC, PLIC_GPIO_A_0, 1);
+    gpio_setInterruptRiseEnable(GPIO_A, 1); //Enable pin 1 rising edge interrupts
 
     //configure timer
     initTimer();
@@ -50,14 +52,14 @@ void init(){
 uint64_t timerCmp; //Store the next interrupt time
 
 void initTimer(){
-    timerCmp = machineTimer_getTime(MACHINE_TIMER);
+    timerCmp = machineTimer_getTime(BSP_MACHINE_TIMER);
     scheduleTimer();
 }
 
 //Make the timer tick in 1 second. (if SPINAL_SIM=yes, then much faster for simulations reasons)
 void scheduleTimer(){
     timerCmp += TIMER_TICK_DELAY;
-    machineTimer_setCmp(MACHINE_TIMER, timerCmp);
+    machineTimer_setCmp(BSP_MACHINE_TIMER, timerCmp);
 }
 
 //Called by trap_entry on both exceptions and interrupts events
@@ -82,27 +84,27 @@ void timerInterrupt(){
 
     scheduleTimer();
 
-    uart_writeStr(UART_A, "MACHINE_TIMER ");
-    uart_write(UART_A, '0' + counter);
-    uart_write(UART_A, '\n');
+    bsp_putString("BSP_MACHINE_TIMER ");
+    bsp_putChar('0' + counter);
+    bsp_putChar('\n');
     if(++counter == 10) counter = 0;
 }
 
 void externalInterrupt(){
     uint32_t claim;
     //While there is pending interrupts
-    while(claim = plic_claim(PLIC, PLIC_CPU_0)){
+    while(claim = plic_claim(BSP_PLIC, BSP_PLIC_CPU_0)){
         switch(claim){
-        case PLIC_GPIO_A_0: uart_writeStr(UART_A, "PLIC_GPIO_A_0\n"); break;
+        case PLIC_GPIO_A_0: bsp_putString("PLIC_GPIO_A_0\n"); break;
         default: crash(); break;
         }
-        plic_release(PLIC, PLIC_CPU_0, claim); //unmask the claimed interrupt
+        plic_release(BSP_PLIC, BSP_PLIC_CPU_0, claim); //unmask the claimed interrupt
     }
 }
 
 //Used on unexpected trap/interrupt codes
 void crash(){
-    uart_writeStr(UART_A, "\n*** CRASH ***\n");
+    bsp_putString("\n*** CRASH ***\n");
     while(1);
 }
 
