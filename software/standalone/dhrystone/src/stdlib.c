@@ -7,7 +7,6 @@
 
 #include <stdarg.h>
 #include <stdint.h>
-#include "dhrystoneHal.h"
 
 void setStats(int enable)
 {
@@ -16,8 +15,13 @@ void setStats(int enable)
 
 #include "bsp.h"
 
-#define UART_BASE  ((volatile uint32_t*)(UART_A))
-#define MTIME_BASE ((volatile uint32_t*)(MACHINE_TIMER))
+#ifdef BSP_MACHINE_TIMER
+long time(){
+  return machineTimer_getTime(SYSTEM_MACHINE_TIMER_APB);
+}
+#else
+#include "dhrystoneHal.h"
+#endif
 
 static void printf_c(int c)
 {

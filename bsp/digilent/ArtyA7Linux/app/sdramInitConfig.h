@@ -3,7 +3,6 @@
 #include "bsp.h"
 #include "sdram.h"
 
-
 #define RL 5
 #define WL 5
 #define CTRL_BURST_LENGHT 2

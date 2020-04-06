@@ -17,7 +17,6 @@
 #define UBOOT_SBI_FLASH  0x00410000
 #define UBOOT_SIZE          0x70000
 
-
 #define RL 5
 #define WL 5
 #define CTRL_BURST_LENGHT 2

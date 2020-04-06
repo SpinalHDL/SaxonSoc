@@ -2,7 +2,6 @@
 #include "task.h"
 #include "portmacro.h"
 #include "bsp.h"
-#include "freertosHalConfig.h"
 #include "plic.h"
 
 #define uxTimerIncrementsForOneTick (( size_t ) ( configCPU_CLOCK_HZ / configTICK_RATE_HZ )) /* Assumes increment won't go over 32-bits. */
@@ -11,10 +10,10 @@ extern uint64_t ullNextTime;
 extern volatile uint64_t * pullMachineTimerCompareRegister;
 void vPortSetupTimerInterrupt( void ){
     uint32_t ulCurrentTimeHigh, ulCurrentTimeLow;
-    volatile uint32_t * const pulTimeHigh = ( volatile uint32_t * const ) ( MACHINE_TIMER + 0x4 );
-    volatile uint32_t * const pulTimeLow = ( volatile uint32_t * const ) ( MACHINE_TIMER + 0x0 );
+    volatile uint32_t * const pulTimeHigh = ( volatile uint32_t * const ) ( BSP_MACHINE_TIMER + 0x4 );
+    volatile uint32_t * const pulTimeLow = ( volatile uint32_t * const ) ( BSP_MACHINE_TIMER + 0x0 );
 
-    pullMachineTimerCompareRegister  = (volatile uint64_t *) (MACHINE_TIMER + 0x8);
+    pullMachineTimerCompareRegister  = (volatile uint64_t *) (BSP_MACHINE_TIMER + 0x8);
 
     do
     {
@@ -35,12 +34,12 @@ void vPortSetupTimerInterrupt( void ){
 
     //configure PLIC
     plic_set_threshold(BSP_PLIC, BSP_PLIC_CPU_0, 0); //cpu 0 accept all interrupts with priority above 0
-    plic_set_enable(BSP_PLIC, BSP_PLIC_CPU_0, PLIC_MACHINE_TIMER_ID, 1);
-    plic_set_priority(BSP_PLIC, PLIC_MACHINE_TIMER_ID, 1);
+    plic_set_enable(BSP_PLIC, BSP_PLIC_CPU_0, BSP_MACHINE_TIMER_PLIC_ID, 1);
+    plic_set_priority(BSP_PLIC, BSP_MACHINE_TIMER_PLIC_ID, 1);
 }
 
-void machine_timer_interrupt(){
-    pullMachineTimerCompareRegister  = (volatile uint64_t *) (MACHINE_TIMER + 0x8);
+void BSP_MACHINE_TIMER_interrupt(){
+    pullMachineTimerCompareRegister  = (volatile uint64_t *) (BSP_MACHINE_TIMER + 0x8);
     *pullMachineTimerCompareRegister = ullNextTime;
     ullNextTime += ( uint64_t ) uxTimerIncrementsForOneTick;
 
@@ -54,8 +53,8 @@ void external_interrupt_handler(void){
     uint32_t claim;
     while(claim = plic_claim(BSP_PLIC, BSP_PLIC_CPU_0)){
         switch(claim){
-        case PLIC_MACHINE_TIMER_ID:
-            machine_timer_interrupt();
+        case BSP_MACHINE_TIMER_PLIC_ID:
+            BSP_MACHINE_TIMER_interrupt();
             break;
         }
         plic_release(BSP_PLIC, BSP_PLIC_CPU_0, claim); //unmask the claimed interrupt
