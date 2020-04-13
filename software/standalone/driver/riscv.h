@@ -1,5 +1,4 @@
-#ifndef RISCV_H
-#define RISCV_H
+#pragma once
 
 //exceptions
 #define CAUSE_ILLEGAL_INSTRUCTION 2
@@ -132,8 +131,5 @@
                   : : "rK" (__v));            \
 })
 
-
-
-#endif
 
 

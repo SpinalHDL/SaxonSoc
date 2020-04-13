@@ -1,5 +1,4 @@
-#ifndef PLIC_H_
-#define PLIC_H_
+#pragma once
 
 #include "type.h"
 #include "io.h"
@@ -39,9 +38,4 @@ static u32 plic_claim(u32 plic, u32 target){
 static void plic_release(u32 plic, u32 target, u32 gateway){
     write_u32(gateway,plic + PLIC_CLAIM_BASE + target*PLIC_CONTEXT_PER_HART);
 }
-
-
-
-#endif /* PLIC_H_ */
-
 

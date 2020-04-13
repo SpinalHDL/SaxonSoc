@@ -1,5 +1,4 @@
-#ifndef I2C_H_
-#define I2C_H_
+#pragma once
 
 #include "type.h"
 #include "io.h"
@@ -183,8 +182,5 @@ readReg_u32 (gpio_getFilteringHit    , I2C_FILTERING_HIT)
 readReg_u32 (gpio_getFilteringStatus , I2C_FILTERING_STATUS)
 
 
-
-
-#endif /* I2C_H_ */
 
 
