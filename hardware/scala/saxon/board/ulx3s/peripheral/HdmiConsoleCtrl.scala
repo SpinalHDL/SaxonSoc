@@ -210,7 +210,7 @@ class HdmiConsoleCtrl(rgbConfig: RgbConfig = RgbConfig(8, 8, 8)) extends Compone
           (screenStartLine + y(hBits + 2 downto 3) - h)
 
     // Get the index to the character in the frame buffer
-    val charIndex = RegNext(lineStart(currY) + x(wBits + 2 downto 3))
+    val charIndex = RegNext(lineStart(currY) + (x+1)(wBits + 2 downto 3))
 
     // The current character (plus attributes) from the frame buffer
     val currChar = frameBuffer(charIndex)
@@ -219,11 +219,8 @@ class HdmiConsoleCtrl(rgbConfig: RgbConfig = RgbConfig(8, 8, 8)) extends Compone
     val fontLine = (x(wBits + 2 downto 3) < lineLength(currY)) ? 
           font(currChar(7 downto 0).asUInt @@ y(2 downto 0)) | B(0, 8 bits)
 
-    val foreColor = Reg(Rgb(rgbConfig))
-    foreColor := colors(currChar(10 downto 8).asUInt)
-
-    val backColor = Reg(Rgb(rgbConfig))
-    backColor := colors(currChar(13 downto 11).asUInt)
+    val foreColor = colors(currChar(10 downto 8).asUInt)
+    val backColor = colors(currChar(13 downto 11).asUInt)
 
     val pixel = fontLine(x(2 downto 0))     // Set for pixel visible 
     val color = Rgb(rgbConfig)
