@@ -50,7 +50,7 @@ object FomuMinimalSystem{
     import g._
 
     cpu.config.load(VexRiscvConfigs.minimal)
-    cpu.withJtag.load(false)
+    cpu.disableDebug()
 
     ramA.size.load(8 KiB)
     ramA.hexInit.load("software/standalone/blinkRgb/build/blinkRgb.hex")

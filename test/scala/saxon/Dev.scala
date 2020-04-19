@@ -26,7 +26,7 @@ class TopGenerator extends Generator {
 
 object TopMain extends App{
   SpinalVerilog{
-    new TopGenerator().toComponent
+    new TopGenerator().toComponent()
   }
   println("done")
 }
