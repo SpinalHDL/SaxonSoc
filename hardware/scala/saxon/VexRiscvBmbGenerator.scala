@@ -66,7 +66,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   }
 
   val jtag = add task (withDebug.get == DEBUG_JTAG generate slave(Jtag()))
-  val jtagInstructionCtrl = add task (withDebug.get == DEBUG_JTAG_CTRL generate JtagTapInstructionCtrl())
+  val jtagInstructionCtrl = withDebug.produce(withDebug.get == DEBUG_JTAG_CTRL generate JtagTapInstructionCtrl())
   val jtagClockDomain = Handle[ClockDomain]
 
   val logic = add task new Area {
