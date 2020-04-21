@@ -58,6 +58,21 @@ make
 sudo make install
 ```
 
+## Jar package
+
+To package the project into a dependence free jar : 
+
+```
+sbt clean assembly
+```
+
+The produced jar will be in `target/scala-2.11/SaxonSoc-assembly-1.0.0.jar`
+
+To run that jar : 
+
+```
+java -cp target/scala-2.11/SaxonSoc-assembly-1.0.0.jar YOUR_SCALA_PACKAGE.YOUR_MAIN
+```
 
 ## BMB spec (WIP)
 
