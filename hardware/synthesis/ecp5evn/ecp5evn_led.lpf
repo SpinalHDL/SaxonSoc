@@ -1,0 +1,30 @@
+BLOCK RESETPATHS;
+BLOCK ASYNCPATHS;
+
+LOCATE COMP "clocking_clk_12mhz" SITE "A10";
+IOBUF PORT "clocking_clk_12mhz" PULLMODE=NONE IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clocking_clk_12mhz" 12 MHZ;
+LOCATE COMP "clocking_resetN" SITE "P4"; # SW1
+IOBUF PORT "clocking_resetN" PULLMODE=UP IO_TYPE=LVCMOS33;
+
+LOCATE COMP "system_uartA_uart_txd" SITE "P3"; # FPGA transmits to ftdi
+LOCATE COMP "system_uartA_uart_rxd" SITE "P2"; # FPGA receives from ftdi
+IOBUF PORT "system_uartA_uart_txd" IO_TYPE=LVCMOS33;
+IOBUF PORT "system_uartA_uart_rxd" PULLMODE=UP IO_TYPE=LVCMOS33;
+
+LOCATE COMP "system_gpioA_gpio[0]" SITE "A13";
+LOCATE COMP "system_gpioA_gpio[1]" SITE "A12";
+LOCATE COMP "system_gpioA_gpio[2]" SITE "B19";
+LOCATE COMP "system_gpioA_gpio[3]" SITE "A18";
+LOCATE COMP "system_gpioA_gpio[4]" SITE "B18";
+LOCATE COMP "system_gpioA_gpio[5]" SITE "C17";
+LOCATE COMP "system_gpioA_gpio[6]" SITE "A17";
+LOCATE COMP "system_gpioA_gpio[7]" SITE "B17";
+IOBUF PORT "system_gpioA_gpio[0]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_gpioA_gpio[1]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_gpioA_gpio[2]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_gpioA_gpio[3]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_gpioA_gpio[4]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_gpioA_gpio[5]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_gpioA_gpio[6]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_gpioA_gpio[7]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
