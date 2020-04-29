@@ -124,6 +124,7 @@ SECTIONS
     *(.srodata.cst4)
     *(.srodata.cst2)
     *(.srodata .srodata.*)
+    . += 4; /* fix for linker false error message */
   } >ram AT>ram :ram
 
   . = ALIGN(4);
