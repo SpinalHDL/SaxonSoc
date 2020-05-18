@@ -29,7 +29,8 @@ void bspMain() {
 
     sdram_phy_s7(
         SYSTEM_SDRAM_A_APB,
-        SDRAM_DOMAIN_PHY_A_APB
+        SDRAM_DOMAIN_PHY_A_APB,
+        SYSTEM_SDRAM_A0_BMB
     );
 }
 
