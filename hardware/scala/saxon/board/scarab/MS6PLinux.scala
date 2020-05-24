@@ -176,7 +176,7 @@ object MS6PLinuxSystemSim {
       clockCtrl.clkFrequency.load(50 MHz)
       clockCtrl.resetHoldDuration.load(15)
       val sdcard = SdcardEmulatorGenerator()
-      sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(8) && gpioA.gpio.writeEnable(8)))
+      sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(7) && gpioA.gpio.writeEnable(7)))
       MS6PLinuxSystem.default(this, clockCtrl,inferSpiAPhy = false)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
@@ -195,13 +195,11 @@ object MS6PLinuxSystemSim {
           sleep(systemClkPeriod*100)
         }
       }
-
       val sdcard = SdcardEmulatorIoSpinalSim(
         io = dut.sdcard.io,
         nsPeriod = 1000,
         storagePath = "../sdcard/image"
       )
-
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,
         jtagClkPeriod = jtagClkPeriod
@@ -225,8 +223,8 @@ object MS6PLinuxSystemSim {
 
       val linuxPath = "../buildroot/output/images/"
       sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      sdram.loadBin(0x00400000, linuxPath + "Image")
-      sdram.loadBin(0x00FF0000, linuxPath + "dtb")
+      sdram.loadBin(0x00080000, linuxPath + "Image")
+      sdram.loadBin(0x0007F000, linuxPath + "dtb")
       sdram.loadBin(0x00800000, linuxPath + "rootfs.cpio")
     }
   }
