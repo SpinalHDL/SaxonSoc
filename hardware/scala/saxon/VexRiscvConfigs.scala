@@ -192,10 +192,11 @@ object VexRiscvConfigs {
     )
   )
 
-  def linuxTest(resetVector : BigInt = 0x80000000l) = VexRiscvConfig(
+  def linuxTest(resetVector : BigInt = 0x80000000l, openSbi : Boolean = false) = VexRiscvConfig(
     withMemoryStage = true,
     withWriteBackStage = true,
     List(
+//      new SingleInstructionLimiterPlugin(),
       new IBusCachedPlugin(
         resetVector = resetVector,
         compressedGen = false,
@@ -269,7 +270,7 @@ object VexRiscvConfigs {
         mulUnrollFactor = 32,
         divUnrollFactor = 1
       ),
-      new CsrPlugin(CsrPluginConfig.linuxMinimal(null).copy(ebreakGen = false, wfiOutput = true, mtvecAccess = CsrAccess.READ_WRITE)), //mtvecAccess read required by freertos
+      new CsrPlugin((if(openSbi)CsrPluginConfig.openSbi(0,Riscv.misaToInt("imas")) else CsrPluginConfig.linuxMinimal(null)).copy(ebreakGen = false, wfiOutput = true, mtvecAccess = CsrAccess.READ_WRITE)), //mtvecAccess read required by freertos
 
       new BranchPlugin(
         earlyBranch = false,

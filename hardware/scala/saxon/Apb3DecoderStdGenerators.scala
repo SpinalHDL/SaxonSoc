@@ -11,7 +11,7 @@ import spinal.lib.generator._
 import spinal.lib.io.Apb3Gpio2
 import spinal.lib._
 import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
-import spinal.lib.misc.MachineTimer
+import spinal.lib.misc.{Apb3Clint, MachineTimer}
 import spinal.lib.misc.plic.{PlicGateway, PlicGatewayActiveHigh, PlicMapper, PlicMapping, PlicTarget}
 
 import scala.collection.mutable.ArrayBuffer
@@ -251,6 +251,18 @@ case class Apb3MachineTimerGenerator(apbOffset : Handle[BigInt] = Unset) (implic
   val interrupt = produce(logic.io.mTimeInterrupt)
   val apb = produce(logic.io.bus)
   val logic = add task MachineTimer()
+
+  decoder.addSlave(apb, apbOffset)
+
+  val hz = export(produce(ClockDomain.current.frequency))
+}
+
+case class Apb3ClintGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decoder: Apb3DecoderGenerator) extends Generator{
+  val apb = produce(logic.io.bus)
+  val cpuCount = createDependency[Int]
+  val logic = add task Apb3Clint(cpuCount)
+  def timerInterrupt(id : Int) = logic.derivate(_.io.timerInterrupt(id))
+  def softwareInterrupt(id : Int) = logic.derivate(_.io.softwareInterrupt(id))
 
   decoder.addSlave(apb, apbOffset)
 

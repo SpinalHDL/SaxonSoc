@@ -3,7 +3,7 @@ package saxon
 import spinal.core._
 import spinal.lib.IMasterSlave
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3CC, Apb3Config, Apb3SlaveFactory}
-import spinal.lib.bus.bmb.{Bmb, BmbIce40Spram, BmbOnChipRam, BmbEg4S20Bram32K, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
+import spinal.lib.bus.bmb.{Bmb, BmbArbiter, BmbEg4S20Bram32K, BmbExclusiveMonitor, BmbIce40Spram, BmbInvalidateMonitor, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
 import spinal.lib.bus.misc.{DefaultMapping, SizeMapping}
 import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection, Unset}
 import spinal.lib.memory.sdram.SdramLayout
@@ -458,3 +458,187 @@ case class  Apb3CCGenerator() extends Generator {
     }
   }
 }
+
+
+
+case class BmbExclusiveMonitorGenerator()
+                             (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+  val input = produce(exclusiveMonitor.io.input)
+  val output = produce(exclusiveMonitor.io.output)
+
+
+  val inputRequirements = createDependency[BmbParameter]
+  val outputRequirements = inputRequirements.derivate(BmbExclusiveMonitor.outputParameter)
+
+  interconnect.addSlave(
+    capabilities = BmbParameter(
+      addressWidth  = 32,
+      dataWidth     = 32,
+      lengthWidth   = Int.MaxValue,
+      sourceWidth   = Int.MaxValue,
+      contextWidth  = Int.MaxValue,
+      canRead       = true,
+      canWrite      = true,
+      canExclusive  = true,
+      canInvalidate = true,
+      canSync       = true,
+      alignment     = BmbParameter.BurstAlignement.BYTE,
+      maximumPendingTransactionPerId = Int.MaxValue
+    ),
+    requirements = inputRequirements,
+    bus = input,
+    mapping = DefaultMapping
+  )
+
+  interconnect.addMaster(outputRequirements, output)
+
+  val exclusiveMonitor = add task BmbExclusiveMonitor(
+    inputParameter = inputRequirements,
+    pendingWriteMax = 64
+  )
+}
+
+case class BmbInvalidateMonitorGenerator()
+                                       (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+  val input = produce(exclusiveMonitor.io.input)
+  val output = produce(exclusiveMonitor.io.output)
+
+
+  val inputRequirements = createDependency[BmbParameter]
+  val outputRequirements = inputRequirements.derivate(BmbExclusiveMonitor.outputParameter)
+
+  interconnect.addSlave(
+    capabilities = BmbParameter(
+      addressWidth  = 32,
+      dataWidth     = 32,
+      lengthWidth   = Int.MaxValue,
+      sourceWidth   = Int.MaxValue,
+      contextWidth  = Int.MaxValue,
+      canRead       = true,
+      canWrite      = true,
+      canExclusive  = false,
+      canInvalidate = true,
+      canSync       = true,
+      alignment     = BmbParameter.BurstAlignement.BYTE,
+      maximumPendingTransactionPerId = Int.MaxValue
+    ),
+    requirements = inputRequirements,
+    bus = input,
+    mapping = DefaultMapping
+  )
+
+  interconnect.addMaster(outputRequirements, output)
+
+  val exclusiveMonitor = add task BmbInvalidateMonitor(
+    inputParameter = inputRequirements,
+    pendingInvMax = 16
+  )
+}
+
+
+class Dummy{
+  val interconnect = new {
+    def addSlave(emitInvalidate : Handle[Boolean], canRead : Handle[Boolean]): Unit ={
+
+    }
+    def addMaster(emitRead : Handle[Boolean], canInvalidate : Handle[Boolean]): Unit ={
+
+    }
+
+
+  }
+
+  val interconnect2 = new {
+    case class BmbMasterRequirements(addressWidth : Int,
+                                     dataWidth : Int,
+                                     lengthWidth : Int,
+                                     sourceWidth : Int,
+                                     contextWidth : Int,
+                                     alignment : BmbParameter.BurstAlignement.Kind = BmbParameter.BurstAlignement.WORD,
+                                     alignmentMin : Int = 0,
+                                     canRead : Boolean = true,
+                                     canWrite : Boolean = true,
+                                     canExclusive : Boolean = false)
+
+    case class BmbSlaveRequirements(canInvalidate : Boolean = false,
+                                    canSync : Boolean = false,
+                                    invalidateLength : Int = 0,
+                                    invalidateAlignment : BmbParameter.BurstAlignement.Kind = BmbParameter.BurstAlignement.WORD)
+
+    case class BmbMasterCapabilities(canInvalidate : Boolean = false,
+                                     canSync : Boolean = false,
+                                     invalidateLength : Int = 0,
+                                     invalidateAlignment : BmbParameter.BurstAlignement.Kind = BmbParameter.BurstAlignement.WORD)
+
+    case class BmbSlaveCapabilities(addressWidth : Int,
+                                    dataWidth : Int,
+                                    lengthWidth : Int,
+                                    sourceWidth : Int,
+                                    contextWidth : Int,
+                                    alignment : BmbParameter.BurstAlignement.Kind = BmbParameter.BurstAlignement.WORD,
+                                    alignmentMin : Int = 0,
+                                    canRead : Boolean = true,
+                                    canWrite : Boolean = true)
+
+//    def addSlave(requirements : Handle[BmbSlaveRequirements], capabilities : Handle[BmbSlaveCapabilities], config : Handle[BmbParameter]): Unit ={
+//
+//    }
+//    def addMaster(requirements : Handle[BmbMasterRequirements], capabilities : Handle[BmbMasterCapabilities], config : Handle[BmbParameter]): Unit ={
+//
+//    }
+
+    def addMaster(masterRequirements : Handle[BmbMasterRequirements],
+                  slaveRequirements : Handle[BmbSlaveRequirements],
+                  config : Handle[BmbParameter]): Unit ={
+
+    }
+
+    def addSlave(slaveRequirements : Handle[BmbSlaveRequirements],
+                 masterRequirements : Handle[BmbMasterRequirements],
+                 config : Handle[BmbParameter]): Unit ={
+
+    }
+
+
+  }
+}
+
+//
+//case class BmbArbiterGenerator()
+//                                        (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+//  val inputs = produce(arbiter.io.inputs)
+//  val output = produce(arbiter.io.output)
+//
+//
+//  val inputRequirements = createDependency[BmbParameter]
+//  val outputRequirements = inputRequirements.derivate(BmbExclusiveMonitor.outputParameter)
+//
+//  interconnect.addSlave(
+//    capabilities = BmbParameter(
+//      addressWidth  = 32,
+//      dataWidth     = 32,
+//      lengthWidth   = Int.MaxValue,
+//      sourceWidth   = Int.MaxValue,
+//      contextWidth  = Int.MaxValue,
+//      canRead       = true,
+//      canWrite      = true,
+//      canExclusive  = false,
+//      canInvalidate = true,
+//      canSync       = true,
+//      alignment     = BmbParameter.BurstAlignement.BYTE,
+//      maximumPendingTransactionPerId = Int.MaxValue
+//    ),
+//    requirements = inputRequirements,
+//    bus = input,
+//    mapping = DefaultMapping
+//  )
+//
+//  interconnect.addMaster(outputRequirements, output)
+//
+//  val arbiter = add task BmbArbiter(
+//    p
+//    portCount =
+//    lowerFirstPriority = true
+//  )
+//}
+

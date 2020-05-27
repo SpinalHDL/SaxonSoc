@@ -30,8 +30,10 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   val externalInterrupt = product[Bool]
   val externalSupervisorInterrupt = product[Bool]
   val timerInterrupt = product[Bool]
+  val softwareInterrupt = product[Bool]
 
   def setTimerInterrupt(that: Handle[Bool]) = Dependable(that, timerInterrupt){timerInterrupt := that}
+  def setSoftwareInterrupt(that: Handle[Bool]) = Dependable(that, softwareInterrupt){softwareInterrupt := that}
 
 
   def disableDebug() = withDebug.load(DEBUG_NONE)
@@ -83,6 +85,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
       case plugin: CsrPlugin => {
         externalInterrupt load plugin.externalInterrupt
         timerInterrupt load plugin.timerInterrupt
+        softwareInterrupt load plugin.softwareInterrupt
         if (plugin.config.supervisorGen) externalSupervisorInterrupt load plugin.externalInterruptS
       }
       case plugin: DebugPlugin => plugin.debugClockDomain {
