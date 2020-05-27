@@ -147,6 +147,9 @@ static void sdram_udelay(u32 us){
     #ifndef SPINAL_SIM
     bsp_uDelay(us);
     #endif
+    #ifdef SPINAL_SIM
+    bsp_uDelay(1);
+    #endif
 }
 
 static void sdram_command(u32 core, u32 cmd, u32 bank, u32 address){
@@ -281,6 +284,7 @@ static void sdram_ddr3_init(u32 core,  u32 rl, u32 wl, u32 ctrlBurstLength, u32 
     sdram_command(core, SDRAM_ZQCL, 0, 0x400);
     sdram_udelay(100);
     write_u32(SDRAM_AUTO_REFRESH, core + SDRAM_CONFIG);
+    sdram_udelay(100);
 }
 
 static u16 lfsr;
