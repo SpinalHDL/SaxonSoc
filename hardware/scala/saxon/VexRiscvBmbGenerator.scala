@@ -3,7 +3,7 @@ package saxon
 import spinal.core._
 import spinal.lib.bus.bmb.{Bmb, BmbParameter}
 import spinal.lib.com.jtag.{Jtag, JtagTapInstructionCtrl}
-import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle}
+import spinal.lib.generator.{BmbInterconnectGenerator, BmbSmpInterconnectGenerator, Dependable, Generator, Handle}
 import spinal.lib.slave
 import vexriscv.{VexRiscv, VexRiscvConfig}
 import vexriscv.plugin.{CsrPlugin, DBusCachedPlugin, DBusSimpleBus, DBusSimplePlugin, DebugPlugin, IBusCachedPlugin, IBusSimpleBus, IBusSimplePlugin}
@@ -15,7 +15,7 @@ object VexRiscvBmbGenerator{
   val DEBUG_JTAG_CTRL = 2
 }
 
-case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerator = null) extends Generator {
+case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerator = null, interconnectSmp: BmbSmpInterconnectGenerator = null) extends Generator {
   import VexRiscvBmbGenerator._
 
   val config = Handle[VexRiscvConfig]
@@ -123,4 +123,10 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
     interconnect.addMaster(parameterGenerator.iBusParameter, iBus)
     interconnect.addMaster(parameterGenerator.dBusParameter, dBus)
   }
+
+  if(interconnectSmp != null){
+    interconnectSmp.addMaster(accessRequirements = parameterGenerator.iBusParameter.derivate(_.toAccessParameter), bus = iBus)
+    interconnectSmp.addMaster(accessRequirements = parameterGenerator.dBusParameter.derivate(_.toAccessParameter), bus = dBus)
+  }
+
 }

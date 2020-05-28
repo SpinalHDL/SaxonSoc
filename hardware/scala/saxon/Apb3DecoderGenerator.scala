@@ -12,8 +12,8 @@ import scala.collection.mutable.ArrayBuffer
 case class Apb3DecoderGenerator() extends Generator {
 
   case class SlaveModel(slave: Handle[Apb3], config : Handle[Apb3Config], address: Handle[BigInt]) {
-    configGenerator.dependencies += config
-    configGenerator.dependencies += address
+    configGenerator.dependencies += config.setCompositeName(slave, "AAAAmiaou")
+    configGenerator.dependencies += address.setCompositeName(slave, "BBBBmiaou")
     def mapping = SizeMapping(address, (BigInt(1)) << config.addressWidth)
   }
 

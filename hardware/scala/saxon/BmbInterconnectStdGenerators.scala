@@ -3,9 +3,9 @@ package saxon
 import spinal.core._
 import spinal.lib.IMasterSlave
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3CC, Apb3Config, Apb3SlaveFactory}
-import spinal.lib.bus.bmb.{Bmb, BmbArbiter, BmbEg4S20Bram32K, BmbExclusiveMonitor, BmbIce40Spram, BmbInvalidateMonitor, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
+import spinal.lib.bus.bmb.{Bmb, BmbAccessParameter, BmbArbiter, BmbEg4S20Bram32K, BmbExclusiveMonitor, BmbIce40Spram, BmbInvalidateMonitor, BmbInvalidationParameter, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
 import spinal.lib.bus.misc.{DefaultMapping, SizeMapping}
-import spinal.lib.generator.{BmbInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection, Unset}
+import spinal.lib.generator.{BmbInterconnectGenerator, BmbSmpInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection, Unset}
 import spinal.lib.memory.sdram.SdramLayout
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr._
@@ -214,6 +214,60 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
 }
 
 
+
+case class SdramXdrBmbSmpGenerator(memoryAddress: BigInt)
+                               (implicit interconnect: BmbSmpInterconnectGenerator/*, decoder: Apb3DecoderGenerator*/) extends Generator {
+
+  val phyParameter = createDependency[PhyLayout]
+  val coreParameter = createDependency[CoreParameter]
+  val portsParameter = ArrayBuffer[Handle[BmbPortParameter]]()
+  val phyPort = produce(logic.io.phy)
+  val apb = produce(logic.io.apb)
+
+  def mapApbAt(address : BigInt)(implicit decoder: Apb3DecoderGenerator) : this.type = {
+    decoder.addSlave(apb, address)
+    this
+  }
+
+  def addPort() = new Generator {
+    val requirements = createDependency[BmbAccessParameter]
+    val portId = portsParameter.length
+    val bmb = SdramXdrBmbSmpGenerator.this.produce(logic.io.bmb(portId))
+
+    portsParameter += SdramXdrBmbSmpGenerator.this.createDependency[BmbPortParameter]
+
+    interconnect.addSlave(
+      accessCapabilities = phyParameter.produce(CtrlWithPhy.bmbCapabilities(phyParameter).toAccessParameter),
+      accessRequirements = requirements,
+      bus = bmb,
+      mapping = phyParameter.produce(SizeMapping(memoryAddress, phyParameter.sdram.capacity))
+    )
+
+    add task {
+      portsParameter(portId).load(
+        BmbPortParameter(
+          bmb = requirements.toBmbParameter(),
+          clockDomain = ClockDomain.current,
+          cmdBufferSize = 16,
+          dataBufferSize = 32,
+          rspBufferSize = 32
+        )
+      )
+    }
+  }
+
+
+
+
+  val logic = add task new CtrlWithoutPhy(
+    p =  CtrlParameter(
+      core = coreParameter,
+      ports = portsParameter.map(_.get)
+    ),
+    pl = phyParameter
+  )
+}
+
 case class XilinxS7PhyGenerator(configAddress : BigInt)(implicit decoder: Apb3DecoderGenerator) extends Generator{
   val sdramLayout = createDependency[SdramLayout]
   val apb = produce(logic.apb)
@@ -237,6 +291,14 @@ case class XilinxS7PhyGenerator(configAddress : BigInt)(implicit decoder: Apb3De
   }
 
   def connect(ctrl : SdramXdrBmbGenerator): Unit = {
+    this.produce{
+      ctrl.phyParameter.load(logic.phy.pl)
+    }
+    ctrl.produce{
+      ctrl.logic.io.phy <> logic.phy.io.ctrl
+    }
+  }
+  def connect(ctrl : SdramXdrBmbSmpGenerator): Unit = {
     this.produce{
       ctrl.phyParameter.load(logic.phy.pl)
     }
@@ -291,6 +353,11 @@ case class RtlPhyGenerator()extends Generator{
     layout.produce{ ctrl.phyParameter.load(layout.get) }
     Dependable(ctrl, logic){ ctrl.logic.io.phy <> logic.io.ctrl }
   }
+
+  def connect(ctrl : SdramXdrBmbSmpGenerator): Unit = {
+    layout.produce{ ctrl.phyParameter.load(layout.get) }
+    Dependable(ctrl, logic){ ctrl.logic.io.phy <> logic.io.ctrl }
+  }
 }
 
 case class BmbOnChipRamGenerator(val address: Handle[BigInt] = Unset)
@@ -318,6 +385,34 @@ case class BmbOnChipRamGenerator(val address: Handle[BigInt] = Unset)
     hexInit = hexInit
   )
 }
+
+case class BmbSmpOnChipRamGenerator(val address: Handle[BigInt] = Unset)
+                                (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
+  val size      = Handle[BigInt]
+  val dataWidth = Handle[Int]
+  val hexInit = createDependency[String]
+  val requirements = createDependency[BmbAccessParameter]
+  val bmb = produce(logic.io.bus)
+
+  dependencies += address
+
+  interconnect.addSlave(
+    accessCapabilities = Dependable(size, dataWidth)(BmbOnChipRam.busCapabilities(size, dataWidth).toAccessParameter),
+    accessRequirements = requirements,
+    bus = bmb,
+    mapping = Dependable(address, size)(SizeMapping(address, BigInt(1) << log2Up(size)))
+  )
+
+
+  val logic = add task BmbOnChipRam(
+    p = requirements.toBmbParameter(),
+    size = size,
+    hexOffset = address,
+    hexInit = hexInit
+  )
+}
+
+
 
 
 
@@ -396,7 +491,31 @@ case class BmbBridgeGenerator()
 }
 
 
+case class BmbSmpBridgeGenerator()
+                             (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
+  val accessSource = createDependency[BmbAccessParameter]
+  val accessRequirements = createDependency[BmbAccessParameter]
+  val invalidationSource = createDependency[BmbInvalidationParameter]
+  val invalidationRequirements = createDependency[BmbInvalidationParameter]
+  val bmb = add task Bmb(accessRequirements, invalidationRequirements)
 
+  interconnect.addSlave(
+    accessSource = accessSource,
+    accessCapabilities = accessSource,
+    accessRequirements = accessRequirements,
+    invalidationRequirements = invalidationRequirements,
+    bus = bmb,
+    mapping = DefaultMapping
+  )
+
+  interconnect.addMaster(
+    accessRequirements = accessRequirements,
+    invalidationSource = invalidationSource,
+    invalidationCapabilities = invalidationSource,
+    invalidationRequirements = invalidationRequirements,
+    bus = bmb
+  )
+}
 
 
 case class  BmbToApb3Decoder(address : Handle[BigInt] = Unset)(implicit interconnect: BmbInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) extends Generator {
@@ -422,6 +541,40 @@ case class  BmbToApb3Decoder(address : Handle[BigInt] = Unset)(implicit intercon
     val bridge = BmbToApb3Bridge(
       apb3Config = apbDecoder.inputConfig,
       bmbParameter = requirements,
+      pipelineBridge = false
+    )
+    apbDecoder.input << bridge.io.output
+  }
+
+
+  tags += new MemoryConnection(input, apbDecoder.input, 0)
+}
+
+
+
+case class  BmbSmpToApb3Decoder(address : Handle[BigInt] = Unset)(implicit interconnect: BmbSmpInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) extends Generator {
+  val input = produce(logic.bridge.io.input)
+  val requirements = createDependency[BmbAccessParameter]
+
+  dependencies += address
+
+  interconnect.addSlave(
+    accessCapabilities = apbDecoder.inputConfig produce BmbToApb3Bridge.busCapabilities(
+      addressWidth = apbDecoder.inputConfig.addressWidth,
+      dataWidth = apbDecoder.inputConfig.dataWidth
+    ).toAccessParameter,
+    accessRequirements = requirements,
+    bus = input,
+    mapping = apbDecoder.inputConfig produce SizeMapping(address, BigInt(1) << apbDecoder.inputConfig.addressWidth)
+  )
+
+  dependencies += requirements
+  dependencies += apbDecoder
+
+  val logic = add task new Area {
+    val bridge = BmbToApb3Bridge(
+      apb3Config = apbDecoder.inputConfig,
+      bmbParameter = requirements.toBmbParameter,
       pipelineBridge = false
     )
     apbDecoder.input << bridge.io.output
