@@ -36,7 +36,9 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
   def setSoftwareInterrupt(that: Handle[Bool]) = Dependable(that, softwareInterrupt){softwareInterrupt := that}
 
 
-  def disableDebug() = withDebug.load(DEBUG_NONE)
+  def disableDebug() = {
+    withDebug.load(DEBUG_NONE)
+  }
 
   def enableJtag(implicit clockCtrl: ClockDomainGenerator) : Unit = {
     this.debugClockDomain.merge(clockCtrl.controlClockDomain)
@@ -62,7 +64,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
 
   dependencies ++= List(config)
   dependencies += Dependable(withDebug) {
-    if (withDebug != DEBUG_NONE) {
+    if (withDebug.get != DEBUG_NONE) {
       dependencies ++= List(debugClockDomain, debugAskReset)
     }
   }

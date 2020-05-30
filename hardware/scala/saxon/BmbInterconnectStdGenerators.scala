@@ -4,7 +4,7 @@ import spinal.core._
 import spinal.lib.IMasterSlave
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3CC, Apb3Config, Apb3SlaveFactory}
 import spinal.lib.bus.bmb.{Bmb, BmbAccessParameter, BmbArbiter, BmbEg4S20Bram32K, BmbExclusiveMonitor, BmbIce40Spram, BmbInvalidateMonitor, BmbInvalidationParameter, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
-import spinal.lib.bus.misc.{DefaultMapping, SizeMapping}
+import spinal.lib.bus.misc.{AddressMapping, DefaultMapping, SizeMapping}
 import spinal.lib.generator.{BmbInterconnectGenerator, BmbSmpInterconnectGenerator, Dependable, Generator, Handle, MemoryConnection, Unset}
 import spinal.lib.memory.sdram.SdramLayout
 import spinal.lib.memory.sdram.sdr._
@@ -358,6 +358,11 @@ case class RtlPhyGenerator()extends Generator{
     layout.produce{ ctrl.phyParameter.load(layout.get) }
     Dependable(ctrl, logic){ ctrl.logic.io.phy <> logic.io.ctrl }
   }
+
+  def connect(ctrl : SdramXdrBmb2SmpGenerator): Unit = {
+    layout.produce{ ctrl.phyParameter.load(layout.get) }
+    Dependable(ctrl, logic){ ctrl.logic.io.phy <> logic.io.ctrl }
+  }
 }
 
 case class BmbOnChipRamGenerator(val address: Handle[BigInt] = Unset)
@@ -390,6 +395,7 @@ case class BmbSmpOnChipRamGenerator(val address: Handle[BigInt] = Unset)
                                 (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
   val size      = Handle[BigInt]
   val dataWidth = Handle[Int]
+  var hexOffset = BigInt(0)
   val hexInit = createDependency[String]
   val requirements = createDependency[BmbAccessParameter]
   val bmb = produce(logic.io.bus)
@@ -407,7 +413,7 @@ case class BmbSmpOnChipRamGenerator(val address: Handle[BigInt] = Unset)
   val logic = add task BmbOnChipRam(
     p = requirements.toBmbParameter(),
     size = size,
-    hexOffset = address,
+    hexOffset = address.get + hexOffset,
     hexInit = hexInit
   )
 }
@@ -490,28 +496,61 @@ case class BmbBridgeGenerator()
   interconnect.addMaster(requirements, bmb)
 }
 
-
-case class BmbSmpBridgeGenerator()
+object BmbSmpBridgeGenerator{
+  def apply(mapping : Handle[AddressMapping] = DefaultMapping)(implicit interconnect: BmbSmpInterconnectGenerator) : BmbSmpBridgeGenerator = new BmbSmpBridgeGenerator(mapping = mapping)
+}
+class BmbSmpBridgeGenerator(mapping : Handle[AddressMapping] = DefaultMapping, bypass : Boolean = true)
                              (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
-  val accessSource = createDependency[BmbAccessParameter]
+  val accessSource = Handle[BmbAccessParameter]
+  val invalidationSource = Handle[BmbInvalidationParameter]
+
+  val accessCapabilities = Handle[BmbAccessParameter]
+  val invalidationCapabilities = Handle[BmbInvalidationParameter]
+
   val accessRequirements = createDependency[BmbAccessParameter]
-  val invalidationSource = createDependency[BmbInvalidationParameter]
   val invalidationRequirements = createDependency[BmbInvalidationParameter]
   val bmb = add task Bmb(accessRequirements, invalidationRequirements)
 
+  val accessTranform = ArrayBuffer[BmbAccessParameter => BmbAccessParameter]()
+
+  def dataWidth(w : Int): this.type = {
+    accessTranform += { a => a.copy(
+      dataWidth = w
+    )}
+    this
+  }
+  def unburstify(): this.type = {
+    accessTranform += { a => a.copy(
+      alignment =  BmbParameter.BurstAlignement.WORD,
+      lengthWidth = log2Up(a.dataWidth/8)
+    )}
+    this
+  }
+  def peripheral(dataWidth : Int): this.type = {
+    this.dataWidth(dataWidth)
+    this.unburstify()
+  }
+
+  if(bypass){
+    accessCapabilities.derivatedFrom(accessSource){
+      accessTranform.foldLeft(_)((v, f) => f(v))
+    }
+    invalidationCapabilities.merge(invalidationSource)
+  }
+
   interconnect.addSlave(
     accessSource = accessSource,
-    accessCapabilities = accessSource,
+    accessCapabilities = accessCapabilities,
     accessRequirements = accessRequirements,
     invalidationRequirements = invalidationRequirements,
     bus = bmb,
-    mapping = DefaultMapping
+    mapping = mapping
   )
 
   interconnect.addMaster(
     accessRequirements = accessRequirements,
     invalidationSource = invalidationSource,
-    invalidationCapabilities = invalidationSource,
+    invalidationCapabilities = invalidationCapabilities,
     invalidationRequirements = invalidationRequirements,
     bus = bmb
   )
@@ -615,16 +654,17 @@ case class  Apb3CCGenerator() extends Generator {
 
 
 case class BmbExclusiveMonitorGenerator()
-                             (implicit interconnect: BmbInterconnectGenerator) extends Generator {
-  val input = produce(exclusiveMonitor.io.input)
-  val output = produce(exclusiveMonitor.io.output)
+                             (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
+  val input = produce(logic.io.input)
+  val output = produce(logic.io.output)
 
 
-  val inputRequirements = createDependency[BmbParameter]
-  val outputRequirements = inputRequirements.derivate(BmbExclusiveMonitor.outputParameter)
+  val inputAccessRequirements = createDependency[BmbAccessParameter]
+  val outputInvalidationSource = Handle[BmbInvalidationParameter]
+  val invalidationRequirements = createDependency[BmbInvalidationParameter]
 
   interconnect.addSlave(
-    capabilities = BmbParameter(
+    accessCapabilities = BmbAccessParameter(
       addressWidth  = 32,
       dataWidth     = 32,
       lengthWidth   = Int.MaxValue,
@@ -633,57 +673,60 @@ case class BmbExclusiveMonitorGenerator()
       canRead       = true,
       canWrite      = true,
       canExclusive  = true,
-      canInvalidate = true,
-      canSync       = true,
-      alignment     = BmbParameter.BurstAlignement.BYTE,
-      maximumPendingTransactionPerId = Int.MaxValue
+      alignment     = BmbParameter.BurstAlignement.BYTE
     ),
-    requirements = inputRequirements,
+    accessRequirements = inputAccessRequirements,
+    invalidationRequirements = invalidationRequirements,
     bus = input,
     mapping = DefaultMapping
   )
 
-  interconnect.addMaster(outputRequirements, output)
+  interconnect.addMaster(
+    accessRequirements = inputAccessRequirements.produce(BmbExclusiveMonitor.outputParameter(inputAccessRequirements.toBmbParameter()).toAccessParameter),
+    invalidationSource = outputInvalidationSource,
+    invalidationCapabilities = outputInvalidationSource,
+    invalidationRequirements = invalidationRequirements,
+    bus = output
+  )
 
-  val exclusiveMonitor = add task BmbExclusiveMonitor(
-    inputParameter = inputRequirements,
+  val logic = add task BmbExclusiveMonitor(
+    inputParameter = BmbParameter(inputAccessRequirements, invalidationRequirements),
     pendingWriteMax = 64
   )
 }
 
 case class BmbInvalidateMonitorGenerator()
-                                       (implicit interconnect: BmbInterconnectGenerator) extends Generator {
-  val input = produce(exclusiveMonitor.io.input)
-  val output = produce(exclusiveMonitor.io.output)
+                                       (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
+  val input = produce(logic.io.input)
+  val output = produce(logic.io.output)
 
+  val inputAccessSource = Handle[BmbAccessParameter]
+  val inputAccessRequirements = createDependency[BmbAccessParameter]
+  val inputInvalidationRequirements = createDependency[BmbInvalidationParameter]
 
-  val inputRequirements = createDependency[BmbParameter]
-  val outputRequirements = inputRequirements.derivate(BmbExclusiveMonitor.outputParameter)
+  inputInvalidationRequirements.derivatedFrom(inputAccessRequirements)(r => BmbInvalidationParameter(
+    canInvalidate = true,
+    canSync = true,
+    invalidateLength = r.lengthWidth,
+    invalidateAlignment = r.alignment
+  ))
 
   interconnect.addSlave(
-    capabilities = BmbParameter(
-      addressWidth  = 32,
-      dataWidth     = 32,
-      lengthWidth   = Int.MaxValue,
-      sourceWidth   = Int.MaxValue,
-      contextWidth  = Int.MaxValue,
-      canRead       = true,
-      canWrite      = true,
-      canExclusive  = false,
-      canInvalidate = true,
-      canSync       = true,
-      alignment     = BmbParameter.BurstAlignement.BYTE,
-      maximumPendingTransactionPerId = Int.MaxValue
-    ),
-    requirements = inputRequirements,
+    accessSource = inputAccessSource,
+    accessCapabilities = inputAccessSource,
+    accessRequirements = inputAccessRequirements,
+    invalidationRequirements = inputInvalidationRequirements,
     bus = input,
     mapping = DefaultMapping
   )
 
-  interconnect.addMaster(outputRequirements, output)
+  interconnect.addMaster(
+    accessRequirements = inputAccessRequirements.produce(BmbInvalidateMonitor.outputParameter(inputAccessRequirements.toBmbParameter()).toAccessParameter),
+    bus = output
+  )
 
-  val exclusiveMonitor = add task BmbInvalidateMonitor(
-    inputParameter = inputRequirements,
+  val logic = add task BmbInvalidateMonitor(
+    inputParameter = BmbParameter(inputAccessRequirements, inputInvalidationRequirements),
     pendingInvMax = 16
   )
 }

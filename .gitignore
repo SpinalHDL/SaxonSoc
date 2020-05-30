@@ -34,7 +34,7 @@ bin/
 *.json
 *.vcd
 !tester/src/test/resources/*.vhd
-cpu0.yaml
+cpu*.yaml
 
 
 simWorkspace/

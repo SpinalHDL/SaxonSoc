@@ -12,6 +12,7 @@ import spinal.lib.bus.amba3.apb.Apb3Config
 import spinal.lib.bus.amba3.apb.sim.{Apb3Listener, Apb3Monitor}
 import spinal.lib.bus.bmb.Bmb
 import spinal.lib.bus.bmb.sim.BmbMonitor
+import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
 import spinal.lib.com.i2c.{I2cMasterMemoryMappedGenerics, I2cSlaveGenerics, I2cSlaveMemoryMappedGenerics}
 import spinal.lib.com.i2c.sim.OpenDrainInterconnect
 import spinal.lib.com.jtag.sim.JtagTcp
@@ -37,43 +38,45 @@ import vexriscv.plugin.CsrPlugin
 
 class VexRiscvSmpGenerator  extends Generator {
   implicit val interconnect = BmbSmpInterconnectGenerator()
-  implicit val apbDecoder = Apb3DecoderGenerator()
-  implicit val peripheralBridge = BmbSmpToApb3Decoder(address = 0x10000000)
+  val bmbPeripheral = BmbSmpBridgeGenerator(mapping = SizeMapping(0x10000000, 16 MiB)).peripheral(dataWidth = 32)
 
-//  val exclusiveMonitor = BmbExclusiveMonitorGenerator()
-//  val invalidationMonitor = BmbInvalidateMonitorGenerator()
-//
-//  interconnect.addConnection(exclusiveMonitor.output, invalidationMonitor.input)
-
-  val plic = Apb3PlicGenerator(0xC00000)
+  val plic = BmbPlicGenerator(0xC00000)
   plic.priorityWidth.load(2)
   plic.mapping.load(PlicMapping.sifive)
+  interconnect.addConnection(bmbPeripheral.bmb, plic.bus)
 
-  val clint = Apb3ClintGenerator(0xB00000)
+  val clint = BmbClintGenerator(0xB00000)
+  interconnect.addConnection(bmbPeripheral.bmb, clint.bus)
 
-  val uartA = Apb3UartGenerator(0x10000)
+  val uartA = BmbUartGenerator(0x10000)
   uartA.connectInterrupt(plic, 1)
+  interconnect.addConnection(bmbPeripheral.bmb, uartA.bus)
 }
 
 
 class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
-  val ramA = BmbSmpOnChipRamGenerator(0x20000000l)
+  val ramA = BmbSmpOnChipRamGenerator(0xA00000l)
+  ramA.hexOffset = 0x10000000 //TODO
   ramA.dataWidth.load(32)
+  interconnect.addConnection(bmbPeripheral.bmb, ramA.bmb)
 
-  val sdramA = SdramXdrBmbSmpGenerator(memoryAddress = 0x80000000l)
-//
+  val sdramA = SdramXdrBmb2SmpGenerator(memoryAddress = 0x80000000l)
   val sdramA0 = sdramA.addPort()
 
 
-//  val bridge = BmbSmpBridgeGenerator()
+  val iBridge = BmbSmpBridgeGenerator()
+  val exclusiveMonitor = BmbExclusiveMonitorGenerator()
+  val invalidationMonitor = BmbInvalidateMonitorGenerator()
 
-  val cpuCount = 1
+  interconnect.addConnection(exclusiveMonitor.output, invalidationMonitor.input)
+
+
+  val cpuCount = 2
   val cores = for(cpuId <- 0 until cpuCount) yield new Area{
     val cpu = VexRiscvBmbGenerator()
     interconnect.addConnection(
-//      cpu.iBus -> List(bridge.bmb),
-//      cpu.dBus -> List(bridge.bmb)
-//      cpu.dBus -> List(exclusiveMonitor.input)
+      cpu.iBus -> List(iBridge.bmb),
+      cpu.dBus -> List(exclusiveMonitor.input)
     )
     cpu.setTimerInterrupt(clint.timerInterrupt(cpuId))
     cpu.setSoftwareInterrupt(clint.softwareInterrupt(cpuId))
@@ -86,10 +89,8 @@ class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
   clint.cpuCount.load(cpuCount)
   
   interconnect.addConnection(
-//    invalidationMonitor.output -> List(bridge.bmb),
-//      bridge.bmb -> List(ramA.bmb, sdramA0.bmb, peripheralBridge.input)
-      cores(0).cpu.iBus -> List(ramA.bmb, sdramA0.bmb, peripheralBridge.input),
-      cores(0).cpu.dBus -> List(ramA.bmb, sdramA0.bmb, peripheralBridge.input)
+    iBridge.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
+    invalidationMonitor.output -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
 }
 
@@ -115,19 +116,20 @@ class ArtyA7SmpLinux extends Generator{
   system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
   val sdramDomain = new Generator{
-    onClockDomain(sdramCd.outputClockDomain)
-
-    val apbDecoder = Apb3DecoderGenerator()
-    apbDecoder.addSlave(system.sdramA.apb, Apb3Config(12, 32), 0x0000) //TODO remove the apb3 config to produce a generation issue and improve logs
-
-    val phyA = XilinxS7PhyGenerator(configAddress = 0x1000)(apbDecoder)
-    phyA.connect(system.sdramA)
-
-    val sdramApbBridge = Apb3CCGenerator() //TODO size optimisation
-    sdramApbBridge.mapAt(0x100000l)(system.apbDecoder)
-    sdramApbBridge.setOutput(apbDecoder.input)
-    sdramApbBridge.inputClockDomain.merge(systemCd.outputClockDomain)
-    sdramApbBridge.outputClockDomain.merge(sdramCd.outputClockDomain)
+    ???
+//    onClockDomain(sdramCd.outputClockDomain)
+//
+//    val apbDecoder = Apb3DecoderGenerator()
+//    apbDecoder.addSlave(system.sdramA.apb, Apb3Config(12, 32), 0x0000) //TODO remove the apb3 config to produce a generation issue and improve logs
+//
+//    val phyA = XilinxS7PhyGenerator(configAddress = 0x1000)(apbDecoder)
+//    phyA.connect(system.sdramA)
+//
+//    val sdramApbBridge = Apb3CCGenerator() //TODO size optimisation
+//    sdramApbBridge.mapAt(0x100000l)(system.apbDecoder)
+//    sdramApbBridge.setOutput(apbDecoder.input)
+//    sdramApbBridge.inputClockDomain.merge(systemCd.outputClockDomain)
+//    sdramApbBridge.outputClockDomain.merge(sdramCd.outputClockDomain)
   }
 
   val clocking = add task new Area{
@@ -181,9 +183,10 @@ class ArtyA7SmpLinux extends Generator{
         frequency = FixedFrequency(150 MHz)
       )
     )
-    sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
-    sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
-    sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
+    ???
+//    sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
+//    sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
+//    sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
   }
 
 //  val startupe2 = system.spiA.flash.produce(
@@ -195,15 +198,23 @@ object ArtyA7SmpLinuxSystem{
   def default(g : ArtyA7SmpLinuxSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) = g {
     import g._
 
-//    cores(0).cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
-//      hartId      = 0,
-//      ioRange     = _(31 downto 28) === 0x1,
-//      resetVector = 0x80000000l,
-//      iBusWidth  = 32,
-//      dBusWidth  = 32
-//    ))
-    cores(0).cpu.config.load(VexRiscvConfigs.linuxTest(0x20000000l, openSbi = true))
-    cores(0).cpu.enableJtag(debugCd, resetCd)
+    for(coreId <- 0 until cpuCount) {
+      cores(coreId).cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
+        hartId = coreId,
+        ioRange = _ (31 downto 28) === 0x1,
+        resetVector = 0x10A00000l,
+        iBusWidth = 32,
+        dBusWidth = 32
+      ))
+      if(coreId == 0){
+        cores(0).cpu.enableJtag(debugCd, resetCd)
+      } else {
+        cores(coreId).cpu.disableDebug()
+      }
+    }
+//    cores(0).cpu.config.load(VexRiscvConfigs.linuxTest(0x20000000l, openSbi = true))
+
+
 
     ramA.size.load(8 KiB)
     ramA.hexInit.load(null)
@@ -267,7 +278,8 @@ object ArtyA7SmpLinux {
   //Function used to configure the SoC
   def default(g : ArtyA7SmpLinux) = g{
     import g._
-    sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
+    ???
+//    sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
     ArtyA7SmpLinuxSystem.default(system, debugCd, sdramCd)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 //    system.cpu.produce(out(Bool).setName("inWfi") := system.cpu.config.plugins.find(_.isInstanceOf[CsrPlugin]).get.asInstanceOf[CsrPlugin].inWfi)
@@ -298,7 +310,7 @@ object ArtyA7SmpLinuxSystemSim {
     val simConfig = SimConfig
     simConfig.allOptimisation
     simConfig.withWave
-    simConfig.withFstWave
+//    simConfig.withFstWave
 //    simConfig.withConfig(SpinalConfig(anonymSignalPrefix = "zz_"))
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
@@ -320,7 +332,8 @@ object ArtyA7SmpLinuxSystemSim {
       phy.layout.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))
       phy.connect(sdramA)
 
-      apbDecoder.addSlave(sdramA.apb, Apb3Config(12, 32), 0x100000l)
+      sdramA.mapCtrlAt(0x100000)
+      interconnect.addConnection(bmbPeripheral.bmb, sdramA.ctrlBus)
 
       ArtyA7SmpLinuxSystem.default(this, debugCd, systemCd)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
