@@ -26,22 +26,6 @@ class MS6PLinuxSystem extends SaxonSocLinux{
   )
 }
 
-case class BUFG() extends BlackBox{
-  val O = out Bool()
-  val I = in Bool()
-}
-
-case class ODDR2() extends BlackBox{
-  val Q = out Bool()
-  val C0 = in Bool()
-  val C1 = in Bool()
-  val D0 = in Bool()
-  val D1 = in Bool()
-  val S = in Bool()
-  val R = in Bool()
-  val CE = in Bool()
-}
-
 class MS6PLinux extends Generator{
   val clockCtrl = ClockDomainGenerator()
   clockCtrl.resetHoldDuration.load(255)
@@ -56,22 +40,22 @@ class MS6PLinux extends Generator{
     val resetN = in Bool()
     val sdramClk = out Bool()
 
-    val oddr = ODDR2()
-    val bufg = BUFG()
-
-    bufg.I := CLOCK_50
-    oddr.C0 := bufg.O
-    oddr.C1 := ~bufg.O
-    oddr.D0 := True
-    oddr.D1 := False
-    oddr.R := False
-    oddr.S := False
-    oddr.CE := True
-
-    sdramClk := oddr.Q
-    clockCtrl.clock.load(bufg.O)
+    val pll = MS6PLinuxPll()
+    pll.refclk := CLOCK_50
+    pll.rst := False
+    sdramClk := pll.outclk_1
+    clockCtrl.clock.load(pll.outclk_0)
     clockCtrl.reset.load(resetN)
   }
+}
+
+case class MS6PLinuxPll() extends BlackBox{
+  setDefinitionName("pll_0002")
+  val refclk = in Bool()
+  val rst = in Bool()
+  val outclk_0 = out Bool()
+  val outclk_1 = out Bool()
+  val locked = out Bool()
 }
 
 object MS6PLinuxSystem{
@@ -95,7 +79,7 @@ object MS6PLinuxSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 8,
+      width = 24,
       interrupt = List(0, 1, 2, 3)
     )
     gpioA.connectInterrupts(plic, 4)
