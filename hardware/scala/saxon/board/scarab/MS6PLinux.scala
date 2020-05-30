@@ -205,11 +205,10 @@ object MS6PLinuxSystemSim {
         clockDomain = clockDomain
       )
 
-      val linuxPath = "../buildroot/output/images/"
       sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      sdram.loadBin(0x00080000, linuxPath + "Image")
-      sdram.loadBin(0x0007F000, linuxPath + "dtb")
-      sdram.loadBin(0x00800000, linuxPath + "rootfs.cpio")
+      sdram.loadBin(0x00004000, "../linux/arch/riscv/boot/Image")
+      sdram.loadBin(0x00074000, "../buildroot/output/images/dtb")
+      sdram.loadBin(0x00800000, "../buildroot/output/images/rootfs.cpio")
     }
   }
 }
