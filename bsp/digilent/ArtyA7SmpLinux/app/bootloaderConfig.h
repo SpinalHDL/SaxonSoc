@@ -4,10 +4,10 @@
 #include "sdram.h"
 #include "spiFlash.h"
 
-#define SPI SYSTEM_SPI_A_APB
+#define SPI SYSTEM_SPI_A_CTRL
 #define SPI_CS 0
 
-#define GPIO SYSTEM_GPIO_A_APB
+#define GPIO SYSTEM_GPIO_A_BUS
 
 #define OPENSBI_MEMORY 0x80000000
 #define OPENSBI_FLASH  0x00400000
@@ -24,7 +24,7 @@
 
 void bspMain() {
     sdram_init(
-        SYSTEM_SDRAM_A_APB,
+        SYSTEM_SDRAM_A_CTRL_BUS,
         RL,
         WL,
         MT41K128M16JT_125_ps,
@@ -34,7 +34,7 @@ void bspMain() {
     );
 
     sdram_ddr3_init(
-        SYSTEM_SDRAM_A_APB,
+        SYSTEM_SDRAM_A_CTRL_BUS,
         RL,
         WL,
         CTRL_BURST_LENGHT,
@@ -43,8 +43,8 @@ void bspMain() {
 
 #ifndef SPINAL_SIM
     sdram_phy_s7(
-        SYSTEM_SDRAM_A_APB,
-        SDRAM_DOMAIN_PHY_A_APB,
+        SYSTEM_SDRAM_A_CTRL_BUS,
+        SDRAM_DOMAIN_PHY_A_CTRL,
         SYSTEM_SDRAM_A0_BMB
     );
 

@@ -308,8 +308,6 @@ case class XilinxS7PhyGenerator(configAddress : BigInt)(implicit decoder: Apb3De
   }
 }
 
-
-
 case class SdrInferedPhyGenerator(implicit decoder: Apb3DecoderGenerator) extends Generator{
   val sdramLayout = createDependency[SdramLayout]
   val sdram = produceIo(logic.phy.io.sdram)
@@ -499,6 +497,9 @@ case class BmbBridgeGenerator()
 object BmbSmpBridgeGenerator{
   def apply(mapping : Handle[AddressMapping] = DefaultMapping)(implicit interconnect: BmbSmpInterconnectGenerator) : BmbSmpBridgeGenerator = new BmbSmpBridgeGenerator(mapping = mapping)
 }
+
+case class BmbImplicitPeripheralDecoder(bus : Handle[Bmb])
+
 class BmbSmpBridgeGenerator(mapping : Handle[AddressMapping] = DefaultMapping, bypass : Boolean = true)
                              (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
   val accessSource = Handle[BmbAccessParameter]
@@ -529,6 +530,13 @@ class BmbSmpBridgeGenerator(mapping : Handle[AddressMapping] = DefaultMapping, b
   def peripheral(dataWidth : Int): this.type = {
     this.dataWidth(dataWidth)
     this.unburstify()
+  }
+  def asPeripheralDecoder(dataWidth : Int) = {
+    peripheral(dataWidth)
+    BmbImplicitPeripheralDecoder(bmb)
+  }
+  def asPeripheralDecoder() = {
+    BmbImplicitPeripheralDecoder(bmb)
   }
 
   if(bypass){
@@ -693,6 +701,8 @@ case class BmbExclusiveMonitorGenerator()
     inputParameter = BmbParameter(inputAccessRequirements, invalidationRequirements),
     pendingWriteMax = 64
   )
+
+  tags += new MemoryConnection(input, output, 0)
 }
 
 case class BmbInvalidateMonitorGenerator()
@@ -729,6 +739,8 @@ case class BmbInvalidateMonitorGenerator()
     inputParameter = BmbParameter(inputAccessRequirements, inputInvalidationRequirements),
     pendingInvMax = 16
   )
+
+  tags += new MemoryConnection(input, output, 0)
 }
 
 

@@ -39,18 +39,16 @@ import vexriscv.plugin.CsrPlugin
 class VexRiscvSmpGenerator  extends Generator {
   implicit val interconnect = BmbSmpInterconnectGenerator()
   val bmbPeripheral = BmbSmpBridgeGenerator(mapping = SizeMapping(0x10000000, 16 MiB)).peripheral(dataWidth = 32)
+  implicit val peripheralDecoder = bmbPeripheral.asPeripheralDecoder()
 
   val plic = BmbPlicGenerator(0xC00000)
   plic.priorityWidth.load(2)
   plic.mapping.load(PlicMapping.sifive)
-  interconnect.addConnection(bmbPeripheral.bmb, plic.bus)
 
   val clint = BmbClintGenerator(0xB00000)
-  interconnect.addConnection(bmbPeripheral.bmb, clint.bus)
 
   val uartA = BmbUartGenerator(0x10000)
   uartA.connectInterrupt(plic, 1)
-  interconnect.addConnection(bmbPeripheral.bmb, uartA.bus)
 }
 
 
@@ -87,11 +85,21 @@ class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
   }
 
   clint.cpuCount.load(cpuCount)
-  
+
   interconnect.addConnection(
     iBridge.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
     invalidationMonitor.output -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
+
+
+  val gpioA = BmbGpioGenerator(0x00000)
+
+  val spiA = new BmbSpiGenerator(0x20000){
+    val decoder = SpiPhyDecoderGenerator(phy)
+    val user = decoder.spiMasterNone()
+    val flash = decoder.spiMasterId(0)
+    val sdcard = decoder.spiMasterId(1)
+  }
 }
 
 class ArtyA7SmpLinux extends Generator{
@@ -116,20 +124,19 @@ class ArtyA7SmpLinux extends Generator{
   system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
   val sdramDomain = new Generator{
-    ???
-//    onClockDomain(sdramCd.outputClockDomain)
-//
-//    val apbDecoder = Apb3DecoderGenerator()
-//    apbDecoder.addSlave(system.sdramA.apb, Apb3Config(12, 32), 0x0000) //TODO remove the apb3 config to produce a generation issue and improve logs
-//
-//    val phyA = XilinxS7PhyGenerator(configAddress = 0x1000)(apbDecoder)
-//    phyA.connect(system.sdramA)
-//
-//    val sdramApbBridge = Apb3CCGenerator() //TODO size optimisation
-//    sdramApbBridge.mapAt(0x100000l)(system.apbDecoder)
-//    sdramApbBridge.setOutput(apbDecoder.input)
-//    sdramApbBridge.inputClockDomain.merge(systemCd.outputClockDomain)
-//    sdramApbBridge.outputClockDomain.merge(sdramCd.outputClockDomain)
+    implicit val interconnect = system.interconnect
+
+    onClockDomain(sdramCd.outputClockDomain)
+
+    val bmbCc = BmbSmpBridgeGenerator(mapping = SizeMapping(0x100000l, 8 KiB)) //TODO area CC
+    interconnect.addConnection(system.bmbPeripheral.bmb, bmbCc.bmb)
+
+    val phyA = XilinxS7PhyBmbGenerator(configAddress = 0x1000)
+    phyA.connect(system.sdramA)
+    interconnect.addConnection(bmbCc.bmb, phyA.ctrl)
+
+    system.sdramA.mapCtrlAt(0x0000)
+    interconnect.addConnection(bmbCc.bmb, system.sdramA.ctrlBus)
   }
 
   val clocking = add task new Area{
@@ -183,15 +190,14 @@ class ArtyA7SmpLinux extends Generator{
         frequency = FixedFrequency(150 MHz)
       )
     )
-    ???
-//    sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
-//    sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
-//    sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
+    sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
+    sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
+    sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
   }
 
-//  val startupe2 = system.spiA.flash.produce(
-//    STARTUPE2.driveSpiClk(system.spiA.flash.sclk.setAsDirectionLess())
-//  )
+  val startupe2 = system.spiA.flash.produce(
+    STARTUPE2.driveSpiClk(system.spiA.flash.sclk.setAsDirectionLess())
+  )
 }
 
 object ArtyA7SmpLinuxSystem{
@@ -236,25 +242,25 @@ object ArtyA7SmpLinuxSystem{
       rxFifoDepth = 128
     )
 
-//    gpioA.parameter load Gpio.Parameter(
-//      width = 14,
-//      interrupt = List(0, 1, 2, 3)
-//    )
-//    gpioA.connectInterrupts(plic, 4)
-//
-//    spiA.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
-//      SpiXdrMasterCtrl.Parameters(
-//        dataWidth = 8,
-//        timerWidth = 12,
-//        spi = SpiXdrParameter(
-//          dataWidth = 2,
-//          ioRate = 1,
-//          ssWidth = 2
-//        )
-//      ) .addFullDuplex(id = 0),
-//      cmdFifoDepth = 256,
-//      rspFifoDepth = 256
-//    )
+    gpioA.parameter load Gpio.Parameter(
+      width = 14,
+      interrupt = List(0, 1, 2, 3)
+    )
+    gpioA.connectInterrupts(plic, 4)
+
+    spiA.parameter load SpiXdrMasterCtrl.MemoryMappingParameters(
+      SpiXdrMasterCtrl.Parameters(
+        dataWidth = 8,
+        timerWidth = 12,
+        spi = SpiXdrParameter(
+          dataWidth = 2,
+          ioRate = 1,
+          ssWidth = 2
+        )
+      ) .addFullDuplex(id = 0),
+      cmdFifoDepth = 256,
+      rspFifoDepth = 256
+    )
 
 // TODO
 //    interconnect.setConnector(peripheralBridge.input){case (m,s) =>
@@ -278,8 +284,8 @@ object ArtyA7SmpLinux {
   //Function used to configure the SoC
   def default(g : ArtyA7SmpLinux) = g{
     import g._
-    ???
-//    sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
+
+    sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
     ArtyA7SmpLinuxSystem.default(system, debugCd, sdramCd)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 //    system.cpu.produce(out(Bool).setName("inWfi") := system.cpu.config.plugins.find(_.isInstanceOf[CsrPlugin]).get.asInstanceOf[CsrPlugin].inWfi)
