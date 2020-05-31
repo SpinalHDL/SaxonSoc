@@ -262,19 +262,18 @@ object ArtyA7SmpLinuxSystem{
       rspFifoDepth = 256
     )
 
-// TODO
-//    interconnect.setConnector(peripheralBridge.input){case (m,s) =>
-//      m.cmd.halfPipe >> s.cmd
-//      m.rsp << s.rsp.halfPipe()
-//    }
-//    interconnect.setConnector(sdramA0.bmb){case (m,s) =>
-//      m.cmd >/-> s.cmd
-//      m.rsp <-< s.rsp
-//    }
-//    interconnect.setConnector(bridge.bmb){case (m,s) =>
-//      m.cmd >/-> s.cmd
-//      m.rsp <-< s.rsp
-//    }
+    interconnect.setConnector(bmbPeripheral.bmb){case (m,s) =>
+      m.cmd.halfPipe >> s.cmd
+      m.rsp << s.rsp.halfPipe()
+    }
+    interconnect.setConnector(sdramA0.bmb){case (m,s) =>
+      m.cmd >/-> s.cmd
+      m.rsp <-< s.rsp
+    }
+    interconnect.setConnector(invalidationMonitor.output){case (m,s) =>
+      m.cmd >/-> s.cmd
+      m.rsp <-< s.rsp
+    }
     g
   }
 }
