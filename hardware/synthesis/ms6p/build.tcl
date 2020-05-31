@@ -233,9 +233,10 @@ proc add_source_files {} {
 
    xfile add "../../netlist/MS6PLinux.v"
    xfile add "miniSpartan6-plus.ucf"
+   xfile add "top.v"
 
    # Set the Top Module as well...
-   project set top "MS6PLinux"
+   project set top "top"
 
    puts "$myScript: project sources reloaded."
 
