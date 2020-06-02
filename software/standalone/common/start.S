@@ -2,6 +2,7 @@
     .globl _start
     .type _start,@function
 
+
 _start:
 #ifdef USE_GP
 .option push
@@ -9,8 +10,46 @@ _start:
 	la gp, __global_pointer$
 .option pop
 #endif
-	la sp, _sp
 
+#ifdef SMP
+.global smp_lottery_target
+.global smp_lottery_lock
+.global smp_slave
+
+
+  sw x0, smp_lottery_lock, a1
+
+smp_tyranny:
+  csrr a0, mhartid
+  beqz a0, init
+
+smp_slave:
+	lw a0, smp_lottery_lock
+	beqz a0, smp_slave
+
+	fence r, r
+	//li a1, -1
+	//amoadd.w x0, a1,(a0)
+
+	.word(0x100F) //i$ flush
+	lw a5, smp_lottery_target
+	li a0, 0
+	li a1, 0
+	li a2, 0
+	jr a5
+
+.global   smp_unlock
+.type    smp_unlock,%function
+smp_unlock:
+	sw a0, smp_lottery_target, a1
+	fence w, w
+	li a0, 1
+	sw a0, smp_lottery_lock, a1
+    ret
+#endif
+
+init:
+	la sp, _sp
 
 	/* Load data section */
 	la a0, _data_lma
@@ -44,3 +83,10 @@ mainDone:
 	.globl _init
 _init:
     ret
+
+#ifdef SMP
+.bss
+.align 2
+  smp_lottery_target: .word 0
+  smp_lottery_lock:   .word 0
+#endif

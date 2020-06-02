@@ -10,7 +10,7 @@
 
 void bspMain() {
     sdram_init(
-        SYSTEM_SDRAM_A_APB,
+        SYSTEM_SDRAM_A_CTRL_BUS,
         RL,
         WL,
         MT41K128M16JT_125_ps,
@@ -20,18 +20,19 @@ void bspMain() {
     );
 
     sdram_ddr3_init(
-        SYSTEM_SDRAM_A_APB,
+        SYSTEM_SDRAM_A_CTRL_BUS,
         RL,
         WL,
         CTRL_BURST_LENGHT,
         PHY_CLK_RATIO
     );
 
+#ifndef SPINAL_SIM
     sdram_phy_s7(
-        SYSTEM_SDRAM_A_APB,
-        SDRAM_DOMAIN_PHY_A_APB,
+        SYSTEM_SDRAM_A_CTRL_BUS,
+        SDRAM_DOMAIN_PHY_A_CTRL,
         SYSTEM_SDRAM_A0_BMB
     );
+#endif
+    asm("ebreak");
 }
-
-

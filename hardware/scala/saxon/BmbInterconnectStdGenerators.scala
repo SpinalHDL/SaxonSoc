@@ -499,6 +499,7 @@ object BmbSmpBridgeGenerator{
 }
 
 case class BmbImplicitPeripheralDecoder(bus : Handle[Bmb])
+case class BmbImplicitDebugDecoder(bus : Handle[Bmb])
 
 class BmbSmpBridgeGenerator(mapping : Handle[AddressMapping] = DefaultMapping, bypass : Boolean = true)
                              (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
@@ -667,22 +668,14 @@ case class BmbExclusiveMonitorGenerator()
   val output = produce(logic.io.output)
 
 
+  val inputAccessSource = Handle[BmbAccessParameter]
   val inputAccessRequirements = createDependency[BmbAccessParameter]
   val outputInvalidationSource = Handle[BmbInvalidationParameter]
   val invalidationRequirements = createDependency[BmbInvalidationParameter]
 
   interconnect.addSlave(
-    accessCapabilities = BmbAccessParameter(
-      addressWidth  = 32,
-      dataWidth     = 32,
-      lengthWidth   = Int.MaxValue,
-      sourceWidth   = Int.MaxValue,
-      contextWidth  = Int.MaxValue,
-      canRead       = true,
-      canWrite      = true,
-      canExclusive  = true,
-      alignment     = BmbParameter.BurstAlignement.BYTE
-    ),
+    accessSource = inputAccessSource,
+    accessCapabilities = inputAccessSource,
     accessRequirements = inputAccessRequirements,
     invalidationRequirements = invalidationRequirements,
     bus = input,

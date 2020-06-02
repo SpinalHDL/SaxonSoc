@@ -1,18 +1,22 @@
 package saxon
 
 import spinal.core._
-import spinal.lib.bus.bmb.{Bmb, BmbParameter}
+import spinal.lib.bus.bmb.{Bmb, BmbAccessParameter, BmbParameter}
+import spinal.lib.bus.misc.AddressMapping
 import spinal.lib.com.jtag.{Jtag, JtagTapInstructionCtrl}
 import spinal.lib.generator.{BmbInterconnectGenerator, BmbSmpInterconnectGenerator, Dependable, Generator, Handle}
 import spinal.lib.slave
+import spinal.lib.system.debugger.SystemDebuggerMemBus
 import vexriscv.{VexRiscv, VexRiscvConfig}
-import vexriscv.plugin.{CsrPlugin, DBusCachedPlugin, DBusSimpleBus, DBusSimplePlugin, DebugPlugin, IBusCachedPlugin, IBusSimpleBus, IBusSimplePlugin}
+import vexriscv.plugin.{CsrPlugin, DBusCachedPlugin, DBusSimpleBus, DBusSimplePlugin, DebugExtensionBus, DebugPlugin, IBusCachedPlugin, IBusSimpleBus, IBusSimplePlugin}
 
 
 object VexRiscvBmbGenerator{
   val DEBUG_NONE = 0
   val DEBUG_JTAG = 1
   val DEBUG_JTAG_CTRL = 2
+  val DEBUG_BUS = 3
+  val DEBUG_BMB = 4
 }
 
 case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerator = null, interconnectSmp: BmbSmpInterconnectGenerator = null) extends Generator {
@@ -61,6 +65,33 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
     dependencies += jtagClockDomain
   }
 
+  def enableDebugBus(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) : Unit = {
+    this.debugClockDomain.merge(debugCd.outputClockDomain)
+    val resetBridge = resetCd.asyncReset(debugReset, ResetSensitivity.HIGH)
+    debugAskReset.load(null)
+    withDebug.load(DEBUG_BUS)
+  }
+
+  val debugBmbAccessSource = Handle[BmbAccessParameter]
+  val debugBmbAccessRequirements = Handle[BmbAccessParameter]
+  def enableDebugBmb(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator, mapping : AddressMapping)(implicit debugMaster : BmbImplicitDebugDecoder = null) : Unit = {
+    this.debugClockDomain.merge(debugCd.outputClockDomain)
+    val resetBridge = resetCd.asyncReset(debugReset, ResetSensitivity.HIGH)
+    debugAskReset.load(null)
+    withDebug.load(DEBUG_BMB)
+    val slaveModel = interconnectSmp.addSlave(
+      accessSource = debugBmbAccessSource,
+      accessCapabilities = debugBmbAccessSource.derivate(DebugExtensionBus.getBmbAccessParameter(_)),
+      accessRequirements = debugBmbAccessRequirements,
+      bus = debugBmb,
+      mapping = mapping
+    )
+    slaveModel.onClockDomain(debugCd.outputClockDomain)
+    debugBmb.derivatedFrom(debugBmbAccessRequirements)(Bmb(_))
+    if(debugMaster != null) interconnectSmp.addConnection(debugMaster.bus, debugBmb)
+    dependencies += debugBmb
+  }
+
 
   dependencies ++= List(config)
   dependencies += Dependable(withDebug) {
@@ -71,6 +102,8 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
 
   val jtag = add task (withDebug.get == DEBUG_JTAG generate slave(Jtag()))
   val jtagInstructionCtrl = withDebug.produce(withDebug.get == DEBUG_JTAG_CTRL generate JtagTapInstructionCtrl())
+  val debugBus = withDebug.produce(withDebug.get == DEBUG_BUS generate DebugExtensionBus())
+  val debugBmb = Handle[Bmb]
   val jtagClockDomain = Handle[ClockDomain]
 
   val logic = add task new Area {
@@ -100,6 +133,8 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
         withDebug.get match {
           case DEBUG_JTAG => jtag <> plugin.io.bus.fromJtag()
           case DEBUG_JTAG_CTRL => jtagInstructionCtrl <> plugin.io.bus.fromJtagInstructionCtrl(jtagClockDomain)
+          case DEBUG_BUS => debugBus <> plugin.io.bus
+          case DEBUG_BMB => debugBmb >> plugin.io.bus.fromBmb()
         }
       }
       case _ =>

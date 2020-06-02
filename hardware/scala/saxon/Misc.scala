@@ -4,7 +4,7 @@ import org.apache.commons.io.FileUtils
 import spinal.core._
 import spinal.lib._
 import spinal.core.internals.Misc
-import spinal.lib.generator.{Dependable, Dts, Export, Generator, Handle, MemoryConnection, SimpleBus, Tag}
+import spinal.lib.generator.{BmbSmpInterconnectGenerator, Dependable, Dts, Export, Generator, Handle, MemoryConnection, SimpleBus, Tag}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -14,6 +14,7 @@ import spinal.core.ClockDomain.FixedFrequency
 import spinal.lib.bus.wishbone.{Wishbone, WishboneConfig}
 import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{SpiXdrMaster, SpiXdrParameter}
+import spinal.lib.system.debugger.{JtagBridge, SystemDebugger, SystemDebuggerConfig}
 
 object BspGenerator {
   def apply[T <: Nameable](name : String, root: Generator, memoryView : Handle[T]) {
@@ -187,4 +188,29 @@ case class SpiPhyDecoderGenerator() extends Generator{
       }
     }
   }
+}
+
+
+case class JtagDebuggerGenerator()(implicit val interconnect : BmbSmpInterconnectGenerator) extends Generator{
+  val jtag = produceIo(logic.jtagBridge.io.jtag)
+  val bmb = produce(logic.mmMaster)
+  val jtagConfig = SystemDebuggerConfig(
+    memAddressWidth = 32,
+    memDataWidth    = 32,
+    remoteCmdWidth  = 1
+  )
+
+  val logic = add task new Area{
+
+    val jtagBridge = new JtagBridge(jtagConfig)
+    val debugger = new SystemDebugger(jtagConfig)
+    debugger.io.remote <> jtagBridge.io.remote
+
+    val mmMaster = debugger.io.mem.toBmb()
+  }
+
+  interconnect.addMaster(
+    accessRequirements = jtagConfig.getBmbParameter.toAccessParameter,
+    bus = bmb
+  )
 }

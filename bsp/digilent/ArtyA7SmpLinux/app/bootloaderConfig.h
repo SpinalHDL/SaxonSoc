@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bsp.h"
+#include "start.h"
 #include "sdram.h"
 #include "spiFlash.h"
 
@@ -54,8 +55,9 @@ void bspMain() {
     spiFlash_f2m(SPI, SPI_CS, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
 #endif
 
-    void (*userMain)() = (void (*)())OPENSBI_MEMORY;
-    userMain();
+    void (*userMain)(u32, u32, u32) = (void (*)(u32, u32, u32))OPENSBI_MEMORY;
+    smp_unlock(userMain);
+    userMain(0,0,0);
 }
 
 
