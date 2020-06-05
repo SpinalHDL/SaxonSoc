@@ -10,13 +10,13 @@
 
 #define GPIO SYSTEM_GPIO_A_BUS
 
-#define OPENSBI_MEMORY 0x80000000
+#define OPENSBI_MEMORY 0x80F80000
 #define OPENSBI_FLASH  0x00400000
 #define OPENSBI_SIZE      0x40000
 
-#define UBOOT_MEMORY     0x80100000
+#define UBOOT_MEMORY     0x80F00000
 #define UBOOT_SBI_FLASH  0x00480000
-#define UBOOT_SIZE          0x70000
+#define UBOOT_SIZE          0x80000
 
 #define RL 5
 #define WL 5

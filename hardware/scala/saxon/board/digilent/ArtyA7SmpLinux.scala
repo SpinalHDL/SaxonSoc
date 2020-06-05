@@ -84,6 +84,12 @@ class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
     plic.mapping.load(PlicMapping.sifive)
     plic.addTarget(cpu.externalInterrupt)
     plic.addTarget(cpu.externalSupervisorInterrupt)
+    List(clint.logic, cpu.logic).produce{
+      for (plugin <- cpu.config.plugins) plugin match {
+        case plugin : CsrPlugin if plugin.utime != null =>plugin.utime := clint.logic.io.time
+        case _ =>
+      }
+    }
   }
   export(cpuCount)
 
@@ -93,6 +99,7 @@ class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
     iBridge.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
     invalidationMonitor.output -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
+  interconnect.masters(invalidationMonitor.output).withOutOfOrderDecoder()
 
 
   val gpioA = BmbGpioGenerator(0x00000)
@@ -308,6 +315,7 @@ object ArtyA7SmpLinuxSystem{
     interconnect.setConnector(invalidationMonitor.output)(_.pipelined(cmdValid = true, cmdReady = true, rspValid = true) >> _)
     interconnect.setConnector(bmbPeripheral.bmb)(_.pipelined(cmdHalfRate = true, rspHalfRate = true) >> _)
     interconnect.setConnector(sdramA0.bmb)(_.pipelined(cmdValid = true, cmdReady = true, rspValid = true) >> _)
+    interconnect.setConnector(iBridge.bmb)(_.pipelined(cmdValid = true) >> _)
 
     g
   }
@@ -321,8 +329,17 @@ object ArtyA7SmpLinux {
 
     sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
     ArtyA7SmpLinuxSystem.default(system, debugCd, sdramCd)
+
+//    system.ramA.bmb.derivate{bus =>
+//      bus.cmd.valid.addAttribute("""mark_debug = "true"""")
+//      bus.cmd.ready.addAttribute("""mark_debug = "true"""")
+//      bus.cmd.address.addAttribute("""mark_debug = "true"""")
+//      bus.cmd.data.addAttribute("""mark_debug = "true"""")
+//    }
+//    system.clint.logic.derivate(_.logic.time.addAttribute("""mark_debug = "true""""))
+//    system.cores.foreach(_.cpu.timerInterrupt.derivate(_.addAttribute("""mark_debug = "true"""")))
+
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
-//    system.cpu.produce(out(Bool).setName("inWfi") := system.cpu.config.plugins.find(_.isInstanceOf[CsrPlugin]).get.asInstanceOf[CsrPlugin].inWfi)
     g
   }
 
@@ -402,7 +419,7 @@ object ArtyA7SmpLinuxSystemSim {
 
       fork{
         val at = 0
-        val duration = 9000
+        val duration = 0
         while(simTime() < at*1000000000l) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -466,9 +483,9 @@ object ArtyA7SmpLinuxSystemSim {
       val opensbi = "../opensbi/"
       val linuxPath = "../buildroot/output/images/"
 
-      dut.phy.io.loadBin(0x00000000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
-      dut.phy.io.loadBin(0x00100000, uboot + "u-boot.bin")
-      dut.phy.io.loadBin(0x003FFFC0, linuxPath + "uImage")
+      dut.phy.io.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
+      dut.phy.io.loadBin(0x00F00000, uboot + "u-boot.bin")
+      dut.phy.io.loadBin(0x00000000, linuxPath + "uImage")
       dut.phy.io.loadBin(0x00FF0000, linuxPath + "dtb")
       dut.phy.io.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
 
