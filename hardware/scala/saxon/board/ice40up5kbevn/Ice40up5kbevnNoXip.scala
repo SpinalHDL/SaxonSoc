@@ -148,7 +148,7 @@ object Ice40up5kbevnNoXipSystem{
     val pluginCfuA = new CfuPlugin(
       stageCount = 0,
       allowZeroLatency = true,
-      encoding =  M"0000000------------------0001011",
+//      encoding =  M"0000000------------------0001011",
       busParameter = CfuBusParameter(
         CFU_VERSION = 0,
         CFU_INTERFACE_ID_W = 0,
@@ -168,7 +168,7 @@ object Ice40up5kbevnNoXipSystem{
     val pluginCfuB = new CfuPlugin(
       stageCount = 0,
       allowZeroLatency = true,
-      encoding =  M"0000001------------------0001011",
+//      encoding =  M"0000001------------------0001011",
       busParameter = CfuBusParameter(
         CFU_VERSION = 0,
         CFU_INTERFACE_ID_W = 0,
@@ -188,7 +188,7 @@ object Ice40up5kbevnNoXipSystem{
     val pluginCfuC = new CfuPlugin(
       stageCount = 1,
       allowZeroLatency = true,
-      encoding =  M"0000010------------------0001011",
+//      encoding =  M"0000010------------------0001011",
       busParameter = CfuBusParameter(
         CFU_VERSION = 0,
         CFU_INTERFACE_ID_W = 0,
