@@ -50,14 +50,14 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
     withDebug.load(DEBUG_JTAG)
   }
 
-  def enableJtag(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) : Unit = {
+  def enableJtag(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) : Unit = debugCd{
     this.debugClockDomain.merge(debugCd.outputClockDomain)
     val resetBridge = resetCd.asyncReset(debugReset, ResetSensitivity.HIGH)
     debugAskReset.load(null)
     withDebug.load(DEBUG_JTAG)
   }
 
-  def enableJtagInstructionCtrl(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) : Unit = {
+  def enableJtagInstructionCtrl(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) : Unit = debugCd{
     this.debugClockDomain.merge(debugCd.outputClockDomain)
     val resetBridge = resetCd.asyncReset(debugReset, ResetSensitivity.HIGH)
     debugAskReset.load(null)
@@ -65,7 +65,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
     dependencies += jtagClockDomain
   }
 
-  def enableDebugBus(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) : Unit = {
+  def enableDebugBus(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) : Unit = debugCd{
     this.debugClockDomain.merge(debugCd.outputClockDomain)
     val resetBridge = resetCd.asyncReset(debugReset, ResetSensitivity.HIGH)
     debugAskReset.load(null)
@@ -74,7 +74,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
 
   val debugBmbAccessSource = Handle[BmbAccessParameter]
   val debugBmbAccessRequirements = Handle[BmbAccessParameter]
-  def enableDebugBmb(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator, mapping : AddressMapping)(implicit debugMaster : BmbImplicitDebugDecoder = null) : Unit = {
+  def enableDebugBmb(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator, mapping : AddressMapping)(implicit debugMaster : BmbImplicitDebugDecoder = null) : Unit = debugCd{
     this.debugClockDomain.merge(debugCd.outputClockDomain)
     val resetBridge = resetCd.asyncReset(debugReset, ResetSensitivity.HIGH)
     debugAskReset.load(null)

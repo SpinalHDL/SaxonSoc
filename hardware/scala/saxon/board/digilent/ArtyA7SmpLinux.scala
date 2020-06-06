@@ -7,7 +7,7 @@ import saxon.common.I2cModel
 import saxon.{ResetSensitivity, _}
 import spinal.core._
 import spinal.core.sim._
-import spinal.lib.blackbox.xilinx.s7.{BUFG, STARTUPE2}
+import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
 import spinal.lib.bus.amba3.apb.Apb3Config
 import spinal.lib.bus.amba3.apb.sim.{Apb3Listener, Apb3Monitor}
 import spinal.lib.bus.bmb.{Bmb, BmbDecoder}
@@ -16,7 +16,9 @@ import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
 import spinal.lib.bus.simple.{PipelinedMemoryBus, PipelinedMemoryBusDecoder}
 import spinal.lib.com.i2c.{I2cMasterMemoryMappedGenerics, I2cSlaveGenerics, I2cSlaveMemoryMappedGenerics}
 import spinal.lib.com.i2c.sim.OpenDrainInterconnect
+import spinal.lib.com.jtag.{Jtag, JtagTap, JtagTapInstructionCtrl}
 import spinal.lib.com.jtag.sim.JtagTcp
+import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
 import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
@@ -24,13 +26,13 @@ import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.eda.bench.{Bench, Rtl, XilinxStdTargets}
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
-import spinal.lib.master
+import spinal.lib.{master, slave}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 import spinal.lib.misc.plic.PlicMapping
-import spinal.lib.system.debugger.{JtagBridge, SystemDebugger, SystemDebuggerConfig}
+import spinal.lib.system.debugger.{JtagBridge, JtagBridgeNoTap, SystemDebugger, SystemDebuggerConfig}
 import vexriscv.demo.smp.{VexRiscvSmpCluster, VexRiscvSmpClusterGen}
 import vexriscv.plugin.CsrPlugin
 
@@ -133,13 +135,10 @@ class ArtyA7SmpLinux extends Generator{
   system.onClockDomain(systemCd.outputClockDomain)
   system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
-  val debug = new Generator{
-    onClockDomain(debugCd.outputClockDomain)
-    val master = JtagDebuggerGenerator()(system.interconnect)
-    for(i <- 0 until system.cpuCount) {
-      system.cores(i).cpu.enableDebugBmb(debugCd, sdramCd, SizeMapping(0x10B80000 + i*0x1000, 0x1000))
-      system.interconnect.addConnection(master.bmb, system.cores(i).cpu.debugBmb)
-    }
+  val debug = Bscane2BmbMasterGenerator(userId = 1)(system.interconnect) onClockDomain(debugCd.outputClockDomain)
+  for(i <- 0 until system.cpuCount) {
+    system.cores(i).cpu.enableDebugBmb(debugCd, sdramCd, SizeMapping(0x10B80000 + i*0x1000, 0x1000))
+    system.interconnect.addConnection(debug.bmb, system.cores(i).cpu.debugBmb)
   }
 
   val sdramDomain = new Generator{
@@ -394,14 +393,10 @@ object ArtyA7SmpLinuxSystemSim {
       sdramA.mapCtrlAt(0x100000)
       interconnect.addConnection(bmbPeripheral.bmb, sdramA.ctrlBus)
 
-
-      val debug = new Generator{
-        onClockDomain(debugCd.outputClockDomain)
-        val master = JtagDebuggerGenerator()(interconnect)
-        for(i <- 0 until cpuCount) {
-          cores(i).cpu.enableDebugBmb(debugCd, systemCd, SizeMapping(0x10B80000 + i*0x1000, 0x1000))
-          interconnect.addConnection(master.bmb, cores(i).cpu.debugBmb)
-        }
+      val bridge = JtagTapDebuggerGenerator() onClockDomain(debugCd.outputClockDomain)
+      for(i <- 0 until cpuCount) {
+        cores(i).cpu.enableDebugBmb(debugCd, systemCd, SizeMapping(0x10B80000 + i*0x1000, 0x1000))
+        interconnect.addConnection(bridge.bmb, cores(i).cpu.debugBmb)
       }
 
       ArtyA7SmpLinuxSystem.default(this, debugCd, systemCd)
@@ -419,7 +414,7 @@ object ArtyA7SmpLinuxSystemSim {
 
       fork{
         val at = 0
-        val duration = 0
+        val duration = 1000
         while(simTime() < at*1000000000l) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -427,8 +422,8 @@ object ArtyA7SmpLinuxSystemSim {
           sleep(  100 * 10000)
         }
         println("\n\n********************")
-        sleep(duration*1000000000l)
         println("********************\n\n")
+        sleep(duration*1000000000l)
         while(true) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -465,7 +460,7 @@ object ArtyA7SmpLinuxSystemSim {
 //      }
 
       val tcpJtag = JtagTcp(
-        jtag = dut.debug.master.jtag,
+        jtag = dut.debug.bridge.jtag,
         jtagClkPeriod = jtagClkPeriod
       )
 
@@ -483,11 +478,11 @@ object ArtyA7SmpLinuxSystemSim {
       val opensbi = "../opensbi/"
       val linuxPath = "../buildroot/output/images/"
 
-      dut.phy.io.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
-      dut.phy.io.loadBin(0x00F00000, uboot + "u-boot.bin")
-      dut.phy.io.loadBin(0x00000000, linuxPath + "uImage")
-      dut.phy.io.loadBin(0x00FF0000, linuxPath + "dtb")
-      dut.phy.io.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
+//      dut.phy.io.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
+//      dut.phy.io.loadBin(0x00F00000, uboot + "u-boot.bin")
+//      dut.phy.io.loadBin(0x00000000, linuxPath + "uImage")
+//      dut.phy.io.loadBin(0x00FF0000, linuxPath + "dtb")
+//      dut.phy.io.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
 
       println("DRAM loading done")
     }

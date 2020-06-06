@@ -14,7 +14,7 @@ import spinal.core.ClockDomain.FixedFrequency
 import spinal.lib.bus.wishbone.{Wishbone, WishboneConfig}
 import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{SpiXdrMaster, SpiXdrParameter}
-import spinal.lib.system.debugger.{JtagBridge, SystemDebugger, SystemDebuggerConfig}
+import spinal.lib.system.debugger.{JtagBridge, JtagBridgeNoTap, SystemDebugger, SystemDebuggerConfig}
 
 object BspGenerator {
   def apply[T <: Nameable](name : String, root: Generator, memoryView : Handle[T]) {
@@ -191,7 +191,32 @@ case class SpiPhyDecoderGenerator() extends Generator{
 }
 
 
-case class JtagDebuggerGenerator()(implicit val interconnect : BmbSmpInterconnectGenerator) extends Generator{
+case class JtagInstructionDebuggerGenerator()(implicit val interconnect : BmbSmpInterconnectGenerator) extends Generator{
+  val jtagClockDomain = createDependency[ClockDomain]
+  val jtagInstruction = produce(logic.jtagBridge.io.ctrl)
+  val bmb = produce(logic.mmMaster)
+  val jtagConfig = SystemDebuggerConfig(
+    memAddressWidth = 32,
+    memDataWidth    = 32,
+    remoteCmdWidth  = 1
+  )
+
+  val logic = add task new Area{
+    val jtagBridge = new JtagBridgeNoTap(jtagConfig, jtagClockDomain)
+    val debugger = new SystemDebugger(jtagConfig)
+    debugger.io.remote <> jtagBridge.io.remote
+
+    val mmMaster = debugger.io.mem.toBmb()
+  }
+
+  interconnect.addMaster(
+    accessRequirements = jtagConfig.getBmbParameter.toAccessParameter,
+    bus = bmb
+  )
+}
+
+
+case class JtagTapDebuggerGenerator()(implicit val interconnect : BmbSmpInterconnectGenerator) extends Generator{
   val jtag = produceIo(logic.jtagBridge.io.jtag)
   val bmb = produce(logic.mmMaster)
   val jtagConfig = SystemDebuggerConfig(
