@@ -151,7 +151,21 @@ sudo umount sdcard
 ```
 
 
-## FPGA flashing
+## Loading the FPGA from the on board FTDI JTAG
+
+```
+export OPENOCD_RISCV=PATH_TO_OPENOCD_RISCV
+$OPENOCD_RISCV/openocd -s $OPENOCD_RISCV/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f fpga_load.cfg
+```
+
+## Booting linux from the on board FTDI JTAG
+
+```
+export OPENOCD_RISCV=PATH_TO_OPENOCD_RISCV
+$OPENOCD_RISCV/src/openocd -s $OPENOCD_RISCV/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f soc_init.cfg -f linux_boot.cfg
+```
+
+## FPGA SPI flash
 
 ```
 write_cfgmem  -format mcs -size 16 -interface SPIx4 -loadbit {up 0x00000000 "/home/miaou/pro/riscv/SaxonSocArtyA7/arty_a7_linux/arty_a7_linux.runs/impl_3/ArtyA7Linux.bit" } -loaddata {up 0x00400000 "/home/miaou/pro/riscv/SaxonSocArtyA7/SaxonSoc.git/software/standalone/machineModeSbi/build/machineModeSbi.bin" up 0x00410000 "/home/miaou/pro/riscv/SaxonSocArtyA7/u-boot/u-boot.bin" } -force -file "/home/miaou/pro/riscv/SaxonSocArtyA7/artyA7_linux/prog.mcs"
