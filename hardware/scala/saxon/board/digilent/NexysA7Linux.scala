@@ -23,16 +23,13 @@ import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 
 
 
-
 class NexysA7LinuxSystem() extends SaxonSocLinux{
-  //Add components
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = new Apb3SpiGenerator(0x20000){
     val user = produce(master(phy.withoutSs.toSpi()))
     val flash = produce(master(phy.decode(ssId = 0).toSpi()))
     val sdcard = produce(master(phy.decode(ssId = 1).toSpi()))
   }
-
 
   val ramA = BmbOnChipRamGenerator(0x20000000l)
   ramA.dataWidth.load(32)
@@ -49,7 +46,6 @@ class NexysA7LinuxSystem() extends SaxonSocLinux{
     cpu.dBus -> List(bridge.bmb),
     bridge.bmb -> List(ramA.bmb, sdramA0.bmb, peripheralBridge.input)
   )
-
 }
 
 class NexysA7Linux extends Generator{
@@ -68,11 +64,9 @@ class NexysA7Linux extends Generator{
   sdramClockCtrl.resetSensitivity.load(ResetSensitivity.HIGH)
   mainClockCtrl.clockDomain.produce(sdramClockCtrl.reset.load(mainClockCtrl.clockDomain.reset))
 
-
   val system = new NexysA7LinuxSystem()
   system.onClockDomain(mainClockCtrl.clockDomain)
   system.sdramA.onClockDomain(sdramClockCtrl.clockDomain)
-
   val sdramDomain = new Generator{
     onClockDomain(sdramClockCtrl.clockDomain)
 
@@ -91,7 +85,6 @@ class NexysA7Linux extends Generator{
 
   val clocking = add task new Area{
     val GCLK100 = in Bool()
-
 
     mainClockCtrl.clkFrequency.load(100 MHz)
     sdramClockCtrl.clkFrequency.load(150 MHz)
@@ -161,6 +154,8 @@ object NexysA7LinuxSystem{
       portTockenMax = 8,
       timingWidth = 4,
       refWidth = 16,
+      stationCount  = 2,
+      bytePerTaskMax = 64,
       writeLatencies = List(2),
       readLatencies = List(5+3, 5+4)
     ))
@@ -199,14 +194,6 @@ object NexysA7LinuxSystem{
       m.cmd >/-> s.cmd
       m.rsp <-< s.rsp
     }
-//    interconnect.setConnector(cpu.iBus){case (m,s) =>
-//      m.cmd.halfPipe() >> s.cmd
-//      m.rsp << s.rsp.halfPipe()
-//    }
-//    interconnect.setConnector(cpu.dBus){case (m,s) =>
-//      m.cmd.halfPipe() >> s.cmd
-//      m.rsp << s.rsp.halfPipe()
-//    }
     interconnect.setConnector(bridge.bmb){case (m,s) =>
       m.cmd >/-> s.cmd
       m.rsp <-< s.rsp
@@ -254,12 +241,6 @@ object NexysA7LinuxSystemSim {
 //    simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-//    val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
-//    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v", "sd_phy.v", "sd_top.v", "sd_wishbone.v")
-//    sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
-//    simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
-//    simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
-
     simConfig.compile(new NexysA7LinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
       this.onClockDomain(clockCtrl.clockDomain)
@@ -267,6 +248,7 @@ object NexysA7LinuxSystemSim {
       clockCtrl.powerOnReset.load(true)
       clockCtrl.clkFrequency.load(100 MHz)
       clockCtrl.resetHoldDuration.load(15)
+
 
       val phy = RtlPhyGenerator()
       phy.layout.load(XilinxS7Phy.phyLayout(MT47H64M16HR.layout, 2))
@@ -277,6 +259,11 @@ object NexysA7LinuxSystemSim {
       NexysA7LinuxSystem.default(this, clockCtrl)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
 
+//    val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
+//    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v", "sd_phy.v", "sd_top.v", "sd_wishbone.v")
+//    sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
+//    simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
+//    simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
 //      val sdcard = SdcardEmulatorGenerator()
 //      sdcard.connectSpi(spiA.sdcard, spiA.sdcard.produce(spiA.sdcard.ss(0)))
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
@@ -287,7 +274,6 @@ object NexysA7LinuxSystemSim {
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
-//      dut.sdramClockDomain.get.forkStimulus((systemClkPeriod/0.7).toInt)
 
 
       fork{
@@ -319,10 +305,24 @@ object NexysA7LinuxSystemSim {
 //      )
 
 
-      val linuxPath = "../buildroot/output/images/"
-      val ubootPath = "../u-boot/"
-      dut.phy.io.loadBin(0x01FF0000, "software/standalone/machineModeSbi/build/machineModeSbi_spinal_sim.bin")
-      dut.phy.io.loadBin(0x01F00000, ubootPath + "u-boot.bin")
+//      val buildroot = "../buildroot/output/images/"
+      val buildroot = "../Binaries/"
+      val uboot = "../u-boot/"
+      dut.phy.io.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
+      dut.phy.io.loadBin(0x00004000, uboot + "u-boot.bin")
+      dut.phy.io.loadBin(0x00074000, buildroot + "dtb")
+      dut.phy.io.loadBin(0x0007ffc0, buildroot + "uImage")
+      dut.phy.io.loadBin(0x00ffffc0, buildroot + "rootfs.cpio.uboot")
+/*
+#simulator
+sbt "runMain saxon.board.digilent.NexysA7LinuxSystemSim"
+bootm 8007ffc0 80ffffc0 80074000
+
+#hw
+load mmc 0 8007ffc0 uImage
+load mmc 0 80074000 dtb
+bootm 8007ffc0 - 80074000
+*/
       println("DRAM loading done")
 
     }

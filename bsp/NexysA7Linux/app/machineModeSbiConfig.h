@@ -5,12 +5,10 @@
 //#define SIM
 #define HARD
 #ifndef OS_CALL
-//#define OS_CALL 0x80200000
-//#define OS_CALL 0x80400000
-#define OS_CALL 0x81F00000
+#define OS_CALL 0x80004000
 #endif
 #ifndef DTB
-#define DTB     0x80BF0000
+#define DTB     0x80074000
 #endif
 
 #endif

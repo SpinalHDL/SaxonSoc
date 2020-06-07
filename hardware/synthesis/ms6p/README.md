@@ -4,12 +4,13 @@
 
 ```sh
 cd software/standalone/bootloader/
-RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- make clean all BSP=MS6PLinux
-RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- make SPINAL_SIM=yes BSP=MS6PLinux
+make RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- clean all BSP=MS6PLinux SPINAL_SIM=no
+rm -rf build/src
+make RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- BSP=MS6PLinux SPINAL_SIM=yes
 cd -
 
 cd software/standalone/machineModeSbi/
-RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- make clean all BSP=MS6PLinux
+make RISCV_BIN=/opt/riscv/bin/riscv64-unknown-elf- clean all BSP=MS6PLinux
 cd -
 
 cd ../u-boot/

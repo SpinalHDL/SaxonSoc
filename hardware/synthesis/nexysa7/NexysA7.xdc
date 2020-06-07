@@ -6,8 +6,8 @@
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 
 ## Clock signal
-set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports { GCLK100 }]; #IO_L12P_T1_MRCC_35 Sch=clk100mhz
-create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports { GCLK100 }];
+set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports { clocking_GCLK100 }]; #IO_L12P_T1_MRCC_35 Sch=clk100mhz
+create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports { clocking_GCLK100 }];
 
 ##Switches
 
@@ -105,11 +105,11 @@ set_property -dict { PACKAGE_PIN V14   IOSTANDARD LVCMOS33 } [get_ports { system
 
 ##Pmod Header JB
 
-set_property -dict {PACKAGE_PIN D14 IOSTANDARD LVCMOS33} [get_ports system_cpu_tdi]
-set_property -dict {PACKAGE_PIN F16 IOSTANDARD LVCMOS33} [get_ports system_cpu_tms]
-set_property -dict {PACKAGE_PIN G16 IOSTANDARD LVCMOS33} [get_ports system_cpu_tck]
-set_property -dict {PACKAGE_PIN H14 IOSTANDARD LVCMOS33} [get_ports system_cpu_tdo]
-set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets {system_cpu_tck_IBUF}]
+set_property -dict {PACKAGE_PIN D14 IOSTANDARD LVCMOS33} [get_ports system_cpu_jtag_tdi]
+set_property -dict {PACKAGE_PIN F16 IOSTANDARD LVCMOS33} [get_ports system_cpu_jtag_tms]
+set_property -dict {PACKAGE_PIN G16 IOSTANDARD LVCMOS33} [get_ports system_cpu_jtag_tck]
+set_property -dict {PACKAGE_PIN H14 IOSTANDARD LVCMOS33} [get_ports system_cpu_jtag_tdo]
+set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets {system_cpu_jtag_tck_IBUF}]
 
 
 #set_property -dict { PACKAGE_PIN D14   IOSTANDARD LVCMOS33 } [get_ports { JB[1] }]; #IO_L1P_T0_AD0P_15 Sch=jb[1]
