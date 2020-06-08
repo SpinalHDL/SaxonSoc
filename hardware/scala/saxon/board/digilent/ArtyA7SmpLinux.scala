@@ -338,6 +338,19 @@ object ArtyA7SmpLinux {
 //    system.clint.logic.derivate(_.logic.time.addAttribute("""mark_debug = "true""""))
 //    system.cores.foreach(_.cpu.timerInterrupt.derivate(_.addAttribute("""mark_debug = "true"""")))
 
+//    debug.logic.derivate(d => Cat(
+//      d.bscane2.TMS.pull(),
+//      d.bscane2.RESET.pull(),
+//      d.bscane2.SHIFT.pull(),
+//      d.bscane2.UPDATE.pull(),
+//      d.bscane2.CAPTURE.pull(),
+//      d.bscane2.SEL.pull(),
+//      d.bscane2.DRCK.pull(),
+//      d.bscane2.TCK.pull()
+//    ).asOutput().setName("ja"))
+
+
+
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     g
   }
@@ -460,7 +473,7 @@ object ArtyA7SmpLinuxSystemSim {
 //      }
 
       val tcpJtag = JtagTcp(
-        jtag = dut.debug.bridge.jtag,
+        jtag = dut.bridge.jtag,
         jtagClkPeriod = jtagClkPeriod
       )
 
