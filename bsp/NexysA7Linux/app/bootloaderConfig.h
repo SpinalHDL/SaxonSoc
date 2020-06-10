@@ -9,18 +9,16 @@
 
 #define GPIO SYSTEM_GPIO_A_APB
 
-#define MACHINE_MODE_SBI_MEMORY 0x81FF0000
+#define MACHINE_MODE_SBI_MEMORY 0x80000000
 #define MACHINE_MODE_SBI_FLASH  0x00400000
-#define MACHINE_MODE_SBI_SIZE      0x10000
+#define MACHINE_MODE_SBI_SIZE      0x4000
 
-#define UBOOT_MEMORY     0x81F00000
+#define UBOOT_MEMORY     0x80004000
 #define UBOOT_SBI_FLASH  0x00410000
 #define UBOOT_SIZE          0x70000
 
 #if 0
 #include "uart.h"
-#define UART_A ((Uart_Reg*)(0x10010000))
-#define MACHINE_TIMER ((volatile uint32_t*)(0x10008000))
 void putC(char c){
 	uart_write(UART_A, c);
 }
@@ -75,16 +73,16 @@ void bspMain() {
 	);
 
 	putString("spiFlash_init\n");
-	spiFlash_init(SPI, SPI_CS);
-	spiFlash_wake(SPI, SPI_CS);
-	spiFlash_f2m(SPI, SPI_CS, MACHINE_MODE_SBI_FLASH, MACHINE_MODE_SBI_MEMORY, MACHINE_MODE_SBI_SIZE);
-	spiFlash_f2m(SPI, SPI_CS, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
+	spiFlash_init((void *)SPI, SPI_CS);
+	spiFlash_wake((void *)SPI, SPI_CS);
+	spiFlash_f2m((void *)SPI, SPI_CS, MACHINE_MODE_SBI_FLASH, MACHINE_MODE_SBI_MEMORY, MACHINE_MODE_SBI_SIZE);
+	spiFlash_f2m((void *)SPI, SPI_CS, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
 
 	putHex(read_u32(UBOOT_MEMORY+0)); putString(" ddr\n");
 	putHex(read_u32(UBOOT_MEMORY+4)); putString(" ddr\n");
 	putHex(read_u32(UBOOT_MEMORY+8)); putString(" ddr\n");
 	putHex(read_u32(UBOOT_MEMORY+12)); putString(" ddr\n");
-	spiFlash_f2m(SPI, SPI_CS, UBOOT_SBI_FLASH, 0x20001000, 16);
+	spiFlash_f2m((void *)SPI, SPI_CS, UBOOT_SBI_FLASH, 0x20001000, 16);
 	putHex(read_u32(0x20001000)); putString(" ram\n");
 	putHex(read_u32(0x20001004)); putString(" ram\n");
 	putHex(read_u32(0x20001008)); putString(" ram\n");

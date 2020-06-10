@@ -13,7 +13,7 @@
 #define UBOOT_SBI_FLASH 0x00070000
 #define UBOOT_SIZE      0x00070000
 
-#if 1
+#if 0
 void putString(char* s){
   while(*s){
     UART_A->DATA = *s;

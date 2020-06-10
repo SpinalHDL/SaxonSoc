@@ -11,15 +11,17 @@ import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.sdr.sim.SdramModel
 
+
+
 class MS6PLinuxSystem extends SaxonSocLinux{
-  //Add components
-  val ramA = BmbOnChipRamGenerator(0x20000000l)
-  val sdramA = SdramSdrBmbGenerator(0x80000000l)
   val gpioA = Apb3GpioGenerator(0x00000)
   val spiA = Apb3SpiGenerator(0x20000)
   val spiB = Apb3SpiGenerator(0x21000)
+  val ramA = BmbOnChipRamGenerator(0x20000000l)
+  ramA.dataWidth.load(32)
 
-  //Interconnect specification
+  val sdramA = SdramSdrBmbGenerator(0x80000000l)
+
   interconnect.addConnection(
     cpu.iBus -> List(ramA.bmb, sdramA.bmb),
     cpu.dBus -> List(ramA.bmb, sdramA.bmb, peripheralBridge.input)
@@ -32,6 +34,8 @@ class MS6PLinux extends Generator{
   clockCtrl.resetSynchronous.load(false)
   clockCtrl.powerOnReset.load(true)
 
+
+
   val system = new MS6PLinuxSystem()
   system.onClockDomain(clockCtrl.clockDomain)
 
@@ -40,23 +44,26 @@ class MS6PLinux extends Generator{
     val resetN = in Bool()
     val sdramClk = out Bool()
 
-    val pll = MS6PLinuxPll()
+    val pll = new BlackBox{
+      setDefinitionName("pll_0002")
+      val refclk = in Bool()
+      val rst = in Bool()
+      val outclk_0 = out Bool()
+      val outclk_1 = out Bool()
+      val locked = out Bool()
+    }
+
     pll.refclk := CLOCK_50
     pll.rst := False
-    sdramClk := pll.outclk_1
+
     clockCtrl.clock.load(pll.outclk_0)
     clockCtrl.reset.load(resetN)
+
+    sdramClk := pll.outclk_1
   }
 }
 
-case class MS6PLinuxPll() extends BlackBox{
-  setDefinitionName("pll_0002")
-  val refclk = in Bool()
-  val rst = in Bool()
-  val outclk_0 = out Bool()
-  val outclk_1 = out Bool()
-  val locked = out Bool()
-}
+
 
 object MS6PLinuxSystem{
   def default(g : MS6PLinuxSystem, clockCtrl : ClockDomainGenerator, inferSpiAPhy : Boolean = true) = g {
@@ -65,7 +72,6 @@ object MS6PLinuxSystem{
     cpu.config.load(VexRiscvConfigs.linux(0x20000000l))
     cpu.enableJtag(clockCtrl)
 
-    ramA.dataWidth.load(32)
     ramA.size.load(2 KiB)
     ramA.hexInit.load(null)
 
@@ -79,7 +85,7 @@ object MS6PLinuxSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 24,
+      width = 8,
       interrupt = List(0, 1, 2, 3)
     )
     gpioA.connectInterrupts(plic, 4)
@@ -137,6 +143,11 @@ object MS6PLinux {
   }
 }
 
+
+
+
+
+
 object MS6PLinuxSystemSim {
   import spinal.core.sim._
 
@@ -144,13 +155,8 @@ object MS6PLinuxSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-    simConfig.withWave
-
-    val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
-    val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v",  "sd_phy.v", "sd_top.v", "sd_wishbone.v")
-    sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
-    simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
-    simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
+//    simConfig.withWave
+    simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
     simConfig.compile(new MS6PLinuxSystem(){
       val clockCtrl = ClockDomainGenerator()
@@ -159,9 +165,19 @@ object MS6PLinuxSystemSim {
       clockCtrl.powerOnReset.load(true)
       clockCtrl.clkFrequency.load(50 MHz)
       clockCtrl.resetHoldDuration.load(15)
+
+
+
+      MS6PLinuxSystem.default(this, clockCtrl,inferSpiAPhy = false)
+      ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
+
+      val sdcardEmulatorRtlFolder = "ext/sd_device/rtl/verilog"
+      val sdcardEmulatorFiles = List("common.v", "sd_brams.v", "sd_link.v", "sd_mgr.v",  "sd_phy.v", "sd_top.v", "sd_wishbone.v")
+      sdcardEmulatorFiles.map(s => s"$sdcardEmulatorRtlFolder/$s").foreach(simConfig.addRtl(_))
+      simConfig.addSimulatorFlag(s"-I../../$sdcardEmulatorRtlFolder")
+      simConfig.addSimulatorFlag("-Wno-CASEINCOMPLETE")
       val sdcard = SdcardEmulatorGenerator()
       sdcard.connect(spiA.phy, gpioA.gpio.produce(gpioA.gpio.write(7) && gpioA.gpio.writeEnable(7)))
-      MS6PLinuxSystem.default(this, clockCtrl,inferSpiAPhy = false)
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val systemClkPeriod = (1e12/dut.clockCtrl.clkFrequency.toDouble).toLong
       val jtagClkPeriod = systemClkPeriod*4
@@ -170,20 +186,21 @@ object MS6PLinuxSystemSim {
 
       val clockDomain = ClockDomain(dut.clockCtrl.clock, dut.clockCtrl.reset)
       clockDomain.forkStimulus(systemClkPeriod)
-      fork{
 
-        while(true){
-          disableSimWave()
-          sleep(systemClkPeriod*500000)
-          enableSimWave()
-          sleep(systemClkPeriod*100)
-        }
+
+      fork{
+        disableSimWave()
+        clockDomain.waitSampling(1000)
+        waitUntil(!dut.uartA.uart.rxd.toBoolean)
+        enableSimWave()
       }
+
       val sdcard = SdcardEmulatorIoSpinalSim(
         io = dut.sdcard.io,
         nsPeriod = 1000,
         storagePath = "../sdcard/image"
       )
+
       val tcpJtag = JtagTcp(
         jtag = dut.cpu.jtag,
         jtagClkPeriod = jtagClkPeriod
@@ -204,11 +221,26 @@ object MS6PLinuxSystemSim {
         layout = dut.sdramA.logic.layout,
         clockDomain = clockDomain
       )
-
+//      val buildroot = "../buildroot/output/images/"
+      val buildroot = "../Binaries/"
+      val uboot = "../u-boot/"
       sdram.loadBin(0x00000000, "software/standalone/machineModeSbi/build/machineModeSbi.bin")
-      sdram.loadBin(0x00004000, "../linux/arch/riscv/boot/Image")
-      sdram.loadBin(0x00074000, "../buildroot/output/images/dtb")
-      sdram.loadBin(0x00800000, "../buildroot/output/images/rootfs.cpio")
+      sdram.loadBin(0x00004000, uboot + "u-boot.bin")
+      sdram.loadBin(0x00074000, buildroot + "dtb")
+      sdram.loadBin(0x0007ffc0, buildroot + "uImage")
+      sdram.loadBin(0x00ffffc0, buildroot + "rootfs.cpio.uboot")
+/*
+#simulator
+sbt "runMain saxon.board.scarab.MS6PLinuxSystemSim"
+bootm 8007ffc0 80ffffc0 80074000
+
+#hw
+load mmc 0 8007ffc0 uImage
+load mmc 0 80074000 dtb
+bootm 8007ffc0 - 80074000
+*/
+      println("DRAM loading done")
+
     }
   }
 }
