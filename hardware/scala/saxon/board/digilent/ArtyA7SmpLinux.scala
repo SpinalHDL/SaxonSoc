@@ -135,7 +135,7 @@ class ArtyA7SmpLinux extends Generator{
   system.onClockDomain(systemCd.outputClockDomain)
   system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
-  val debug = Bscane2BmbMasterGenerator(userId = 1)(system.interconnect) onClockDomain(debugCd.outputClockDomain)
+  val debug = Bscane2BmbMasterGenerator(userId = 2)(system.interconnect) onClockDomain(debugCd.outputClockDomain)
   for(i <- 0 until system.cpuCount) {
     system.cores(i).cpu.enableDebugBmb(debugCd, sdramCd, SizeMapping(0x10B80000 + i*0x1000, 0x1000))
     system.interconnect.addConnection(debug.bmb, system.cores(i).cpu.debugBmb)
@@ -329,6 +329,19 @@ object ArtyA7SmpLinux {
     sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
     ArtyA7SmpLinuxSystem.default(system, debugCd, sdramCd)
 
+   /* def vivadoDebug(that : Data) : Unit = that.addAttribute("""mark_debug = "true"""")
+    system.plic.logic.derivate{plic =>
+      plic.targets.foreach{target =>
+        vivadoDebug(target.ie)
+        vivadoDebug(target.claim)
+        vivadoDebug(target.threshold)
+        vivadoDebug(target.iep)
+      }
+      system.plic.gateways.foreach{gateway =>
+        vivadoDebug(gateway.ip)
+      }
+    }*/
+
 //    system.ramA.bmb.derivate{bus =>
 //      bus.cmd.valid.addAttribute("""mark_debug = "true"""")
 //      bus.cmd.ready.addAttribute("""mark_debug = "true"""")
@@ -336,7 +349,25 @@ object ArtyA7SmpLinux {
 //      bus.cmd.data.addAttribute("""mark_debug = "true"""")
 //    }
 //    system.clint.logic.derivate(_.logic.time.addAttribute("""mark_debug = "true""""))
-//    system.cores.foreach(_.cpu.timerInterrupt.derivate(_.addAttribute("""mark_debug = "true"""")))
+ /*   system.cores.foreach(_.cpu.externalInterrupt.derivate(_.addAttribute("""mark_debug = "true"""")))
+    system.cores.foreach(_.cpu.externalSupervisorInterrupt.derivate(_.addAttribute("""mark_debug = "true"""")))
+
+    system.cores.foreach{ core =>
+      core.cpu.logic derivate{ cpu =>
+        List(
+          "CsrPlugin_privilege",
+          "CsrPlugin_sip_SEIP_SOFT",
+          "CsrPlugin_sip_SEIP_INPUT",
+          "CsrPlugin_sip_SEIP_OR",
+          "CsrPlugin_sip_STIP",
+          "CsrPlugin_sip_SSIP",
+          "CsrPlugin_sie_SEIE",
+          "CsrPlugin_sie_STIE",
+          "CsrPlugin_sie_SSIE",
+          "CsrPlugin_sstatus_SIE"
+        ).foreach(n =>  vivadoDebug(cpu.cpu.reflectBaseType(n)))
+      }
+    }*/
 
 //    debug.logic.derivate(d => Cat(
 //      d.bscane2.TMS.pull(),
@@ -427,7 +458,7 @@ object ArtyA7SmpLinuxSystemSim {
 
       fork{
         val at = 0
-        val duration = 1000
+        val duration = 0
         while(simTime() < at*1000000000l) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -491,11 +522,11 @@ object ArtyA7SmpLinuxSystemSim {
       val opensbi = "../opensbi/"
       val linuxPath = "../buildroot/output/images/"
 
-//      dut.phy.io.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
-//      dut.phy.io.loadBin(0x00F00000, uboot + "u-boot.bin")
-//      dut.phy.io.loadBin(0x00000000, linuxPath + "uImage")
-//      dut.phy.io.loadBin(0x00FF0000, linuxPath + "dtb")
-//      dut.phy.io.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
+      dut.phy.logic.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
+      dut.phy.logic.loadBin(0x00F00000, uboot + "u-boot.bin")
+      dut.phy.logic.loadBin(0x00000000, linuxPath + "uImage")
+      dut.phy.logic.loadBin(0x00FF0000, linuxPath + "dtb")
+      dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
 
       println("DRAM loading done")
     }
