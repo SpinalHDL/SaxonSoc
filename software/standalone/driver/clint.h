@@ -1,5 +1,4 @@
-#ifndef MACHINE_TIMER_H_
-#define MACHINE_TIMER_H_
+#pragma once
 
 #include "type.h"
 #include "io.h"
@@ -38,6 +37,6 @@ static void clint_uDelay(u32 usec, u32 hz, u32 reg){
     while((int32_t)(limit-(clint_getTimeLow(reg))) >= 0);
 }
 
-#endif /* MACHINE_TIMER_H_ */
+
 
 

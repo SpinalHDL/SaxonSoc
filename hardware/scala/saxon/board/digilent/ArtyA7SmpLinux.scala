@@ -14,6 +14,7 @@ import spinal.lib.bus.bmb.{Bmb, BmbDecoder}
 import spinal.lib.bus.bmb.sim.BmbMonitor
 import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
 import spinal.lib.bus.simple.{PipelinedMemoryBus, PipelinedMemoryBusDecoder}
+import spinal.lib.com.eth.{MacMiiParameter, Mii, MiiParameter, MiiRxParameter, MiiTxParameter}
 import spinal.lib.com.i2c.{I2cMasterMemoryMappedGenerics, I2cSlaveGenerics, I2cSlaveMemoryMappedGenerics}
 import spinal.lib.com.i2c.sim.OpenDrainInterconnect
 import spinal.lib.com.jtag.{Jtag, JtagTap, JtagTapInstructionCtrl}
@@ -111,7 +112,10 @@ class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
     val user = decoder.spiMasterNone()
     val flash = decoder.spiMasterId(0)
     val sdcard = decoder.spiMasterId(1)
+    val md = decoder.mdioMasterId(2) //Ethernet phy
   }
+
+  val mac = BmbMacMiiGenerator(0x40000)
 }
 
 class ArtyA7SmpLinux extends Generator{
@@ -175,7 +179,9 @@ class ArtyA7SmpLinux extends Generator{
         "CLKOUT3_DIVIDE" -> 4,
         "CLKOUT3_PHASE" -> 0,
         "CLKOUT4_DIVIDE" -> 4,
-        "CLKOUT4_PHASE" -> 90
+        "CLKOUT4_PHASE" -> 90,
+        "CLKOUT5_DIVIDE" -> 48,
+        "CLKOUT5_PHASE" -> 0
       )
 
       val CLKIN1   = in Bool()
@@ -186,15 +192,20 @@ class ArtyA7SmpLinux extends Generator{
       val CLKOUT2  = out Bool()
       val CLKOUT3  = out Bool()
       val CLKOUT4  = out Bool()
+      val CLKOUT5  = out Bool()
 
       Clock.syncDrive(CLKIN1, CLKOUT1)
       Clock.syncDrive(CLKIN1, CLKOUT2)
       Clock.syncDrive(CLKIN1, CLKOUT3)
       Clock.syncDrive(CLKIN1, CLKOUT4)
+      Clock.syncDrive(CLKIN1, CLKOUT5)
     }
 
     pll.CLKFBIN := pll.CLKFBOUT
     pll.CLKIN1 := GCLK100
+
+    val clk25 = out Bool()
+    clk25 := pll.CLKOUT5
 
     debugCd.setInput(
       ClockDomain(
@@ -290,7 +301,7 @@ object ArtyA7SmpLinuxSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 14,
+      width = 15,
       interrupt = List(0, 1, 2, 3)
     )
     gpioA.connectInterrupts(plic, 4)
@@ -302,11 +313,27 @@ object ArtyA7SmpLinuxSystem{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 2
+          ssWidth = 3
         )
-      ) .addFullDuplex(id = 0),
+      ) .addFullDuplex(id = 0).addHalfDuplex(id = 1, rate = 1, ddr = false, spiWidth = 1, lateSampling = false),
       cmdFifoDepth = 256,
       rspFifoDepth = 256
+    )
+
+    mac.parameter load MacMiiParameter(
+      mii = MiiParameter(
+        tx = MiiTxParameter(
+          dataWidth = 4,
+          withEr = false
+        ),
+        rx = MiiRxParameter(
+          dataWidth = 4
+        )
+      ),
+      rxDataWidth = 32,
+      rxBufferByteSize = 4096,
+      txDataWidth = 32,
+      txBufferByteSize = 4096
     )
 
     for(core <- cores) interconnect.setConnector(core.cpu.dBus)(_.pipelined(cmdValid = true, invValid = true, ackValid = true, syncValid = true) >> _)
@@ -329,7 +356,18 @@ object ArtyA7SmpLinux {
     sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
     ArtyA7SmpLinuxSystem.default(system, debugCd, sdramCd)
 
-   /* def vivadoDebug(that : Data) : Unit = that.addAttribute("""mark_debug = "true"""")
+    new Generator{
+      dependencies += system.mac.mii
+      add task {
+
+        Cat(List(system.mac.mii.TX.asBits.resize(8))).asOutput().setName("ja")
+      }
+    }
+
+
+    //def vivadoDebug(that : Data) : Unit = that.addAttribute("""mark_debug = "true"""")
+
+    /*
     system.plic.logic.derivate{plic =>
       plic.targets.foreach{target =>
         vivadoDebug(target.ie)
@@ -445,6 +483,7 @@ object ArtyA7SmpLinuxSystemSim {
 
       ArtyA7SmpLinuxSystem.default(this, debugCd, systemCd)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
+//      ramA.hexInit.load("software/standalone/ethernet/build/ethernet.hex")
     }.toComponent()).doSimUntilVoid("test", 42){dut =>
       val debugClkPeriod = (1e12/dut.debugCd.inputClockDomain.frequency.getValue.toDouble).toLong
       val jtagClkPeriod = debugClkPeriod*4
@@ -458,7 +497,7 @@ object ArtyA7SmpLinuxSystemSim {
 
       fork{
         val at = 0
-        val duration = 0
+        val duration = 10
         while(simTime() < at*1000000000l) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -522,13 +561,30 @@ object ArtyA7SmpLinuxSystemSim {
       val opensbi = "../opensbi/"
       val linuxPath = "../buildroot/output/images/"
 
-      dut.phy.logic.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
-      dut.phy.logic.loadBin(0x00F00000, uboot + "u-boot.bin")
-      dut.phy.logic.loadBin(0x00000000, linuxPath + "uImage")
-      dut.phy.logic.loadBin(0x00FF0000, linuxPath + "dtb")
-      dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
+//      dut.phy.logic.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
+//      dut.phy.logic.loadBin(0x00F00000, uboot + "u-boot.bin")
+//      dut.phy.logic.loadBin(0x00000000, linuxPath + "uImage")
+//      dut.phy.logic.loadBin(0x00FF0000, linuxPath + "dtb")
+//      dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
 
+
+      dut.phy.logic.loadBin(0x00F80000, "software/standalone/ethernet/build/ethernet.bin")
       println("DRAM loading done")
+
+
+//      fork{
+//        val rxCd = ClockDomain(dut.mac.mii.RX.CLK)
+//        rxCd.forkStimulus(40000)
+//        while(true) {
+//          rxCd.waitSampling(1000)
+//          dut.mac.mii.RX.simReceive(List(0x55,0x55,0xD5, 0x12, 0x34, 0x56, 0x78, 0xAA, 0xBB), rxCd)
+//        }
+//      }
+
+        fork{
+          val txCd = ClockDomain(dut.mac.mii.TX.CLK)
+          txCd.forkStimulus(40000)
+        }
     }
   }
 }

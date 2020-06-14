@@ -164,7 +164,7 @@ case class SpiPhyDecoderGenerator() extends Generator{
 
   def spiMasterId(ssId : Int, dataWidth : Int = -1) = phyId(ssId, dataWidth).derivate(phy => master(phy.toSpi()))
   def spiMasterNone(dataWidth : Int = -1) = phyNone(dataWidth).derivate(phy => master(phy.toSpi()))
-
+  def mdioMasterId(ssId : Int, dataWidth : Int = -1) = phyId(ssId, dataWidth).derivate(phy => master(phy.toMdio()))
 
   val logic = add task new Area{
     phy.data.foreach(_.read.assignDontCare())

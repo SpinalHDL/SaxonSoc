@@ -3,6 +3,7 @@ package saxon
 import spinal.core._
 import spinal.lib.bus.bmb.{Bmb, BmbAccessParameter, BmbParameter, BmbSlaveFactory}
 import spinal.lib.bus.misc.{BusSlaveFactoryConfig, SizeMapping}
+import spinal.lib.com.eth.{BmbMacMii, MacMiiParameter}
 import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
 import spinal.lib.com.spi.ddr.{BmbSpiXdrMasterCtrl, SpiXdrMasterCtrl}
 import spinal.lib.com.uart.{BmbUartCtrl, UartCtrlMemoryMappedConfig}
@@ -365,3 +366,28 @@ class BmbSpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Big
   if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
 }
 
+case class BmbMacMiiGenerator(address : Handle[BigInt] = Unset)
+                             (implicit interconnect: BmbSmpInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
+  val parameter = createDependency[MacMiiParameter]
+  val interrupt = produce(logic.io.interrupt)
+  val mii = produceIo(logic.io.mii)
+  val bus = produce(logic.io.bus)
+
+  val accessSource = Handle[BmbAccessParameter]
+  val accessRequirements = createDependency[BmbAccessParameter]
+  val logic = add task BmbMacMii(parameter, accessRequirements.toBmbParameter())
+
+  def connectInterrupt(ctrl : InterruptCtrl, id : Int): Unit = {
+    ctrl.addInterrupt(interrupt, id)
+  }
+
+  interconnect.addSlave(
+    accessSource = accessSource,
+    accessCapabilities = accessSource.derivate(BmbMacMii.getBmbCapabilities),
+    accessRequirements = accessRequirements,
+    bus = bus,
+    mapping = address.derivate(SizeMapping(_, 1 << BmbMacMii.addressWidth))
+  )
+  export(parameter)
+  if(decoder != null) interconnect.addConnection(decoder.bus, bus)
+}
