@@ -62,6 +62,7 @@
 #define SDRAM_TIMING_DDR2 2
 #define SDRAM_TIMING_DDR3 3
 
+#define MEMTEST_SIZE 0x1000
 typedef struct
 {
     u32 generation;
@@ -345,7 +346,7 @@ static u32 sdram_phy_s7_scan(u32 core, u32 phy, u32 mem){
 
         for(s32 bitsleep = 0; bitsleep < 8;bitsleep++){
             write_u32(0xFFFFFFFF, phy + SDRAM_S7_BITSLEEP);
-            if(!sdram_mem_test(mem, 0x1000)) return 0;
+            if(!sdram_mem_test(mem, MEMTEST_SIZE)) return 0;
         }
     }
     return 1;
@@ -353,8 +354,6 @@ static u32 sdram_phy_s7_scan(u32 core, u32 phy, u32 mem){
 
 static void sdram_phy_s7(u32 core, u32 phy, u32 mem){
     bsp_putString("\nS7 phy calibration\n");
-
-    sdram_mem_init(mem, 0x1000);
 
     while(1){
         bsp_putString("  DQ eye : ");
@@ -366,6 +365,7 @@ static void sdram_phy_s7(u32 core, u32 phy, u32 mem){
             write_u32(dq_delay, phy + SDRAM_S7_IDELAY_VALUE);
             write_u32(0xFFFFFFFF, phy + SDRAM_S7_IDELAY_LOAD_DQ);
             write_u32(0x00000000, phy + SDRAM_S7_IDELAY_LOAD_DQ);
+            sdram_mem_init(mem, MEMTEST_SIZE);
             if(!sdram_phy_s7_scan(core,phy,mem)){
                 bsp_putChar('X');
                 if(dq_delay - eye_start > eye_best_last - eye_best_start){
@@ -387,11 +387,9 @@ static void sdram_phy_s7(u32 core, u32 phy, u32 mem){
         write_u32(idelay, phy + SDRAM_S7_IDELAY_VALUE);
         write_u32(0xFFFFFFFF, phy + SDRAM_S7_IDELAY_LOAD_DQ);
         write_u32(0x00000000, phy + SDRAM_S7_IDELAY_LOAD_DQ);
+        sdram_mem_init(mem, MEMTEST_SIZE);
         if(!sdram_phy_s7_scan(core,phy,mem)) break; //Will stop when the right configuration appear
     }
 }
 
 #endif /* SDRAM_H_ */
-
-
-
