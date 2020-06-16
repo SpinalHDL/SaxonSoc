@@ -54,7 +54,7 @@ void putU8Hex(u8 value){
 void main() {
     bsp_putString("Ethernet demo");
 
-    mac_setCtrl(MAC, MAC_CTRL_CLEAR);
+    mac_setCtrl(MAC, MAC_CTRL_TX_RESET | MAC_CTRL_RX_RESET);
     bsp_uDelay(10);
     mac_setCtrl(MAC, 0);
 

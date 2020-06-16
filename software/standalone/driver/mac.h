@@ -4,13 +4,15 @@
 #include "io.h"
 
 #define MAC_CTRL 0x00
-#define MAC_RX   0x10
-#define MAC_TX   0x20
-#define MAC_TX_AVAILABILITY   0x24
+#define MAC_TX   0x10
+#define MAC_TX_AVAILABILITY   0x14
+#define MAC_RX   0x20
 
-#define MAC_CTRL_RX_PENDING 0x00000010
-#define MAC_CTRL_TX_READY 0x00000020
-#define MAC_CTRL_CLEAR 0x00000001
+#define MAC_CTRL_TX_RESET 0x00000001
+#define MAC_CTRL_TX_READY 0x00000002
+
+#define MAC_CTRL_RX_RESET 0x00000010
+#define MAC_CTRL_RX_PENDING 0x00000020
 
 readReg_u32 (mac_getCtrl , MAC_CTRL)
 writeReg_u32 (mac_setCtrl , MAC_CTRL)

@@ -20,7 +20,13 @@ long time(){
   return machineTimer_getTime(SYSTEM_MACHINE_TIMER_APB);
 }
 #else
+#ifdef BSP_CLINT
+long time(){
+    return clint_getTime(BSP_CLINT);
+}
+#else
 #include "dhrystoneHal.h"
+#endif
 #endif
 
 static void printf_c(int c)

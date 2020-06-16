@@ -3,7 +3,7 @@ package saxon
 import spinal.core._
 import spinal.lib.bus.bmb.{Bmb, BmbAccessParameter, BmbParameter, BmbSlaveFactory}
 import spinal.lib.bus.misc.{BusSlaveFactoryConfig, SizeMapping}
-import spinal.lib.com.eth.{BmbMacMii, MacMiiParameter}
+import spinal.lib.com.eth.{BmbMacEth, MacEthParameter, MacTxInterFrame, Mii, MiiParameter, MiiRxParameter, MiiTxParameter}
 import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
 import spinal.lib.com.spi.ddr.{BmbSpiXdrMasterCtrl, SpiXdrMasterCtrl}
 import spinal.lib.com.uart.{BmbUartCtrl, UartCtrlMemoryMappedConfig}
@@ -366,16 +366,22 @@ class BmbSpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Big
   if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
 }
 
-case class BmbMacMiiGenerator(address : Handle[BigInt] = Unset)
+case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
                              (implicit interconnect: BmbSmpInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
-  val parameter = createDependency[MacMiiParameter]
+  val parameter = createDependency[MacEthParameter]
+  val rxCd, txCd = createDependency[ClockDomain]
   val interrupt = produce(logic.io.interrupt)
-  val mii = produceIo(logic.io.mii)
+  val phy = produce(logic.io.phy)
   val bus = produce(logic.io.bus)
 
   val accessSource = Handle[BmbAccessParameter]
   val accessRequirements = createDependency[BmbAccessParameter]
-  val logic = add task BmbMacMii(parameter, accessRequirements.toBmbParameter())
+  val logic = add task BmbMacEth(
+      p            = parameter,
+      bmbParameter = accessRequirements.toBmbParameter(),
+      txCd         = txCd,
+      rxCd         = rxCd
+  )
 
   def connectInterrupt(ctrl : InterruptCtrl, id : Int): Unit = {
     ctrl.addInterrupt(interrupt, id)
@@ -383,11 +389,42 @@ case class BmbMacMiiGenerator(address : Handle[BigInt] = Unset)
 
   interconnect.addSlave(
     accessSource = accessSource,
-    accessCapabilities = accessSource.derivate(BmbMacMii.getBmbCapabilities),
+    accessCapabilities = accessSource.derivate(BmbMacEth.getBmbCapabilities),
     accessRequirements = accessRequirements,
     bus = bus,
-    mapping = address.derivate(SizeMapping(_, 1 << BmbMacMii.addressWidth))
+    mapping = address.derivate(SizeMapping(_, 1 << BmbMacEth.addressWidth))
   )
   export(parameter)
   if(decoder != null) interconnect.addConnection(decoder.bus, bus)
+
+
+  def withPhyMii() = new Generator {
+    val mii = add task master(Mii(
+      MiiParameter(
+        MiiTxParameter(
+          dataWidth = 4,
+          withEr    = false
+        ),
+        MiiRxParameter(
+          dataWidth = 4
+        )
+      )
+    ))
+
+    txCd.derivatedFrom(mii)(_ => ClockDomain(mii.TX.CLK))
+    rxCd.derivatedFrom(mii)(_ => ClockDomain(mii.RX.CLK))
+
+    List(mii, phy).produce{
+      txCd.copy(reset = logic.mac.txReset) on {
+        val tailer = MacTxInterFrame(dataWidth = 4)
+        tailer.io.input << phy.tx
+
+        mii.TX.EN := RegNext(tailer.io.output.valid)
+        mii.TX.D := RegNext(tailer.io.output.data)
+      }
+      rxCd on {
+        phy.rx << mii.RX.toRxFlow().toStream
+      }
+    }
+  }
 }
