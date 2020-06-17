@@ -116,6 +116,7 @@ class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
   }
 
   val mac = BmbMacEthGenerator(0x40000)
+  mac.connectInterrupt(plic, 3)
   val eth = mac.withPhyMii()
 }
 
