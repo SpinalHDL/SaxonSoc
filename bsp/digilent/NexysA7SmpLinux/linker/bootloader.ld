@@ -4,7 +4,7 @@ ENTRY( _start )
 
 MEMORY
 {
-  ram  (wxai!r) : ORIGIN = 0x81FF0000, LENGTH = 64K
+  ram  (wxai!r) : ORIGIN = 0x10A00000, LENGTH = 8K
 }
 
 PHDRS
@@ -14,7 +14,7 @@ PHDRS
 
 SECTIONS
 {
-  __stack_size = DEFINED(__stack_size) ? __stack_size : 2K;
+  __stack_size = DEFINED(__stack_size) ? __stack_size : 512;
 
   .init           :
   {
@@ -124,6 +124,7 @@ SECTIONS
     *(.srodata.cst4)
     *(.srodata.cst2)
     *(.srodata .srodata.*)
+    . += 4; /* fix for linker false error message */
   } >ram AT>ram :ram
 
   . = ALIGN(4);
