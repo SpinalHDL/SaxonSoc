@@ -35,6 +35,13 @@ static void uart_writeStr(u32 reg, const char* str){
     while(*str) uart_write(reg, *str++);
 }
 
+static void uart_writeHex(u32 reg, int value){
+    for(int i = 7; i >= 0; i--){
+        int hex = (value >> i*4) & 0xF;
+        uart_write(reg, hex > 9 ? 'A' + hex - 10 : '0' + hex);
+    }
+}
+
 static char uart_read(u32 reg){
     while(uart_readOccupancy(reg) == 0);
     return read_u32(reg + UART_DATA);

@@ -4,7 +4,7 @@ ENTRY( _start )
 
 MEMORY
 {
-  ram  (wxai!r) : ORIGIN = 0x20000000, LENGTH = 8K
+  ram  (wxai!r) : ORIGIN = 0x80F80000, LENGTH = 64K
 }
 
 PHDRS
@@ -14,7 +14,7 @@ PHDRS
 
 SECTIONS
 {
-  __stack_size = DEFINED(__stack_size) ? __stack_size : 512;
+  __stack_size = DEFINED(__stack_size) ? __stack_size : 2K;
 
   .init           :
   {
@@ -124,6 +124,7 @@ SECTIONS
     *(.srodata.cst4)
     *(.srodata.cst2)
     *(.srodata .srodata.*)
+    . += 4; /* fix for linker false error message */
   } >ram AT>ram :ram
 
   . = ALIGN(4);
@@ -146,11 +147,11 @@ SECTIONS
   PROVIDE( _end = . );
   PROVIDE( end = . );
 
-  . = ALIGN(16); /* RISC-V stack is 16 byte aligned*/
-  .stack /*ORIGIN(ram) + LENGTH(ram) - __stack_size*/ :
+  .stack  : ALIGN(16)
   {
     PROVIDE( _heap_end = . );
     . = __stack_size;
     PROVIDE( _sp = . );
+	__freertos_irq_stack_top = .;
   } >ram AT>ram :ram
 }
