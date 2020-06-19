@@ -402,11 +402,11 @@ case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
     val mii = add task master(Mii(
       MiiParameter(
         MiiTxParameter(
-          dataWidth = 4,
+          dataWidth = parameter.phy.txDataWidth,
           withEr    = false
         ),
         MiiRxParameter(
-          dataWidth = 4
+          dataWidth = parameter.phy.rxDataWidth
         )
       )
     ))
@@ -416,7 +416,7 @@ case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
 
     List(mii, phy).produce{
       txCd.copy(reset = logic.mac.txReset) on {
-        val tailer = MacTxInterFrame(dataWidth = 4)
+        val tailer = MacTxInterFrame(dataWidth = parameter.phy.txDataWidth)
         tailer.io.input << phy.tx
 
         mii.TX.EN := RegNext(tailer.io.output.valid)
