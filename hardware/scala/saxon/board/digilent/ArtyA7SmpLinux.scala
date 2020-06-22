@@ -74,7 +74,7 @@ class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
   interconnect.addConnection(exclusiveMonitor.output, invalidationMonitor.input)
 
 
-  val cpuCount = Handle(4)
+  val cpuCount = Handle(2)
   val cores = for(cpuId <- 0 until cpuCount) yield new Area{
     val cpu = VexRiscvBmbGenerator()
     interconnect.addConnection(
