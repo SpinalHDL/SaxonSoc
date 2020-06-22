@@ -74,7 +74,7 @@ class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
   interconnect.addConnection(exclusiveMonitor.output, invalidationMonitor.input)
 
 
-  val cpuCount = Handle(2)
+  val cpuCount = Handle(4)
   val cores = for(cpuId <- 0 until cpuCount) yield new Area{
     val cpu = VexRiscvBmbGenerator()
     interconnect.addConnection(
@@ -303,8 +303,8 @@ object ArtyA7SmpLinuxSystem{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 15,
-      interrupt = List(0, 1, 2, 3)
+      width = 32,
+      interrupt = List(0, 1, 2, 3, 24, 25, 26, 27)
     )
     gpioA.connectInterrupts(plic, 4)
 
@@ -494,7 +494,7 @@ object ArtyA7SmpLinuxSystemSim {
 
       fork{
         val at = 0
-        val duration = 10
+        val duration = 0
         while(simTime() < at*1000000000l) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -566,7 +566,7 @@ object ArtyA7SmpLinuxSystemSim {
       dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
 
 
-            dut.phy.logic.loadBin(0x00F80000, "software/standalone/ethernet/build/ethernet.bin")
+//            dut.phy.logic.loadBin(0x00F80000, "software/standalone/ethernet/build/ethernet.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
       println("DRAM loading done")
 
