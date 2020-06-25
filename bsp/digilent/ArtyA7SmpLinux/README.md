@@ -1,3 +1,10 @@
+## Hardware
+
+- Arty A7 35T
+- USB micro cable
+- Optional Ethernet cable
+- Optional SDCARD in port JD via https://reference.digilentinc.com/reference/pmod/pmodmicrosd/start
+
 ## Boot sequence
 
 The boot sequence is done in 4 steps :
