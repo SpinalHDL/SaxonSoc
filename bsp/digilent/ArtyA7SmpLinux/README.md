@@ -101,6 +101,8 @@ saxon_openocd
 ## Loading the FPGA and booting linux with ramfs using openocd
 
 ```
+source SaxonSoc/bsp/digilent/ArtyA7SmpLinux/source.sh
+
 # Boot linux using a ram file system (no sdcard), look at the saxon_buildroot_load end message
 saxon_fpga_load
 saxon_buildroot_load
