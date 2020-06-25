@@ -4,12 +4,11 @@ The boot sequence is done in 4 steps :
 
 * bootloader : In the OnChipRam initialized by the FPGA bitstream
   * Initialise the DDR3
-  * Copy the machineModeSbi and the u-boot binary from the FPGA SPI flash to the DDR3
-  * Jump to the machineModeSbi binary in machine mode
+  * Copy the openSBI and the u-boot binary from the FPGA SPI flash to the DDR3
+  * Jump to the openSBI binary in machine mode
 
-* machineModeSbi : In the DDR3
-  * Initialise the serial port used as shell
-  * Initialise the machine mode CSR to support futher supervisor SBI call and to emulate some missing CSR
+* openSBI : In the DDR3
+  * Initialise the machine mode CSR to support further supervisor SBI call and to emulate some missing CSR
   * Jump to the u-boot binary in supervisor mode
 
 * u-boot : In the DDR3
@@ -24,17 +23,17 @@ The boot sequence is done in 4 steps :
 ## Binary locations
 
 OnChipRam:
-- 0x20000000 : bootloader (2 KB)
+- 0x20000000 : bootloader (~2 KB)
 
 DDR3:
 - 0x80000000 : Linux kernel
-- 0x81FF0000 : machineModeSbi, 64 KB reserved-memory (Linux can't use that memory space)
-- 0x81F00000 : u-boot
+- 0x80F80000 : openSBI, 512 KB of reserved-memory (Linux can't use that memory space)
+- 0x80F00000 : u-boot
 
 FPGA SPI flash:
 - 0x000000   : FPGA bitstream
-- 0x400000   : machineModeSbi
-- 0x410000   : u-boot
+- 0x400000   : openSBI
+- 0x480000   : u-boot
 
 Sdcard :
 - p1:uImage  : Linux kernel
@@ -64,228 +63,83 @@ sudo mv riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6 /opt/riscv64-unkno
 sudo mv /opt/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6 /opt/riscv
 echo 'export PATH=/opt/riscv/bin:$PATH' >> ~/.bashrc
 export PATH=/opt/riscv/bin:$PATH
+
+# Vivado in the path for synthesis
 ```
 
 ## Building everything
 
-First, good luck and have fun <3
+It will take quite a while to build, good luck and have fun <3
 
 ```
 # Getting this repository
-git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev --recursive SaxonSoc
+mkdir ArtyA7SmpLinux 
+cd ArtyA7SmpLinux
+git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev_software --recursive SaxonSoc
 
-# Bootloader
-cd SaxonSoc/software/standalone/bootloader
-make clean all BSP=digilent/ArtyA7Linux
-cd ../../../..
+# Sourcing the build script
+source SaxonSoc/bsp/digilent/ArtyA7SmpLinux/source.sh
 
-# MachineModeSbi
-cd SaxonSoc/software/standalone/machineModeSbi
-make clean all BSP=digilent/ArtyA7Linux
-cd ../../../..
+# Clone opensbi, u-boot, linux, buildroot, openocd
+saxon_clone
 
-# Netlist
-cd SaxonSoc
-sbt "runMain saxon.board.digilent.ArtyA7Linux"
-cd ..
+# Build the FPGA bitstream
+saxon_bootloader
+saxon_rtl
+saxon_bitstream
 
-# U-Boot
-git clone https://github.com/SpinalHDL/u-boot.git -b saxon u-boot
-cd u-boot
-CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make saxon_arty_a7_defconfig
-CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf- make -j$(nproc)
-cd ..
+# Build the firmware
+saxon_opensbi
+saxon_uboot
+saxon_buildroot
 
-# Buildroot
-git clone https://github.com/SpinalHDL/buildroot.git -b saxon buildroot
-git clone https://github.com/SpinalHDL/linux.git -b vexriscv --depth 100 linux
-cd buildroot
-make spinal_saxon_arty_a7_defconfig
-make linux-rebuild all -j$(nproc)
-output/host/bin/riscv32-linux-objcopy  -O binary output/images/vmlinux output/images/Image
-dtc -O dtb -o output/images/dtb board/spinal/saxon_arty_a7/spinal_saxon_arty_a7.dts
-output/host/bin/mkimage -A riscv -O linux -T kernel -C none -a 0x80000000 -e 0x80000000 -n Linux -d output/images/Image output/images/uImage
-cd ..
+# Build the programming tools
+saxon_sdramInit
+saxon_openocd
 ```
 
-## Sdcard
-
-The sdcard need two ext2 partitions, one for u-boot, one for linux
+## Loading the FPGA and booting linux with ramfs using openocd
 
 ```
-(
-echo d
-echo
-echo d
-echo
-echo n
-echo p
-echo 1
-echo
-echo +100M
-echo n
-echo p
-echo 2
-echo
-echo +500M
-echo w
-) | sudo fdisk /dev/mmcblk0
+# Boot linux using a ram file system (no sdcard), look at the saxon_buildroot_load end message
+saxon_fpga_load
+saxon_buildroot_load
 
-sudo mkfs.ext2 -q /dev/mmcblk0p1
-sudo mkfs.ext2 -q /dev/mmcblk0p2
+# Connecting the USB serial port (assuming you don't have nother ttyUSB pluged)
+saxon_serial
 ```
 
-Then to copy the files
+## Flashing everything from the onboard linux and FTP
 
+Setup a FTP server accordingly to :
+https://www.digitalocean.com/community/tutorials/how-to-set-up-vsftpd-for-anonymous-downloads-on-ubuntu-16-04
 
-```
-mkdir -p sdcard
-sudo mount /dev/mmcblk0p1 sdcard
-sudo cp buildroot/output/images/uImage sdcard/uImage
-sudo cp buildroot/output/images/dtb sdcard/dtb
-sudo umount sdcard
+It is expected that the folder /var/ftp/pub/ would be accessible via ftp://localhost/pub/
 
-sudo mount /dev/mmcblk0p2 sdcard
-sudo tar xf buildroot/output/images/rootfs.tar -C sdcard
-sudo umount sdcard
-```
-
-
-## Loading the FPGA from the on board FTDI JTAG
+Then on your PC :
 
 ```
-export OPENOCD_RISCV=PATH_TO_OPENOCD_RISCV
-$OPENOCD_RISCV/openocd -s $OPENOCD_RISCV/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f fpga_load.cfg
+source SaxonSoc/bsp/digilent/ArtyA7SmpLinux/source.sh
+saxon_ftp_load
 ```
 
-## Booting linux from the on board FTDI JTAG
+Then on your VexRiscv linux :
 
 ```
-export OPENOCD_RISCV=PATH_TO_OPENOCD_RISCV
-$OPENOCD_RISCV/src/openocd -s $OPENOCD_RISCV/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f soc_init.cfg -f linux_boot.cfg
+# !!! Be sure your linux booted on a ramfs and that the SDCARD isn't mounted !!!
+
+# Get the flashing script
+export FTP_PATH=ftp://YOUR_PC_IP/pub/saxon/digilent/ArtyA7SmpLinux
+wget $FTP_PATH/linux_tools.sh
+source ./linux_tools.sh
+
+# FPGA SPI flash
+tool_fpga_flash
+tool_opensbi_flash
+tool_uboot_flash
+
+# SDCARD flash
+tool_sdcard_format
+tool_sdcard_p1
+tool_sdcard_p2
 ```
-
-## FPGA SPI flash
-
-```
-write_cfgmem  -format mcs -size 16 -interface SPIx4 -loadbit {up 0x00000000 "/home/miaou/pro/riscv/SaxonSocArtyA7/arty_a7_linux/arty_a7_linux.runs/impl_3/ArtyA7Linux.bit" } -loaddata {up 0x00400000 "/home/miaou/pro/riscv/SaxonSocArtyA7/SaxonSoc.git/software/standalone/machineModeSbi/build/machineModeSbi.bin" up 0x00410000 "/home/miaou/pro/riscv/SaxonSocArtyA7/u-boot/u-boot.bin" } -force -file "/home/miaou/pro/riscv/SaxonSocArtyA7/artyA7_linux/prog.mcs"
-```
-
-## Connecting to the USB uart
-
-```
-screen /dev/ttyUSB1 115200
-or
-picocom -b 115200 /dev/ttyUSB1 --imap lfcrlf
-```
-
-## Simulation
-
-WIP
-
-```
-cd SaxonSoc/software/standalone/bootloader
-make clean all BSP=digilent/ArtyA7Linux SPINAL_SIM=yes
-cd ../../../..
-```
-
-
-## Memo WIP
-
-```
-# Test SDCARD speed
-hdparm -t /dev/mmcblk0
-
-#https://www.emcraft.com/stm32f769i-discovery-board/accessing-spi-devices-in-linux
-
-hexdump -C -n 100 /dev/mtd3
-flash_erase /dev/mtd3 0 1
-echo "wuff" > /dev/mtd3
-hexdump -C -n 100 /dev/mtd3
-
-https://www.techrepublic.com/article/how-to-quickly-setup-an-ftp-server-on-ubuntu-18-04/
-sudo apt-get install vsftpd
-sudo systemctl start vsftpd
-sudo systemctl enable vsftpd
-sudo useradd -m ftpuser
-sudo mv /etc/vsftpd.conf /etc/vsftpd.conf.orig
-sudo nano /etc/vsftpd.conf
-
-listen=NO
-listen_ipv6=YES
-local_enable=YES
-write_enable=YES
-local_umask=022
-dirmessage_enable=YES
-use_localtime=YES
-xferlog_enable=YES
-connect_from_port_20=YES
-chroot_local_user=YES
-secure_chroot_dir=/var/run/vsftpd/empty
-pam_service_name=vsftpd
-rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-ssl_enable=NO
-pasv_enable=Yes
-pasv_min_port=10000
-pasv_max_port=10100
-allow_writeable_chroot=YES
-anonymous_enable=YES
-no_anon_password=YES
-anon_root=/home/ftpuser
-
-sudo systemctl reload vsftpd
-sudo systemctl restart vsftpd
-
-
-cp  arty7_linux/arty7_linux.runs/impl_3/Arty7Linux.bit /home/ftpuser/arty7
-cp  u-boot/u-boot.bin /home/ftpuser/arty7
-cp  SaxonSoc.git/software/standalone/machineModeSbi/build/machineModeSbi.bin /home/ftpuser/arty7
-cp  buildroot/output/images/uImage /home/ftpuser/arty7
-cp  buildroot/output/images/dtb /home/ftpuser/arty7
-cp  buildroot/output/images/rootfs.tar /home/ftpuser/arty7
-
-wget ftp://10.42.0.1/arty7/Arty7Linux.bit -O Arty7Linux.bit
-flash_erase /dev/mtd0 0 0
-cat Arty7Linux.bit > /dev/mtd0
-
-wget ftp://10.42.0.1/arty7/machineModeSbi.bin -O machineModeSbi.bin
-flash_erase /dev/mtd1 0 0
-cat machineModeSbi.bin > /dev/mtd1
-
-wget ftp://10.42.0.1/arty7/u-boot.bin -O u-boot.bin
-flash_erase /dev/mtd2 0 0
-cat u-boot.bin > /dev/mtd2
-
-mkdir -p uboot
-mount /dev/mmcblk0p1 uboot
-wget ftp://10.42.0.1/arty7/uImage -O uboot/uImage
-wget ftp://10.42.0.1/arty7/dtb -O uboot/dtb
-umount uboot
-
-wget ftp://10.42.0.1/arty7/rootfs.tar -O rootfs.tar
-mkdir -p buildroot
-mount /dev/mmcblk0p2 buildroot
-tar xf rootfs.tar -C buildroot
-umount buildroot
-         | 4K I$ 4K D$ | 8K I$ 8K D$
----------|-------------|-----------------
-SDCARD   | 0.975       | 1.180 MBytes/s
-ENC28J60 | 1.200       | 1.450 MBits/s TCP
-
-
-
-
-cd ../riscv_openocd
-src/openocd -f tcl/interface/ftdi/ft2232h_breakout.cfg -c 'set CPU0_YAML ../SaxonSoc.git/cpu0.yaml' -f tcl/target/arty7_linux.cfg
-load mmc 0 0x80000000 uboot/uImage
-load mmc 0 0x80BFFFC0 uboot/rootfs.cpio.uboot
-load mmc 0 0x80BF0000 uboot/dtb
-bootm 0x80000000 0x80BFFFC0 0x80BF0000
-
-load mmc 0 0x80000000 uImage
-load mmc 0 0x81EF0000 dtb
-bootm 0x80000000 - 0x81EF0000
-
-```
-
