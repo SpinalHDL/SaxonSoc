@@ -57,10 +57,10 @@ sudo apt-get update
 sudo apt-get install sbt
 
 # RISC-V toolchain
-wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-tar -xzvf riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-sudo mv riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6 /opt/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6
-sudo mv /opt/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6 /opt/riscv
+VERSION=riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14
+wget https://static.dev.sifive.com/dev-tools/$VERSION.tar.gz
+tar -xzvf $VERSION.tar.gz
+sudo mv $VERSION /opt/riscv
 echo 'export PATH=/opt/riscv/bin:$PATH' >> ~/.bashrc
 export PATH=/opt/riscv/bin:$PATH
 
