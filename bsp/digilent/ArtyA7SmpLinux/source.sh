@@ -129,18 +129,16 @@ saxon_ssh(){
   ssh root@192.168.0.157
 }
 
-saxon_ftp_init(){
+saxon_ftp_load(){
   cd $SAXON_ROOT
-  cp SaxonSoc/hardware/synthesis/digilent/ArtyA7SmpLinux/build/vivado_project/fpga.runs/impl_1/ArtyA7SmpLinux.bit /var/ftp/pub/saxon/digilent/artyA7SmpLinux
-  cp buildroot/output/images/dtb /var/ftp/pub/saxon/digilent/artyA7SmpLinux
-  cp buildroot/output/images/uImage /var/ftp/pub/saxon/digilent/artyA7SmpLinux
-  cp buildroot/output/images/rootfs.tar /var/ftp/pub/saxon/digilent/artyA7SmpLinux
-  cp buildroot/output/images/rootfs.cpio.uboot /var/ftp/pub/saxon/digilent/artyA7SmpLinux
-  cp opensbi/build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin /var/ftp/pub/saxon/digilent/artyA7SmpLinux
-  cp u-boot/u-boot.bin /var/ftp/pub/saxon/digilent/artyA7SmpLinux
-  cp scripts/flash_soft.sh /var/ftp/pub/saxon/digilent/artyA7SmpLinux
-  cp scripts/flash_hard.sh /var/ftp/pub/saxon/digilent/artyA7SmpLinux
-  cp scripts/sdcard_format.sh /var/ftp/pub/saxon/digilent/artyA7SmpLinux
-  cp scripts/sdcard_soft.sh /var/ftp/pub/saxon/digilent/artyA7SmpLinux
+  mkdir -p /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp SaxonSoc/hardware/synthesis/digilent/ArtyA7SmpLinux/build/vivado_project/fpga.runs/impl_1/ArtyA7SmpLinux.bit /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp buildroot/output/images/dtb /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp buildroot/output/images/uImage /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp buildroot/output/images/rootfs.tar /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp buildroot/output/images/rootfs.cpio.uboot /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp opensbi/build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp u-boot/u-boot.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp SaxonSoc/bsp/digilent/ArtyA7SmpLinux/scripts/linux_tools.sh /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
 }
 
