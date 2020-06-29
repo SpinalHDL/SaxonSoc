@@ -58,40 +58,24 @@ case class Apb3UartGenerator(apbOffset : Handle[BigInt] = Unset)
 
 object Apb3SpiGenerator{
   def apply(apbOffset : BigInt, xipOffset : BigInt = 0)
-           (implicit decoder: Apb3DecoderGenerator, interconnect: BmbInterconnectGenerator = null): Apb3SpiGenerator ={
+           (implicit decoder: Apb3DecoderGenerator): Apb3SpiGenerator ={
     new Apb3SpiGenerator(apbOffset,xipOffset)
   }
 }
 class Apb3SpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[BigInt] = 0)
-                            (implicit decoder: Apb3DecoderGenerator, interconnect: BmbInterconnectGenerator = null) extends Generator {
+                            (implicit decoder: Apb3DecoderGenerator) extends Generator {
   val parameter = createDependency[SpiXdrMasterCtrl.MemoryMappingParameters]
-  val withXip = Handle(false)
   val interrupt = produce(logic.io.interrupt)
   val phy = produce(logic.io.spi)
   val spi = Handle[Nameable]
   val apb = produce(logic.io.apb)
-  val logic = add task Apb3SpiXdrMasterCtrl(parameter.copy(xip = if(!withXip) null else XipBusParameters(24, bmbRequirements.lengthWidth)))
+  val logic = add task Apb3SpiXdrMasterCtrl(parameter)
+  val withXip = Handle(false)
+  withXip.produce(assert(withXip == false)) //not implemented yet
 
   val bmbRequirements = Handle[BmbParameter]
   val bmb = product[Bmb]
 
-  dependencies += withXip.produce{
-    if(withXip) {
-      dependencies += bmbRequirements
-      interconnect.addSlaveAt(
-        capabilities = Handle(SpiXdrMasterCtrl.getXipBmbCapabilities()),
-        requirements = bmbRequirements,
-        bus = bmb,
-        address = xipOffset
-      )
-      Dependable(Apb3SpiGenerator.this, bmbRequirements){
-        bmb.load(logic.io.xip.fromBmb(bmbRequirements))
-      }
-    }
-  }
-
-
-  dependencies += withXip
 
   decoder.addSlave(apb, apbOffset)
 

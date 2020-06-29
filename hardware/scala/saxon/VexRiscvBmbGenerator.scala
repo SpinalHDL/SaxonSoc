@@ -1,7 +1,7 @@
 package saxon
 
 import spinal.core._
-import spinal.lib.bus.bmb.{Bmb, BmbAccessParameter, BmbParameter}
+import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbParameter}
 import spinal.lib.bus.misc.AddressMapping
 import spinal.lib.com.jtag.{Jtag, JtagTapInstructionCtrl}
 import spinal.lib.generator.{BmbInterconnectGenerator, BmbSmpInterconnectGenerator, Dependable, Generator, Handle}
@@ -19,7 +19,7 @@ object VexRiscvBmbGenerator{
   val DEBUG_BMB = 4
 }
 
-case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerator = null, interconnectSmp: BmbSmpInterconnectGenerator = null) extends Generator {
+case class VexRiscvBmbGenerator()(implicit interconnectSmp: BmbSmpInterconnectGenerator = null) extends Generator {
   import VexRiscvBmbGenerator._
 
   val config = Handle[VexRiscvConfig]
@@ -72,7 +72,7 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
     withDebug.load(DEBUG_BUS)
   }
 
-  val debugBmbAccessSource = Handle[BmbAccessParameter]
+  val debugBmbAccessSource = Handle[BmbAccessCapabilities]
   val debugBmbAccessRequirements = Handle[BmbAccessParameter]
   def enableDebugBmb(debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator, mapping : AddressMapping)(implicit debugMaster : BmbImplicitDebugDecoder = null) : Unit = debugCd{
     this.debugClockDomain.merge(debugCd.outputClockDomain)
@@ -156,14 +156,9 @@ case class VexRiscvBmbGenerator()(implicit interconnect: BmbInterconnectGenerato
     }
   }
 
-  if (interconnect != null) {
-    interconnect.addMaster(parameterGenerator.iBusParameter, iBus)
-    interconnect.addMaster(parameterGenerator.dBusParameter, dBus)
-  }
-
   if(interconnectSmp != null){
-    interconnectSmp.addMaster(accessRequirements = parameterGenerator.iBusParameter.derivate(_.toAccessParameter), bus = iBus)
-    interconnectSmp.addMaster(accessRequirements = parameterGenerator.dBusParameter.derivate(_.toAccessParameter), bus = dBus)
+    interconnectSmp.addMaster(accessRequirements = parameterGenerator.iBusParameter.derivate(_.access), bus = iBus)
+    interconnectSmp.addMaster(accessRequirements = parameterGenerator.dBusParameter.derivate(_.access), bus = dBus)
   }
 
 }

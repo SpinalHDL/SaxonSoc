@@ -210,7 +210,7 @@ case class JtagInstructionDebuggerGenerator()(implicit val interconnect : BmbSmp
   }
 
   interconnect.addMaster(
-    accessRequirements = jtagConfig.getBmbParameter.toAccessParameter,
+    accessRequirements = jtagConfig.getBmbParameter,
     bus = bmb
   )
 }
@@ -235,7 +235,7 @@ case class JtagTapDebuggerGenerator()(implicit val interconnect : BmbSmpIntercon
   }
 
   interconnect.addMaster(
-    accessRequirements = jtagConfig.getBmbParameter.toAccessParameter,
+    accessRequirements = jtagConfig.getBmbParameter,
     bus = bmb
   )
 }

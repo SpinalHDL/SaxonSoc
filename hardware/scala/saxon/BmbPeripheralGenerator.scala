@@ -1,7 +1,7 @@
 package saxon
 
 import spinal.core._
-import spinal.lib.bus.bmb.{Bmb, BmbAccessParameter, BmbParameter, BmbSlaveFactory}
+import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbParameter, BmbSlaveFactory}
 import spinal.lib.bus.misc.{BusSlaveFactoryConfig, SizeMapping}
 import spinal.lib.com.eth.{BmbMacEth, MacEthParameter, MacTxInterFrame, Mii, MiiParameter, MiiRxParameter, MiiTxParameter}
 import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
@@ -25,7 +25,7 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
   val uart = produceIo(logic.io.uart)
   val bus = produce(logic.io.bus)
 
-  val accessSource = Handle[BmbAccessParameter]
+  val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
   val logic = add task BmbUartCtrl(parameter, accessRequirements.toBmbParameter())
 
@@ -52,7 +52,7 @@ case class BmbClintGenerator(apbOffset : Handle[BigInt] = Unset)
   val bus = produce(logic.io.bus)
   val cpuCount = createDependency[Int]
 
-  val accessSource = Handle[BmbAccessParameter]
+  val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
   val logic = add task BmbClint(accessRequirements.toBmbParameter(), cpuCount)
   def timerInterrupt(id : Int) = logic.derivate(_.io.timerInterrupt(id))
@@ -76,7 +76,7 @@ case class BmbPlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit interc
   @dontName val gateways = ArrayBuffer[Handle[PlicGateway]]()
   val bus = produce(logic.bmb)
 
-  val accessSource = Handle[BmbAccessParameter]
+  val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
 
   val priorityWidth = createDependency[Int]
@@ -161,7 +161,7 @@ case class SdramXdrBmb2SmpGenerator(memoryAddress: BigInt)
   val ctrlBus = produce(logic.io.ctrl)
 
 
-  val accessSource = Handle[BmbAccessParameter]
+  val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
   def mapCtrlAt(address : BigInt)(implicit interconnect: BmbSmpInterconnectGenerator) : this.type = {
     interconnect.addSlave(
@@ -182,7 +182,7 @@ case class SdramXdrBmb2SmpGenerator(memoryAddress: BigInt)
     portsParameter += SdramXdrBmb2SmpGenerator.this.createDependency[BmbPortParameter]
 
     interconnect.addSlave(
-      accessCapabilities = phyParameter.produce(CtrlWithPhy.bmbCapabilities(phyParameter).toAccessParameter),
+      accessCapabilities = phyParameter.produce(CtrlWithPhy.bmbCapabilities(phyParameter)),
       accessRequirements = requirements,
       bus = bmb,
       mapping = phyParameter.produce(SizeMapping(memoryAddress, phyParameter.sdram.capacity))
@@ -220,7 +220,7 @@ case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect
   val serdesClk0 = createDependency[ClockDomain]
   val serdesClk90 = createDependency[ClockDomain]
 
-  val accessSource = Handle[BmbAccessParameter]
+  val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
 
   interconnect.addSlave(
@@ -232,11 +232,6 @@ case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect
   )
 
   val logic = add task new Area{
-    val ctrl = Bmb(BmbSlaveFactory.getBmbCapabilities(
-      accessSource,
-      addressWidth = 12,
-      dataWidth = 32)
-    )
     val phy = XilinxS7Phy(
       sl = sdramLayout,
       clkRatio = 2,
@@ -244,6 +239,7 @@ case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect
       serdesClk0 = serdesClk0,
       serdesClk90 = serdesClk90
     )
+    val ctrl = Bmb(accessRequirements)
     phy.driveFrom(BmbSlaveFactory(ctrl))
   }
 
@@ -268,7 +264,7 @@ case class  BmbGpioGenerator(apbOffset : Handle[BigInt] = Unset)
   val gpio = produceIo(logic.io.gpio)
   val bus = produce(logic.io.bus)
 
-  val accessSource = Handle[BmbAccessParameter]
+  val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
   //TODO not having to setCompositeName
   val interrupts : Handle[List[Handle[Bool]]] = parameter.produce(List.tabulate(parameter.width)(i => this.produce(logic.io.interrupt(i)).setCompositeName(interrupts, i.toString)))
@@ -315,10 +311,11 @@ class BmbSpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Big
   val spi = Handle[Nameable]
   val ctrl : Handle[Bmb] = produce(logic.io.ctrl)
 
-  val accessSource = Handle[BmbAccessParameter]
+  val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
 
-  val logic = add task BmbSpiXdrMasterCtrl(parameter.copy(xip = if(!withXip) null else XipBusParameters(24, bmbRequirements.lengthWidth)), accessRequirements.toBmbParameter())
+  val logic = add task BmbSpiXdrMasterCtrl(parameter, accessRequirements.toBmbParameter())
+//  val logic = add task BmbSpiXdrMasterCtrl(parameter.copy(xip = if(!withXip) null else XipBusParameters(24, bmbRequirements.lengthWidth)), accessRequirements.toBmbParameter())
 
   val bmbRequirements = Handle[BmbParameter]
   val bmb = product[Bmb]
@@ -374,7 +371,7 @@ case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
   val phy = produce(logic.io.phy)
   val bus = produce(logic.io.bus)
 
-  val accessSource = Handle[BmbAccessParameter]
+  val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
   val logic = add task BmbMacEth(
       p            = parameter,

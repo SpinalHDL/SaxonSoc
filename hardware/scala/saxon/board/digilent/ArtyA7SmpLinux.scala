@@ -2,7 +2,6 @@ package saxon.board.digilent
 
 import java.nio.file.{Files, Paths}
 
-import saxon.board.blackice.peripheral.Apb3I2cGenerator
 import saxon.common.I2cModel
 import saxon.{ResetSensitivity, _}
 import spinal.core._
@@ -34,7 +33,7 @@ import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 import spinal.lib.misc.plic.PlicMapping
 import spinal.lib.system.debugger.{JtagBridge, JtagBridgeNoTap, SystemDebugger, SystemDebuggerConfig}
-import vexriscv.demo.smp.{VexRiscvSmpCluster, VexRiscvSmpClusterGen}
+import vexriscv.demo.smp.VexRiscvSmpClusterGen
 import vexriscv.plugin.CsrPlugin
 
 
@@ -502,8 +501,8 @@ object ArtyA7SmpLinuxSystemSim {
           sleep(  100 * 10000)
         }
         println("\n\n********************")
-        println("********************\n\n")
         sleep(duration*1000000000l)
+        println("********************\n\n")
         while(true) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -554,6 +553,8 @@ object ArtyA7SmpLinuxSystemSim {
         uartPin = dut.uartA.uart.rxd,
         baudPeriod = uartBaudPeriod
       )
+
+      dut.spiA.sdcard.data.read #= 3
 
       val uboot = "../u-boot/"
       val opensbi = "../opensbi/"
