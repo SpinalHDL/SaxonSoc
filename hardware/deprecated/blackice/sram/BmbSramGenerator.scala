@@ -6,7 +6,7 @@ import spinal.lib.bus.bmb.{BmbParameter}
 
 
 case class BmbSramGenerator(address: BigInt)
-                               (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+                           (implicit interconnect: BmbInterconnectGenerator) extends Generator {
 
   val layout = createDependency[SramLayout]
   val requirements = createDependency[BmbParameter]
