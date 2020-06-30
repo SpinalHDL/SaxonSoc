@@ -1,10 +1,12 @@
 package saxon.board.digilent
 
-import saxon.{ResetSensitivity, _}
+import saxon._
 import spinal.core._
 import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
+import spinal.lib.com.jtag.JtagTapDebuggerGenerator
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
+import spinal.lib.generator.ClockDomainResetGenerator
 import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr.CoreParameter

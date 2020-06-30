@@ -1,13 +1,13 @@
 package saxon
 
 import spinal.core._
-import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbParameter, BmbSlaveFactory}
+import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbImplicitPeripheralDecoder, BmbParameter, BmbSlaveFactory, BmbSmpInterconnectGenerator}
 import spinal.lib.bus.misc.{BusSlaveFactoryConfig, SizeMapping}
 import spinal.lib.com.eth.{BmbMacEth, MacEthParameter, MacTxInterFrame, Mii, MiiParameter, MiiRxParameter, MiiTxParameter}
 import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
 import spinal.lib.com.spi.ddr.{BmbSpiXdrMasterCtrl, SpiXdrMasterCtrl}
 import spinal.lib.com.uart.{BmbUartCtrl, UartCtrlMemoryMappedConfig}
-import spinal.lib.generator.{BmbInterconnectGenerator, BmbSmpInterconnectGenerator, Dependable, Export, Generator, Handle, Unset}
+import spinal.lib.generator.{Dependable, Export, Generator, Handle, InterruptCtrlGeneratorI, Unset}
 import spinal.lib.io.{BmbGpio2, Gpio}
 import spinal.lib.master
 import spinal.lib.memory.sdram.SdramLayout
@@ -32,7 +32,7 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
   val txd = uart.produce(uart.txd)
   val rxd = uart.produce(uart.rxd)
 
-  def connectInterrupt(ctrl : InterruptCtrl, id : Int): Unit = {
+  def connectInterrupt(ctrl : InterruptCtrlGeneratorI, id : Int): Unit = {
     ctrl.addInterrupt(interrupt, id)
   }
 
@@ -47,109 +47,6 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
   if(decoder != null) interconnect.addConnection(decoder.bus, bus)
 }
 
-case class BmbClintGenerator(apbOffset : Handle[BigInt] = Unset)
-                             (implicit interconnect: BmbSmpInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
-  val bus = produce(logic.io.bus)
-  val cpuCount = createDependency[Int]
-
-  val accessSource = Handle[BmbAccessCapabilities]
-  val accessRequirements = createDependency[BmbAccessParameter]
-  val logic = add task BmbClint(accessRequirements.toBmbParameter(), cpuCount)
-  def timerInterrupt(id : Int) = logic.derivate(_.io.timerInterrupt(id))
-  def softwareInterrupt(id : Int) = logic.derivate(_.io.softwareInterrupt(id))
-
-  interconnect.addSlave(
-    accessSource = accessSource,
-    accessCapabilities = accessSource.derivate(Clint.getBmbCapabilities),
-    accessRequirements = accessRequirements,
-    bus = bus,
-    mapping = apbOffset.derivate(SizeMapping(_, 1 << Clint.addressWidth))
-  )
-
-  val hz = export(produce(ClockDomain.current.frequency))
-  if(decoder != null) interconnect.addConnection(decoder.bus, bus)
-}
-
-
-
-case class BmbPlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit interconnect: BmbSmpInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator with InterruptCtrl{
-  @dontName val gateways = ArrayBuffer[Handle[PlicGateway]]()
-  val bus = produce(logic.bmb)
-
-  val accessSource = Handle[BmbAccessCapabilities]
-  val accessRequirements = createDependency[BmbAccessParameter]
-
-  val priorityWidth = createDependency[Int]
-  val mapping = createDependency[PlicMapping]
-
-  val targetsModel = ArrayBuffer[Handle[Bool]]()
-  def addTarget(target : Handle[Bool]) = {
-    val id = targetsModel.size
-
-    targetsModel += target
-    dependencies += target
-
-    //TODO remove the need of delaying stuff for name capture
-    add task(tags += new Export(BmbPlicGenerator.this.getName() + "_" + target.getName, id))
-  }
-
-  override def addInterrupt(source : Handle[Bool], id : Int) = {
-    this.dependencies += new Generator {
-      dependencies += source
-      add task new Area {
-        gateways += PlicGatewayActiveHigh(
-          source = source,
-          id = id,
-          priorityWidth = priorityWidth
-        ).setCompositeName(source, "plic_gateway")
-
-        tags += new Export(BmbPlicGenerator.this.getName() + "_" + source.getName, id)
-      }
-    }
-  }
-
-  override def getBus(): Handle[Nameable] = bus
-
-  val logic = add task new Area{
-    val bmb = Bmb(accessRequirements.toBmbParameter())
-    val bus = BmbSlaveFactory(bmb)
-
-    val targets = targetsModel.map(flag =>
-      PlicTarget(
-        gateways = gateways.map(_.get),
-        priorityWidth = priorityWidth
-      ).setCompositeName(flag, "plic_target")
-    )
-
-    //    gateways.foreach(_.priority := 1)
-    //    targets.foreach(_.threshold := 0)
-    //    targets.foreach(_.ie.foreach(_ := True))
-
-    val bridge = PlicMapper(bus, mapping)(
-      gateways = gateways.map(_.get),
-      targets = targets
-    )
-
-    for(targetId <- 0 until targetsModel.length){
-      targetsModel(targetId) := targets(targetId).iep
-    }
-  }
-
-
-  interconnect.addSlave(
-    accessSource = accessSource,
-    accessCapabilities = accessSource.derivate(BmbSlaveFactory.getBmbCapabilities(
-      _,
-      addressWidth = 22,
-      dataWidth = 32
-    )),
-    accessRequirements = accessRequirements,
-    bus = bus,
-    mapping = apbOffset.derivate(SizeMapping(_, 1 << 22))
-  )
-
-  if(decoder != null) interconnect.addConnection(decoder.bus, bus)
-}
 
 case class SdramXdrBmb2SmpGenerator(memoryAddress: BigInt)
                                   (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
@@ -270,14 +167,14 @@ case class  BmbGpioGenerator(apbOffset : Handle[BigInt] = Unset)
   val interrupts : Handle[List[Handle[Bool]]] = parameter.produce(List.tabulate(parameter.width)(i => this.produce(logic.io.interrupt(i)).setCompositeName(interrupts, i.toString)))
   val logic = add task BmbGpio2(parameter, accessRequirements.toBmbParameter())
 
-  @dontName var interruptCtrl : InterruptCtrl = null
+  @dontName var interruptCtrl : InterruptCtrlGeneratorI = null
   var interruptOffsetId = 0
-  def connectInterrupts(ctrl : InterruptCtrl, offsetId : Int): Unit = interrupts.produce{
+  def connectInterrupts(ctrl : InterruptCtrlGeneratorI, offsetId : Int): Unit = interrupts.produce{
     for(pinId <- parameter.interrupt) ctrl.addInterrupt(interrupts.get(pinId), offsetId + pinId)
     interruptCtrl = ctrl
     interruptOffsetId = offsetId
   }
-  def connectInterrupt(ctrl : InterruptCtrl, pinId : Int, interruptId : Int): Unit = interrupts.produce{
+  def connectInterrupt(ctrl : InterruptCtrlGeneratorI, pinId : Int, interruptId : Int): Unit = interrupts.produce{
     ctrl.addInterrupt(interrupts.get(pinId), interruptId)
   }
   def pin(id : Int) = gpio.produce(gpio.get.setAsDirectionLess.apply(id))
@@ -339,9 +236,9 @@ class BmbSpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Big
 
   dependencies += withXip
 
-  @dontName var interruptCtrl : InterruptCtrl = null
+  @dontName var interruptCtrl : InterruptCtrlGeneratorI = null
   var interruptId = 0
-  def connectInterrupt(ctrl : InterruptCtrl, id : Int): Unit = {
+  def connectInterrupt(ctrl : InterruptCtrlGeneratorI, id : Int): Unit = {
     ctrl.addInterrupt(interrupt, id)
     interruptCtrl = ctrl
     interruptId = id
@@ -380,7 +277,7 @@ case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
       rxCd         = rxCd
   )
 
-  def connectInterrupt(ctrl : InterruptCtrl, id : Int): Unit = {
+  def connectInterrupt(ctrl : InterruptCtrlGeneratorI, id : Int): Unit = {
     ctrl.addInterrupt(interrupt, id)
   }
 

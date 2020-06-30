@@ -4,13 +4,14 @@ import org.apache.commons.io.FileUtils
 import spinal.core._
 import spinal.lib._
 import spinal.core.internals.Misc
-import spinal.lib.generator.{BmbSmpInterconnectGenerator, Dependable, Dts, Export, Generator, Handle, MemoryConnection, SimpleBus, Tag}
+import spinal.lib.generator.{Dependable, Dts, Export, Generator, Handle, MemoryConnection, SimpleBus, Tag}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import java.io._
 
 import spinal.core.ClockDomain.FixedFrequency
+import spinal.lib.bus.bmb.BmbSmpInterconnectGenerator
 import spinal.lib.bus.wishbone.{Wishbone, WishboneConfig}
 import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{SpiXdrMaster, SpiXdrParameter}
@@ -191,51 +192,3 @@ case class SpiPhyDecoderGenerator() extends Generator{
 }
 
 
-case class JtagInstructionDebuggerGenerator()(implicit val interconnect : BmbSmpInterconnectGenerator) extends Generator{
-  val jtagClockDomain = createDependency[ClockDomain]
-  val jtagInstruction = produce(logic.jtagBridge.io.ctrl)
-  val bmb = produce(logic.mmMaster)
-  val jtagConfig = SystemDebuggerConfig(
-    memAddressWidth = 32,
-    memDataWidth    = 32,
-    remoteCmdWidth  = 1
-  )
-
-  val logic = add task new Area{
-    val jtagBridge = new JtagBridgeNoTap(jtagConfig, jtagClockDomain)
-    val debugger = new SystemDebugger(jtagConfig)
-    debugger.io.remote <> jtagBridge.io.remote
-
-    val mmMaster = debugger.io.mem.toBmb()
-  }
-
-  interconnect.addMaster(
-    accessRequirements = jtagConfig.getBmbParameter,
-    bus = bmb
-  )
-}
-
-
-case class JtagTapDebuggerGenerator()(implicit val interconnect : BmbSmpInterconnectGenerator) extends Generator{
-  val jtag = produceIo(logic.jtagBridge.io.jtag)
-  val bmb = produce(logic.mmMaster)
-  val jtagConfig = SystemDebuggerConfig(
-    memAddressWidth = 32,
-    memDataWidth    = 32,
-    remoteCmdWidth  = 1
-  )
-
-  val logic = add task new Area{
-
-    val jtagBridge = new JtagBridge(jtagConfig)
-    val debugger = new SystemDebugger(jtagConfig)
-    debugger.io.remote <> jtagBridge.io.remote
-
-    val mmMaster = debugger.io.mem.toBmb()
-  }
-
-  interconnect.addMaster(
-    accessRequirements = jtagConfig.getBmbParameter,
-    bus = bmb
-  )
-}

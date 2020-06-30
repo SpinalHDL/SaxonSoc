@@ -3,20 +3,20 @@ package saxon.board.digilent
 import java.nio.file.{Files, Paths}
 
 import saxon.common.I2cModel
-import saxon.{ResetSensitivity, _}
+import saxon._
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
 import spinal.lib.bus.amba3.apb.Apb3Config
 import spinal.lib.bus.amba3.apb.sim.{Apb3Listener, Apb3Monitor}
-import spinal.lib.bus.bmb.{Bmb, BmbDecoder}
+import spinal.lib.bus.bmb._
 import spinal.lib.bus.bmb.sim.BmbMonitor
 import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
 import spinal.lib.bus.simple.{PipelinedMemoryBus, PipelinedMemoryBusDecoder}
 import spinal.lib.com.eth.{MacEthParameter, Mii, MiiParameter, MiiRxParameter, MiiTxParameter, PhyParameter}
 import spinal.lib.com.i2c.{I2cMasterMemoryMappedGenerics, I2cSlaveGenerics, I2cSlaveMemoryMappedGenerics}
 import spinal.lib.com.i2c.sim.OpenDrainInterconnect
-import spinal.lib.com.jtag.{Jtag, JtagTap, JtagTapInstructionCtrl}
+import spinal.lib.com.jtag.{Jtag, JtagTap, JtagTapDebuggerGenerator, JtagTapInstructionCtrl}
 import spinal.lib.com.jtag.sim.JtagTcp
 import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
 import spinal.lib.com.spi.SpiHalfDuplexMaster
@@ -33,6 +33,7 @@ import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 import spinal.lib.misc.plic.PlicMapping
 import spinal.lib.system.debugger.{JtagBridge, JtagBridgeNoTap, SystemDebugger, SystemDebuggerConfig}
+import vexriscv.VexRiscvBmbGenerator
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
 import vexriscv.plugin.CsrPlugin
 
@@ -332,12 +333,12 @@ object ArtyA7SmpLinuxSystem{
       txBufferByteSize = 4096
     )
 
-    for(core <- cores) interconnect.setConnector(core.cpu.dBus)(_.pipelined(cmdValid = true, invValid = true, ackValid = true, syncValid = true) >> _)
-    interconnect.setConnector(exclusiveMonitor.input)(_.pipelined(cmdValid = true, cmdReady = true, rspValid = true) >> _)
-    interconnect.setConnector(invalidationMonitor.output)(_.pipelined(cmdValid = true, cmdReady = true, rspValid = true) >> _)
-    interconnect.setConnector(bmbPeripheral.bmb)(_.pipelined(cmdHalfRate = true, rspHalfRate = true) >> _)
-    interconnect.setConnector(sdramA0.bmb)(_.pipelined(cmdValid = true, cmdReady = true, rspValid = true) >> _)
-    interconnect.setConnector(iBridge.bmb)(_.pipelined(cmdValid = true) >> _)
+    for(core <- cores) interconnect.setPipelining(core.cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
+    interconnect.setPipelining(exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
+    interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(iBridge.bmb)(cmdValid = true)
 
     g
   }

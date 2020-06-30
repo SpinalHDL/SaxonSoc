@@ -17,10 +17,7 @@ import spinal.lib.misc.plic.{PlicGateway, PlicGatewayActiveHigh, PlicMapper, Pli
 import scala.collection.mutable.ArrayBuffer
 
 
-trait InterruptCtrl{
-  def addInterrupt(interrupt : Handle[Bool], id : Int)
-  def getBus : Handle[Nameable]
-}
+
 
 case class Apb3UartGenerator(apbOffset : Handle[BigInt] = Unset)
                             (implicit decoder: Apb3DecoderGenerator) extends Generator {
@@ -33,9 +30,9 @@ case class Apb3UartGenerator(apbOffset : Handle[BigInt] = Unset)
   val txd = uart.produce(uart.txd)
   val rxd = uart.produce(uart.rxd)
 
-  @dontName var interruptCtrl : InterruptCtrl = null
+  @dontName var interruptCtrl : InterruptCtrlGeneratorI = null
   var interruptId = 0
-  def connectInterrupt(ctrl : InterruptCtrl, id : Int): Unit = {
+  def connectInterrupt(ctrl : InterruptCtrlGeneratorI, id : Int): Unit = {
     ctrl.addInterrupt(interrupt, id)
     interruptCtrl = ctrl
     interruptId = id
@@ -79,9 +76,9 @@ class Apb3SpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Bi
 
   decoder.addSlave(apb, apbOffset)
 
-  @dontName var interruptCtrl : InterruptCtrl = null
+  @dontName var interruptCtrl : InterruptCtrlGeneratorI = null
   var interruptId = 0
-  def connectInterrupt(ctrl : InterruptCtrl, id : Int): Unit = {
+  def connectInterrupt(ctrl : InterruptCtrlGeneratorI, id : Int): Unit = {
     ctrl.addInterrupt(interrupt, id)
     interruptCtrl = ctrl
     interruptId = id
@@ -116,14 +113,14 @@ case class  Apb3GpioGenerator(apbOffset : Handle[BigInt] = Unset)
   val interrupts : Handle[List[Handle[Bool]]] = parameter.produce(List.tabulate(parameter.width)(i => this.produce(logic.io.interrupt(i)).setCompositeName(interrupts, i.toString)))
   val logic = add task Apb3Gpio2(parameter)
 
-  @dontName var interruptCtrl : InterruptCtrl = null
+  @dontName var interruptCtrl : InterruptCtrlGeneratorI = null
   var interruptOffsetId = 0
-  def connectInterrupts(ctrl : InterruptCtrl, offsetId : Int): Unit = interrupts.produce{
+  def connectInterrupts(ctrl : InterruptCtrlGeneratorI, offsetId : Int): Unit = interrupts.produce{
     for(pinId <- parameter.interrupt) ctrl.addInterrupt(interrupts.get(pinId), offsetId + pinId)
     interruptCtrl = ctrl
     interruptOffsetId = offsetId
   }
-  def connectInterrupt(ctrl : InterruptCtrl, pinId : Int, interruptId : Int): Unit = interrupts.produce{
+  def connectInterrupt(ctrl : InterruptCtrlGeneratorI, pinId : Int, interruptId : Int): Unit = interrupts.produce{
     ctrl.addInterrupt(interrupts.get(pinId), interruptId)
   }
   def pin(id : Int) = gpio.produce(gpio.get.setAsDirectionLess.apply(id))
@@ -148,7 +145,7 @@ case class  Apb3GpioGenerator(apbOffset : Handle[BigInt] = Unset)
 //}
 
 
-case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decoder: Apb3DecoderGenerator) extends Generator with InterruptCtrl{
+case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decoder: Apb3DecoderGenerator) extends Generator with InterruptCtrlGeneratorI{
   @dontName val gateways = ArrayBuffer[Handle[PlicGateway]]()
   val apb = produce(logic.apb)
   val apbConfig = Apb3Config(22, 32)
