@@ -8,7 +8,7 @@ set outputdir ./vivado_project
 set part xc7a100ticsg324-1L
 set project_base [file join vivado_project]
 set project_name fpga
-set top ArtyA7SmpLinux
+set top NexysA7SmpLinux
 set project_file [file join ${project_base} ${project_name}.xpr]
 set program_file [file join ${project_base} ${project_name}.runs impl_1 ${top}.bit]
 set sbi_file ../../../../../opensbi/build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin
