@@ -3,7 +3,7 @@ package saxon
 import spinal.core._
 import spinal.lib.bus.bmb.{Bmb, BmbAccessParameter, BmbParameter, BmbSlaveFactory}
 import spinal.lib.bus.misc.{BusSlaveFactoryConfig, SizeMapping}
-import spinal.lib.com.eth.{BmbMacEth, MacEthParameter, MacTxInterFrame, Mii, MiiParameter, MiiRxParameter, MiiTxParameter}
+import spinal.lib.com.eth._
 import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
 import spinal.lib.com.spi.ddr.{BmbSpiXdrMasterCtrl, SpiXdrMasterCtrl}
 import spinal.lib.com.uart.{BmbUartCtrl, UartCtrlMemoryMappedConfig}
@@ -421,6 +421,29 @@ case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
 
         mii.TX.EN := RegNext(tailer.io.output.valid)
         mii.TX.D := RegNext(tailer.io.output.data)
+      }
+      rxCd on {
+        phy.rx << mii.RX.toRxFlow().toStream
+      }
+    }
+  }
+
+  def withPhyRmii() = new Generator {
+    val mii = add task master(Rmii(
+      RmiiParameter(
+        RmiiTxParameter(
+          dataWidth = 2
+        ),
+        RmiiRxParameter(
+          dataWidth = 2,
+          withEr    = true
+        )
+      )
+    ))
+
+    List(mii, phy).produce{
+      txCd.copy(reset = logic.mac.txReset) on {
+        mii.TX.fromTxStream() << phy.tx
       }
       rxCd on {
         phy.rx << mii.RX.toRxFlow().toStream
