@@ -20,7 +20,7 @@ make spi-flash-sw
 
 ```sh
 cd hardware/synthesis/nexys_a7
-make clean-soc-sw
+make clean-sw
 make
 ```
 
@@ -154,6 +154,14 @@ load mmc 0 80ff0000 dtb
 bootm 80000000 - 80ff0000
 ```
 
+### Linux
+
+```sh
+ifconfig eth0 10.0.0.2 up
+tcpdump -i any &
+ping 10.0.0.1
+```
+
 ### DTS
 
 ```dts
@@ -182,7 +190,7 @@ bootm 80000000 - 80ff0000
       reg = <0>;
       status = "okay";
 
-      L1: interrupt-controller {
+      L0: interrupt-controller {
         #interrupt-cells = <1>;
         interrupt-controller;
         compatible = "riscv,cpu-intc";
@@ -197,7 +205,7 @@ bootm 80000000 - 80ff0000
       reg = <1>;
       status = "okay";
 
-      L2: interrupt-controller {
+      L1: interrupt-controller {
         #interrupt-cells = <1>;
         interrupt-controller;
         compatible = "riscv,cpu-intc";
@@ -207,7 +215,7 @@ bootm 80000000 - 80ff0000
 
   memory@80000000 {
     device_type = "memory";
-    reg = <0x80000000 0x04000000>;
+    reg = <0x80000000 0x08000000>;
   };
 
   reserved-memory {
@@ -215,8 +223,8 @@ bootm 80000000 - 80ff0000
     #size-cells = <1>;
     ranges;
 
-    opensbi: sbi@80000000 {
-      reg = <0x80f00000 0x100000>;
+    opensbi: sbi@80f80000 {
+      reg = <0x80f80000 0x80000>;
     };
   };
 
@@ -243,7 +251,9 @@ bootm 80000000 - 80ff0000
       compatible = "sifive,plic-1.0.0";
       #interrupt-cells = <1>;
       interrupt-controller;
-      interrupts-extended = <&L1 11 &L1 9>;
+      interrupts-extended = <
+        &L0 11 &L0 9
+        &L1 11 &L1 9>;
       reg = <0x00C00000 0x400000>;
       riscv,ndev = <32>;
     };
@@ -258,6 +268,13 @@ bootm 80000000 - 80ff0000
       #gpio-cells = <2>;
       interrupt-controller;
       #interrupt-cells = <2>;
+    };
+
+    mac0: mac@40000 {
+      compatible = "spinal,lib_mac";
+      reg = <0x40000 0x1000>;
+      interrupt-parent = <&plic>;
+      interrupts = <3>;
     };
 
     spiA: spi@20000 {
@@ -284,7 +301,7 @@ bootm 80000000 - 80ff0000
 
         parition@1 {
           label = "opensbi";
-          reg = <0x400000 0x010000>;
+          reg = <0x400000 0x080000>;
         };
 
         parition@2 {
@@ -294,7 +311,7 @@ bootm 80000000 - 80ff0000
 
         parition@3 {
           label = "user";
-          reg = <0x500000 0x300000>;
+          reg = <0x500000 0xB00000>;
         };
       };
 

@@ -5,7 +5,7 @@ SOCSW=bootloader
 SOCMEMSRC=$(SWBASE)/$(SOCSW)/build/$(SOCSW).elf
 
 TOP=NexysA7SmpLinux
-TOPV=../../netlist/ArtyA7SmpLinux.v
+TOPV=../../netlist/$(TOP).v
 
 RISCV_BIN?=/opt/riscv_xpacks/bin/riscv-none-embed-
 
@@ -38,7 +38,7 @@ $(SOCMEMSRC):
 build/latest.bit : $(TOPV)
 	mkdir -p build
 	./make_vivado_project
-	cp build/vivado_project/fpga.runs/impl_1/ArtyA7SmpLinux.bit build/latest.bit
+	cp build/vivado_project/fpga.runs/impl_1/$(TOP).bit build/latest.bit
 
 build/latest.mcs : build/latest.bit
 	./make_mcs_file
