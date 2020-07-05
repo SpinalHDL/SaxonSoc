@@ -358,6 +358,9 @@ object NexysA7SmpLinuxSystemSim {
       NexysA7SmpLinuxSystem.default(this, debugCd, systemCd)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
 //      ramA.hexInit.load("software/standalone/ethernet/build/ethernet.hex")
+      val macCd = ClockDomain.external("macCd", withReset = false)
+      mac.txCd.load(macCd)
+      mac.rxCd.load(macCd)
     }.toComponent().setDefinitionName("miaou2")).doSimUntilVoid("test", 42){dut =>
       val debugClkPeriod = (1e12/dut.debugCd.inputClockDomain.frequency.getValue.toDouble).toLong
       val jtagClkPeriod = debugClkPeriod*4
@@ -371,7 +374,7 @@ object NexysA7SmpLinuxSystemSim {
 
       fork{
         val at = 0
-        val duration = 0
+        val duration = 1
         while(simTime() < at*1000000000l) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -379,8 +382,8 @@ object NexysA7SmpLinuxSystemSim {
           sleep(  100 * 10000)
         }
         println("\n\n********************")
-        println("********************\n\n")
         sleep(duration*1000000000l)
+        println("********************\n\n")
         while(true) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -431,7 +434,7 @@ object NexysA7SmpLinuxSystemSim {
         uartPin = dut.uartA.uart.rxd,
         baudPeriod = uartBaudPeriod
       )
-
+/*
       val uboot = "../u-boot/"
       val opensbi = "../opensbi/"
       val linuxPath = "../buildroot/output/images/"
@@ -441,26 +444,37 @@ object NexysA7SmpLinuxSystemSim {
       dut.phy.logic.loadBin(0x00000000, linuxPath + "uImage")
       dut.phy.logic.loadBin(0x00FF0000, linuxPath + "dtb")
       dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
+*/
 
-
-//            dut.phy.logic.loadBin(0x00F80000, "software/standalone/ethernet/build/ethernet.bin")
-//      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
+    dut.phy.logic.loadBin(0x00F80000, "software/standalone/ethernet/build/ethernet_spinal_sim.bin")
+//    dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
       println("DRAM loading done")
 
-
-//      fork{
-//        val rxCd = ClockDomain(dut.eth.mii.RX.CLK)
-//        rxCd.forkStimulus(40000)
-//        while(true) {
-//          rxCd.waitSampling(1000)
-//          dut.mac.mii.RX.simReceive(List(0x55,0x55,0xD5, 0x12, 0x34, 0x56, 0x78, 0xAA, 0xBB), rxCd)
-//        }
-//      }
-
-      //fork{
-        //val txCd = ClockDomain(dut.eth.mii.TX.CLK)
-        //txCd.forkStimulus(40000)
-      //}
+//*
+      dut.macCd.forkStimulus(20000)
+      var inPacket = false
+      var packet = BigInt(0)
+      var counter = 0
+      dut.macCd.onSamplings{
+        if(dut.eth.mii.TX.EN.toBoolean){
+          inPacket = true
+          if(counter % 2 == 0){
+            packet |= dut.eth.mii.TX.D.toInt
+          } else {
+            packet |= dut.eth.mii.TX.D.toInt << 2
+            packet <<= 4
+          }
+          counter += 1
+        } else {
+          if(inPacket){
+            println(packet.toString(16))
+            packet = 0
+            counter = 0
+          }
+          inPacket = false
+        }
+      }
+//*/
     }
   }
 }

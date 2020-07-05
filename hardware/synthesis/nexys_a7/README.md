@@ -158,7 +158,7 @@ bootm 80000000 - 80ff0000
 
 ```sh
 ifconfig eth0 10.0.0.2 up
-tcpdump -i any &
+tcpdump -i any -vv &
 ping 10.0.0.1
 ```
 
@@ -324,4 +324,14 @@ ping 10.0.0.1
     };
   };
 };
+```
+
+## Simulation
+
+### Ethernet
+
+```sh
+make RISCV_BIN=/opt/riscv_xpacks/bin/riscv-none-embed- -C software/standalone/bootloader BSP=digilent/NexysA7SmpLinux SPINAL_SIM=yes clean all
+make RISCV_BIN=/opt/riscv_xpacks/bin/riscv-none-embed- -C software/standalone/ethernet BSP=digilent/NexysA7SmpLinux SPINAL_SIM=yes clean all
+sbt "runMain saxon.board.digilent.NexysA7SmpLinuxSystemSim"
 ```
