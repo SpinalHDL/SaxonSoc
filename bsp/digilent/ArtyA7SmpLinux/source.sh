@@ -38,7 +38,7 @@ saxon_sdramInit(){
 }
 
 
-saxon_rtl(){
+saxon_netlist(){
   cd $SAXON_ROOT/SaxonSoc
   sbt "runMain saxon.board.digilent.ArtyA7SmpLinux"
 }
@@ -52,6 +52,11 @@ saxon_bitstream(){
 saxon_fpga_load(){
   cd $SAXON_ROOT/SaxonSoc
   $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f fpga_load.cfg
+}
+
+saxon_openocd_connect(){
+  cd $SAXON_ROOT/SaxonSoc
+  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f soc_init.cfg
 }
 
 saxon_buildroot_load(){

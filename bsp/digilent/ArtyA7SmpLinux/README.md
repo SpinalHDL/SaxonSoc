@@ -92,7 +92,7 @@ saxon_clone
 
 # Build the FPGA bitstream
 saxon_bootloader
-saxon_rtl
+saxon_netlist
 saxon_bitstream
 
 # Build the firmware
