@@ -582,10 +582,23 @@ object ArtyA7SmpLinuxSystemSim {
 //        }
 //      }
 
-      fork{
-        val txCd = ClockDomain(dut.eth.mii.TX.CLK)
-        txCd.forkStimulus(40000)
-      }
+
+//      val txCd = ClockDomain(dut.eth.mii.TX.CLK)
+//      txCd.forkStimulus(40000)
+//      var inPacket = false
+//      var packet = BigInt(0)
+//      txCd.onSamplings{
+//        if(dut.eth.mii.TX.EN.toBoolean){
+//          inPacket = true
+//          packet = (packet << 4) | dut.eth.mii.TX.D.toInt
+//        } else {
+//          if(inPacket){
+//            println(packet.toString(16))
+//            packet = 0
+//          }
+//          inPacket = false
+//        }
+//      }
     }
   }
 }
