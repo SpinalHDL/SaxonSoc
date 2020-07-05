@@ -5,8 +5,9 @@ set_property CONFIG_VOLTAGE 3.3 [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 
 create_clock -period 10.000 -name clocking_GCLK100 [get_nets clocking_GCLK100]
-#TODO
-#set_clock_groups -asynchronous -group pll_CLKOUT0 -group pll_CLKOUT1
+
+
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT1
 
 # JTAG
 set_property -dict {PACKAGE_PIN T18 IOSTANDARD LVCMOS33} [get_ports debug_master_jtag_tms]
