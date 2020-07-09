@@ -11,6 +11,7 @@ SRCS = 	$(wildcard src/*.c) \
         ${FREERTOS}/portable/MemMang/heap_4.c \
         ${FREERTOS_RISCV}/port.c \
         ${FREERTOS_RISCV}/portASM.S \
+        ${STANDALONE}/common/start.S
 
 CFLAGS += -Isrc
 CFLAGS += -I${FREERTOS}/include

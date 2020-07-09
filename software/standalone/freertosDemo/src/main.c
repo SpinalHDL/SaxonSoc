@@ -30,6 +30,7 @@
 #include <task.h>
 
 #include "bsp.h"
+#include "riscv.h"
 
 /******************************************************************************
  * This project provides two demo applications.  A simple blinky style project,
@@ -76,7 +77,6 @@ static void prvSetupHardware( void );
 void vSendString( const char * const pcString );
 
 /*-----------------------------------------------------------*/
-
 int main( void )
 {
     prvSetupHardware();
@@ -97,7 +97,8 @@ int main( void )
 
 static void prvSetupHardware( void )
 {
-    //PLIC_init();
+    extern void freertos_risc_v_trap_handler();
+    csr_write(mtvec, freertos_risc_v_trap_handler);
 
     vSendString( "Hello world\n" );
 }
