@@ -7,7 +7,7 @@
 #define BSP_HART_COUNT SYSTEM_CPU_COUNT
 
 #define BSP_PLIC SYSTEM_PLIC_BUS
-#define BSP_PLIC_CPU_0 SYSTEM_PLIC_SYSTEM_CPU_EXTERNAL_INTERRUPT
+#define BSP_PLIC_CPU_0 SYSTEM_PLIC_SYSTEM_CORES_0_CPU_EXTERNAL_INTERRUPT
 #define BSP_CLINT SYSTEM_CLINT_BUS
 #define BSP_CLINT_HZ SYSTEM_CLINT_HZ
 #define BSP_CLINT_PLIC_ID SYSTEM_PLIC_SYSTEM_CLINT_INTERRUPT
@@ -20,3 +20,8 @@
 #define bsp_putChar(c) uart_write(BSP_UART_TERMINAL, c);
 #define bsp_uDelay(usec) clint_uDelay(usec, SYSTEM_CLINT_HZ, SYSTEM_CLINT_BUS);
 #define bsp_putString(s) uart_writeStr(BSP_UART_TERMINAL, s);
+
+// Freertos specifics
+#define configMTIME_BASE_ADDRESS        (BSP_CLINT + 0xBFF8)
+#define configMTIMECMP_BASE_ADDRESS     (BSP_CLINT + 0x4000)
+#define configCPU_CLOCK_HZ              ( ( uint32_t ) ( BSP_CLINT_HZ ) )
