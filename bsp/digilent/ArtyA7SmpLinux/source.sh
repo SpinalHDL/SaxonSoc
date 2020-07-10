@@ -68,6 +68,17 @@ saxon_buildroot_load(){
   echo "bootm 0x80000000 0x80FFFFC0 0x80FF0000"
 }
 
+saxon_baremetal_load(){
+  cd $SAXON_ROOT/SaxonSoc
+  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -c "set APP_BIN $1" -f usb_connect.cfg -f soc_init.cfg -f baremetal.cfg
+}
+
+saxon_standalone_load(){
+  cd $SAXON_ROOT/SaxonSoc
+  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -c "set APP_BIN software/standalone/$1/build/$1.bin" -f usb_connect.cfg -f soc_init.cfg -f baremetal.cfg
+}
+
+
 saxon_buildroot_clean(){
   cd $SAXON_ROOT/buildroot
   make clean 
