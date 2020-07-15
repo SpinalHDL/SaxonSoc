@@ -10,7 +10,7 @@ import vexriscv.VexRiscvBmbGenerator
 class BmbApbVexRiscvGenerator  extends Generator {
   implicit val interconnect = BmbInterconnectGenerator()
   implicit val apbDecoder = Apb3DecoderGenerator()
-  implicit val peripheralBridge = BmbSmpToApb3Decoder(address = 0x10000000)
+  implicit val peripheralBridge = BmbToApb3Decoder(address = 0x10000000)
   implicit val cpu = VexRiscvBmbGenerator()
 
   interconnect.setDefaultArbitration(BmbInterconnectGenerator.STATIC_PRIORITY)

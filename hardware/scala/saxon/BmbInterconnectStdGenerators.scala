@@ -19,14 +19,14 @@ case class RtlPhyGenerator()extends Generator{
   val io = produceIo(logic.io.write)
   val logic = add task RtlPhy(layout)
 
-  def connect(ctrl : SdramXdrBmb2SmpGenerator): Unit = {
+  def connect(ctrl : SdramXdrBmbGenerator): Unit = {
     layout.produce{ ctrl.phyParameter.load(layout.get) }
     Dependable(ctrl, logic){ ctrl.logic.io.phy <> logic.io.ctrl }
   }
 }
 
 
-case class BmbSmpOnChipRamGenerator(val address: Handle[BigInt] = Unset)
+case class BmbOnChipRamGenerator(val address: Handle[BigInt] = Unset)
                                 (implicit interconnect: BmbInterconnectGenerator) extends Generator {
   val size      = Handle[BigInt]
   val dataWidth = Handle[Int]
@@ -57,7 +57,7 @@ case class BmbSmpOnChipRamGenerator(val address: Handle[BigInt] = Unset)
 
 
 
-case class  BmbSmpToApb3Decoder(address : Handle[BigInt] = Unset)(implicit interconnect: BmbInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) extends Generator {
+case class  BmbToApb3Decoder(address : Handle[BigInt] = Unset)(implicit interconnect: BmbInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) extends Generator {
   val input = produce(logic.bridge.io.input)
   val requirements = createDependency[BmbAccessParameter]
 

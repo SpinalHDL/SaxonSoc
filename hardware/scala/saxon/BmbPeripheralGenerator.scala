@@ -48,8 +48,8 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
 }
 
 
-case class SdramXdrBmb2SmpGenerator(memoryAddress: BigInt)
-                                  (implicit interconnect: BmbInterconnectGenerator) extends Generator {
+case class SdramXdrBmbGenerator(memoryAddress: BigInt)
+                               (implicit interconnect: BmbInterconnectGenerator) extends Generator {
 
   val phyParameter = createDependency[PhyLayout]
   val coreParameter = createDependency[CoreParameter]
@@ -74,9 +74,9 @@ case class SdramXdrBmb2SmpGenerator(memoryAddress: BigInt)
   def addPort() = new Generator {
     val requirements = createDependency[BmbAccessParameter]
     val portId = portsParameter.length
-    val bmb = SdramXdrBmb2SmpGenerator.this.produce(logic.io.bmb(portId))
+    val bmb = SdramXdrBmbGenerator.this.produce(logic.io.bmb(portId))
 
-    portsParameter += SdramXdrBmb2SmpGenerator.this.createDependency[BmbPortParameter]
+    portsParameter += SdramXdrBmbGenerator.this.createDependency[BmbPortParameter]
 
     interconnect.addSlave(
       accessCapabilities = phyParameter.produce(CtrlWithPhy.bmbCapabilities(phyParameter)),
@@ -141,7 +141,7 @@ case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect
   }
 
 
-  def connect(ctrl : SdramXdrBmb2SmpGenerator): Unit = {
+  def connect(ctrl : SdramXdrBmbGenerator): Unit = {
     ctrl.phyParameter.derivatedFrom(sdramLayout)(XilinxS7Phy.phyLayout(_, 2))
 //    this.produce{
 //      ctrl.phyParameter.load(logic.phy.pl)

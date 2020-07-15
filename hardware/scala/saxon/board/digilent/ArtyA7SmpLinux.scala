@@ -43,7 +43,7 @@ import vexriscv.plugin.CsrPlugin
 
 class VexRiscvSmpGenerator  extends Generator {
   implicit val interconnect = BmbInterconnectGenerator()
-  val bmbPeripheral = BmbSmpBridgeGenerator(mapping = SizeMapping(0x10000000, 16 MiB)).peripheral(dataWidth = 32)
+  val bmbPeripheral = BmbBridgeGenerator(mapping = SizeMapping(0x10000000, 16 MiB)).peripheral(dataWidth = 32)
   implicit val peripheralDecoder = bmbPeripheral.asPeripheralDecoder()
 
   val plic = BmbPlicGenerator(0xC00000)
@@ -58,16 +58,16 @@ class VexRiscvSmpGenerator  extends Generator {
 
 
 class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
-  val ramA = BmbSmpOnChipRamGenerator(0xA00000l)
+  val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = 0x10000000 //TODO
   ramA.dataWidth.load(32)
   interconnect.addConnection(bmbPeripheral.bmb, ramA.bmb)
 
-  val sdramA = SdramXdrBmb2SmpGenerator(memoryAddress = 0x80000000l)
+  val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l)
   val sdramA0 = sdramA.addPort()
 
 
-  val iBridge = BmbSmpBridgeGenerator()
+  val iBridge = BmbBridgeGenerator()
   val exclusiveMonitor = BmbExclusiveMonitorGenerator()
   val invalidationMonitor = BmbInvalidateMonitorGenerator() //TODO add context remover
 
@@ -152,7 +152,7 @@ class ArtyA7SmpLinux extends Generator{
 
     onClockDomain(sdramCd.outputClockDomain)
 
-    val bmbCc = BmbSmpBridgeGenerator(mapping = SizeMapping(0x100000l, 8 KiB))
+    val bmbCc = BmbBridgeGenerator(mapping = SizeMapping(0x100000l, 8 KiB))
     interconnect.addConnection(system.bmbPeripheral.bmb, bmbCc.bmb).ccByToggle()
 
     val phyA = XilinxS7PhyBmbGenerator(configAddress = 0x1000)
