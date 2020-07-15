@@ -1,7 +1,7 @@
 package saxon
 
 import spinal.core._
-import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbImplicitPeripheralDecoder, BmbParameter, BmbSlaveFactory, BmbSmpInterconnectGenerator}
+import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbImplicitPeripheralDecoder, BmbParameter, BmbSlaveFactory, BmbInterconnectGenerator}
 import spinal.lib.bus.misc.{BusSlaveFactoryConfig, SizeMapping}
 import spinal.lib.com.eth._
 import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
@@ -19,7 +19,7 @@ import spinal.lib.misc.plic.{PlicGateway, PlicGatewayActiveHigh, PlicMapper, Pli
 import scala.collection.mutable.ArrayBuffer
 
 case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
-                            (implicit interconnect: BmbSmpInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
+                            (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
   val parameter = createDependency[UartCtrlMemoryMappedConfig]
   val interrupt = produce(logic.io.interrupt)
   val uart = produceIo(logic.io.uart)
@@ -49,7 +49,7 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
 
 
 case class SdramXdrBmb2SmpGenerator(memoryAddress: BigInt)
-                                  (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
+                                  (implicit interconnect: BmbInterconnectGenerator) extends Generator {
 
   val phyParameter = createDependency[PhyLayout]
   val coreParameter = createDependency[CoreParameter]
@@ -60,7 +60,7 @@ case class SdramXdrBmb2SmpGenerator(memoryAddress: BigInt)
 
   val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
-  def mapCtrlAt(address : BigInt)(implicit interconnect: BmbSmpInterconnectGenerator) : this.type = {
+  def mapCtrlAt(address : BigInt)(implicit interconnect: BmbInterconnectGenerator) : this.type = {
     interconnect.addSlave(
       accessSource = accessSource,
       accessCapabilities = accessSource.derivate(CtrlWithoutPhyBmb.getBmbCapabilities),
@@ -109,7 +109,7 @@ case class SdramXdrBmb2SmpGenerator(memoryAddress: BigInt)
 //  if(decoder != null) interconnect.addConnection(decoder.bus, ctrlBus)
 }
 
-case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect: BmbSmpInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator{
+case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator{
   val sdramLayout = createDependency[SdramLayout]
   val ctrl = produce(logic.ctrl)
   val sdram = produceIo(logic.phy.io.sdram)
@@ -156,7 +156,7 @@ case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect
 
 
 case class  BmbGpioGenerator(apbOffset : Handle[BigInt] = Unset)
-                             (implicit interconnect: BmbSmpInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator{
+                             (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator{
   val parameter = createDependency[spinal.lib.io.Gpio.Parameter]
   val gpio = produceIo(logic.io.gpio)
   val bus = produce(logic.io.bus)
@@ -195,12 +195,12 @@ case class  BmbGpioGenerator(apbOffset : Handle[BigInt] = Unset)
 
 object BmbSpiGenerator{
   def apply(apbOffset : BigInt, xipOffset : BigInt = 0)
-           (implicit interconnect: BmbSmpInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null): BmbSpiGenerator ={
+           (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null): BmbSpiGenerator ={
     new BmbSpiGenerator(apbOffset,xipOffset)
   }
 }
 class BmbSpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[BigInt] = 0)
-                      (implicit interconnect: BmbSmpInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
+                      (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
   val parameter = createDependency[SpiXdrMasterCtrl.MemoryMappingParameters]
   val withXip = Handle(false)
   val interrupt = produce(logic.io.interrupt)
@@ -261,7 +261,7 @@ class BmbSpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Big
 }
 
 case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
-                             (implicit interconnect: BmbSmpInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
+                             (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
   val parameter = createDependency[MacEthParameter]
   val rxCd, txCd = createDependency[ClockDomain]
   val interrupt = produce(logic.io.interrupt)

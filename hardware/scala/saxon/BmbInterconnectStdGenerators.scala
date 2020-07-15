@@ -3,7 +3,7 @@ package saxon
 import spinal.core._
 import spinal.lib.IMasterSlave
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3CC, Apb3Config, Apb3SlaveFactory}
-import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbArbiter, BmbEg4S20Bram32K, BmbExclusiveMonitor, BmbIce40Spram, BmbImplicitPeripheralDecoder, BmbInvalidateMonitor, BmbInvalidationParameter, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbSmpInterconnectGenerator, BmbToApb3Bridge}
+import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbArbiter, BmbEg4S20Bram32K, BmbExclusiveMonitor, BmbIce40Spram, BmbImplicitPeripheralDecoder, BmbInvalidateMonitor, BmbInvalidationParameter, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbInterconnectGenerator, BmbToApb3Bridge}
 import spinal.lib.bus.misc.{AddressMapping, DefaultMapping, SizeMapping}
 import spinal.lib.generator.{Dependable, Generator, Handle, MemoryConnection, Unset}
 import spinal.lib.memory.sdram.SdramLayout
@@ -27,7 +27,7 @@ case class RtlPhyGenerator()extends Generator{
 
 
 case class BmbSmpOnChipRamGenerator(val address: Handle[BigInt] = Unset)
-                                (implicit interconnect: BmbSmpInterconnectGenerator) extends Generator {
+                                (implicit interconnect: BmbInterconnectGenerator) extends Generator {
   val size      = Handle[BigInt]
   val dataWidth = Handle[Int]
   var hexOffset = BigInt(0)
@@ -57,7 +57,7 @@ case class BmbSmpOnChipRamGenerator(val address: Handle[BigInt] = Unset)
 
 
 
-case class  BmbSmpToApb3Decoder(address : Handle[BigInt] = Unset)(implicit interconnect: BmbSmpInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) extends Generator {
+case class  BmbSmpToApb3Decoder(address : Handle[BigInt] = Unset)(implicit interconnect: BmbInterconnectGenerator, apbDecoder : Apb3DecoderGenerator) extends Generator {
   val input = produce(logic.bridge.io.input)
   val requirements = createDependency[BmbAccessParameter]
 

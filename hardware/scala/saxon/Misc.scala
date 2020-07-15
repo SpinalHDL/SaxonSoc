@@ -11,7 +11,7 @@ import scala.collection.mutable.ArrayBuffer
 import java.io._
 
 import spinal.core.ClockDomain.FixedFrequency
-import spinal.lib.bus.bmb.BmbSmpInterconnectGenerator
+import spinal.lib.bus.bmb.BmbInterconnectGenerator
 import spinal.lib.bus.wishbone.{Wishbone, WishboneConfig}
 import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{SpiXdrMaster, SpiXdrParameter}

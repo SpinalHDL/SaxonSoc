@@ -42,7 +42,7 @@ import vexriscv.plugin.CsrPlugin
 
 
 class VexRiscvSmpGenerator  extends Generator {
-  implicit val interconnect = BmbSmpInterconnectGenerator()
+  implicit val interconnect = BmbInterconnectGenerator()
   val bmbPeripheral = BmbSmpBridgeGenerator(mapping = SizeMapping(0x10000000, 16 MiB)).peripheral(dataWidth = 32)
   implicit val peripheralDecoder = bmbPeripheral.asPeripheralDecoder()
 
