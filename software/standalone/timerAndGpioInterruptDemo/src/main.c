@@ -1,7 +1,8 @@
 #include <stdint.h>
 
 #include "bsp.h"
-#include "machineTimer.h"
+#include "clint.h"
+#include "clint.h"
 #include "riscv.h"
 #include "gpio.h"
 #include "plic.h"
@@ -18,9 +19,9 @@ void initTimer();
 void scheduleTimer();
 
 #ifdef SPINAL_SIM
-    #define TIMER_TICK_DELAY (BSP_MACHINE_TIMER_HZ/200) //Faster timer tick in simulation to avoid having to wait too long
+    #define TIMER_TICK_DELAY (BSP_CLINT_HZ/200) //Faster timer tick in simulation to avoid having to wait too long
 #else
-    #define TIMER_TICK_DELAY (BSP_MACHINE_TIMER_HZ)
+    #define TIMER_TICK_DELAY (BSP_CLINT_HZ)
 #endif
 
 void main() {
@@ -52,14 +53,14 @@ void init(){
 uint64_t timerCmp; //Store the next interrupt time
 
 void initTimer(){
-    timerCmp = machineTimer_getTime(BSP_MACHINE_TIMER);
+    timerCmp = clint_getTime(BSP_CLINT);
     scheduleTimer();
 }
 
 //Make the timer tick in 1 second. (if SPINAL_SIM=yes, then much faster for simulations reasons)
 void scheduleTimer(){
     timerCmp += TIMER_TICK_DELAY;
-    machineTimer_setCmp(BSP_MACHINE_TIMER, timerCmp);
+    clint_setCmp(BSP_CLINT, timerCmp, 0);
 }
 
 //Called by trap_entry on both exceptions and interrupts events
@@ -84,7 +85,7 @@ void timerInterrupt(){
 
     scheduleTimer();
 
-    bsp_putString("BSP_MACHINE_TIMER ");
+    bsp_putString("BSP_CLINT ");
     bsp_putChar('0' + counter);
     bsp_putChar('\n');
     if(++counter == 10) counter = 0;
