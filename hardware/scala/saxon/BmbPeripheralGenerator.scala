@@ -265,7 +265,7 @@ case class BmbI2cGenerator(apbOffset : Handle[BigInt] = Unset)
                            (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
   val parameter = createDependency[I2cSlaveMemoryMappedGenerics]
   val i2c = produceIo(logic.io.i2c)
-  val bus = produce(logic.io.ctrl)
+  val ctrl = produce(logic.io.ctrl)
   val interrupt = produce(logic.io.interrupt)
 
   val accessSource = Handle[BmbAccessCapabilities]
@@ -274,10 +274,10 @@ case class BmbI2cGenerator(apbOffset : Handle[BigInt] = Unset)
     accessSource = accessSource,
     accessCapabilities = accessSource.derivate(BmbGpio2.getBmbCapabilities),
     accessRequirements = accessRequirements,
-    bus = bus,
+    bus = ctrl,
     mapping = apbOffset.derivate(SizeMapping(_, 1 << Gpio.addressWidth))
   )
-  if(decoder != null) interconnect.addConnection(decoder.bus, bus)
+  if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
 
   val logic = add task BmbI2cCtrl(parameter, accessRequirements.toBmbParameter())
 
