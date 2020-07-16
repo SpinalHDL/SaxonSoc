@@ -28,7 +28,7 @@ class Ice40Hx8kBreakoutSystem extends BmbApbVexRiscvGenerator{
   interconnect.addConnection(
     cpu.iBus -> List(bridge.bmb),
     cpu.dBus -> List(bridge.bmb),
-    bridge.bmb -> List(ramA.bmb, peripheralBridge.input)
+    bridge.bmb -> List(ramA.ctrl, peripheralBridge.input)
   )
 }
 

@@ -51,7 +51,7 @@ class ArtyA7LinuxSystem() extends SaxonSocLinux{
   interconnect.addConnection(
     cpu.iBus -> List(bridge.bmb),
     cpu.dBus -> List(bridge.bmb),
-    bridge.bmb -> List(ramA.bmb, sdramA0.bmb, peripheralBridge.input)
+    bridge.bmb -> List(ramA.ctrl, sdramA0.bmb, peripheralBridge.input)
   )
 }
 

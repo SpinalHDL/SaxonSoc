@@ -30,8 +30,8 @@ class BlackiceSocArduinoSystem extends BmbApbVexRiscvGenerator{
 
   //Interconnect specification
   interconnect.addConnection(
-    cpu.iBus -> List(ramA.bmb, sramA.bmb),
-    cpu.dBus -> List(ramA.bmb, sramA.bmb, peripheralBridge.input)
+    cpu.iBus -> List(ramA.ctrl, sramA.bmb),
+    cpu.dBus -> List(ramA.ctrl, sramA.bmb, peripheralBridge.input)
   )
 
   interconnect.setConnector(cpu.dBus){case (m,s) =>

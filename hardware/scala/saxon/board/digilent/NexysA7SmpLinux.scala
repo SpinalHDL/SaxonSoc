@@ -40,7 +40,7 @@ class NexysA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = 0x10000000 //TODO
   ramA.dataWidth.load(32)
-  interconnect.addConnection(bmbPeripheral.bmb, ramA.bmb)
+  interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
 
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l)
   val sdramA0 = sdramA.addPort()
@@ -139,7 +139,7 @@ class NexysA7SmpLinux extends Generator{
     interconnect.addConnection(bmbCc.bmb, phyA.ctrl)
 
     system.sdramA.mapCtrlAt(0x0000)
-    interconnect.addConnection(bmbCc.bmb, system.sdramA.ctrlBus)
+    interconnect.addConnection(bmbCc.bmb, system.sdramA.ctrl)
   }
 
   val clocking = add task new Area{
@@ -346,7 +346,7 @@ object NexysA7SmpLinuxSystemSim {
 //      phy.logic.derivate(_.ram.simPublic())
 
       sdramA.mapCtrlAt(0x100000)
-      interconnect.addConnection(bmbPeripheral.bmb, sdramA.ctrlBus)
+      interconnect.addConnection(bmbPeripheral.bmb, sdramA.ctrl)
 
       val bridge = JtagTapDebuggerGenerator() onClockDomain(debugCd.outputClockDomain)
       for(i <- 0 until cpuCount) {

@@ -3,6 +3,10 @@
 #include "bsp.h"
 #include "sdram.h"
 
+#define SDRAM_CTRL SYSTEM_SDRAM_A_CTRL
+#define SDRAM_PHY  SDRAM_DOMAIN_PHY_A_CTRL
+#define SDRAM_BASE SYSTEM_SDRAM_A0_BMB
+
 #define RL 5
 #define WL 5
 #define CTRL_BURST_LENGHT 2
@@ -10,7 +14,7 @@
 
 void bspMain() {
     sdram_init(
-        SYSTEM_SDRAM_A_CTRL_BUS,
+        SDRAM_CTRL,
         RL,
         WL,
         MT41K128M16JT_125_ps,
@@ -20,7 +24,7 @@ void bspMain() {
     );
 
     sdram_ddr3_init(
-        SYSTEM_SDRAM_A_CTRL_BUS,
+        SDRAM_CTRL,
         RL,
         WL,
         CTRL_BURST_LENGHT,
@@ -29,9 +33,9 @@ void bspMain() {
 
 #ifndef SPINAL_SIM
     sdram_phy_s7(
-        SYSTEM_SDRAM_A_CTRL_BUS,
-        SDRAM_DOMAIN_PHY_A_CTRL,
-        SYSTEM_SDRAM_A0_BMB
+        SDRAM_CTRL,
+        SDRAM_PHY,
+        SDRAM_BASE
     );
 #endif
     asm("ebreak");

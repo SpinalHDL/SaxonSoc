@@ -52,8 +52,8 @@ class BlackiceMxSocSdramSystem extends BmbApbVexRiscvGenerator{
 
   //Interconnect specification
   interconnect.addConnection(
-    cpu.iBus -> List(ramA.bmb, sdramA.bmb),
-    cpu.dBus -> List(ramA.bmb, sdramA.bmb, peripheralBridge.input)
+    cpu.iBus -> List(ramA.ctrl, sdramA.bmb),
+    cpu.dBus -> List(ramA.ctrl, sdramA.bmb, peripheralBridge.input)
   )
 
   interconnect.setConnector(sdramA.bmb){(m,s) =>

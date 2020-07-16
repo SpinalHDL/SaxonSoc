@@ -22,8 +22,8 @@ class TinyFpgaBxSocMinimalSystem extends BmbApbVexRiscvGenerator{
 
   //Interconnect specification
   interconnect.addConnection(
-    cpu.iBus -> List(ramA.bmb),
-    cpu.dBus -> List(ramA.bmb, peripheralBridge.input)
+    cpu.iBus -> List(ramA.ctrl),
+    cpu.dBus -> List(ramA.ctrl, peripheralBridge.input)
   )
 }
 

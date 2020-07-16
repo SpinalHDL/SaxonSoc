@@ -24,7 +24,7 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
   val parameter = createDependency[UartCtrlMemoryMappedConfig]
   val interrupt = produce(logic.io.interrupt)
   val uart = produceIo(logic.io.uart)
-  val bus = produce(logic.io.bus)
+  val ctrl = produce(logic.io.bus)
 
   val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
@@ -41,11 +41,11 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
     accessSource = accessSource,
     accessCapabilities = accessSource.derivate(BmbUartCtrl.getBmbCapabilities),
     accessRequirements = accessRequirements,
-    bus = bus,
+    bus = ctrl,
     mapping = apbOffset.derivate(SizeMapping(_, 1 << BmbUartCtrl.addressWidth))
   )
   export(parameter)
-  if(decoder != null) interconnect.addConnection(decoder.bus, bus)
+  if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
 }
 
 
@@ -56,7 +56,7 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
   val coreParameter = createDependency[CoreParameter]
   val portsParameter = ArrayBuffer[Handle[BmbPortParameter]]()
   val phyPort = produce(logic.io.phy)
-  val ctrlBus = produce(logic.io.ctrl)
+  val ctrl = produce(logic.io.ctrl)
 
 
   val accessSource = Handle[BmbAccessCapabilities]
@@ -66,7 +66,7 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
       accessSource = accessSource,
       accessCapabilities = accessSource.derivate(CtrlWithoutPhyBmb.getBmbCapabilities),
       accessRequirements = accessRequirements,
-      bus = ctrlBus,
+      bus = ctrl,
       mapping = SizeMapping(address, 1 << CtrlWithoutPhyBmb.addressWidth)
     )
     this
@@ -160,7 +160,7 @@ case class  BmbGpioGenerator(apbOffset : Handle[BigInt] = Unset)
                              (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator{
   val parameter = createDependency[spinal.lib.io.Gpio.Parameter]
   val gpio = produceIo(logic.io.gpio)
-  val bus = produce(logic.io.bus)
+  val ctrl = produce(logic.io.bus)
 
   val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
@@ -184,10 +184,10 @@ case class  BmbGpioGenerator(apbOffset : Handle[BigInt] = Unset)
     accessSource = accessSource,
     accessCapabilities = accessSource.derivate(BmbGpio2.getBmbCapabilities),
     accessRequirements = accessRequirements,
-    bus = bus,
+    bus = ctrl,
     mapping = apbOffset.derivate(SizeMapping(_, 1 << Gpio.addressWidth))
   )
-  if(decoder != null) interconnect.addConnection(decoder.bus, bus)
+  if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
 }
 
 
@@ -293,7 +293,7 @@ case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
   val rxCd, txCd = createDependency[ClockDomain]
   val interrupt = produce(logic.io.interrupt)
   val phy = produce(logic.io.phy)
-  val bus = produce(logic.io.bus)
+  val ctrl = produce(logic.io.bus)
 
   val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
@@ -312,11 +312,11 @@ case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
     accessSource = accessSource,
     accessCapabilities = accessSource.derivate(BmbMacEth.getBmbCapabilities),
     accessRequirements = accessRequirements,
-    bus = bus,
+    bus = ctrl,
     mapping = address.derivate(SizeMapping(_, 1 << BmbMacEth.addressWidth))
   )
   export(parameter)
-  if(decoder != null) interconnect.addConnection(decoder.bus, bus)
+  if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
 
 
   def withPhyMii() = new Generator {

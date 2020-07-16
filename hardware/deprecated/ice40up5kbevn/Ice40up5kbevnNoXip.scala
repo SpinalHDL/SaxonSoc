@@ -286,7 +286,7 @@ object Ice40up5kbevnNoXipSystemSim {
       ramA.size.load(128 KiB)
       ramA.hexInit.load("software/standalone/cfu/build/cfu.hex")
       interconnect.addConnection(
-        bridge.bmb -> List(ramA.bmb)
+        bridge.bmb -> List(ramA.ctrl)
       )
 
       Ice40up5kbevnNoXipSystem.default(this, clockCtrl)

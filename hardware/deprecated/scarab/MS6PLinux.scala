@@ -21,8 +21,8 @@ class MS6PLinuxSystem extends SaxonSocLinux{
 
   //Interconnect specification
   interconnect.addConnection(
-    cpu.iBus -> List(ramA.bmb, sdramA.bmb),
-    cpu.dBus -> List(ramA.bmb, sdramA.bmb, peripheralBridge.input)
+    cpu.iBus -> List(ramA.ctrl, sdramA.bmb),
+    cpu.dBus -> List(ramA.ctrl, sdramA.bmb, peripheralBridge.input)
   )
 }
 

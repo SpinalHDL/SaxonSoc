@@ -40,7 +40,7 @@ class Ulx3sLinuxUbootSystem extends SaxonSocLinux {
   interconnect.addConnection(
     cpu.iBus -> List(bridge.bmb),
     cpu.dBus -> List(bridge.bmb),
-    bridge.bmb -> List(sdramA0.bmb, ramA.bmb, peripheralBridge.input)
+    bridge.bmb -> List(sdramA0.bmb, ramA.ctrl, peripheralBridge.input)
   )
 
   interconnect.setConnector(bridge.bmb){case (m,s) =>
