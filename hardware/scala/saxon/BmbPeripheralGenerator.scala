@@ -1,9 +1,10 @@
 package saxon
 
 import spinal.core._
-import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbImplicitPeripheralDecoder, BmbParameter, BmbSlaveFactory, BmbInterconnectGenerator}
+import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbImplicitPeripheralDecoder, BmbInterconnectGenerator, BmbParameter, BmbSlaveFactory}
 import spinal.lib.bus.misc.{BusSlaveFactoryConfig, SizeMapping}
 import spinal.lib.com.eth._
+import spinal.lib.com.i2c.{BmbI2cCtrl, I2cSlaveMemoryMappedGenerics}
 import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
 import spinal.lib.com.spi.ddr.{BmbSpiXdrMasterCtrl, SpiXdrMasterCtrl}
 import spinal.lib.com.uart.{BmbUartCtrl, UartCtrlMemoryMappedConfig}
@@ -259,6 +260,32 @@ class BmbSpiGenerator(apbOffset : Handle[BigInt] = Unset, xipOffset : Handle[Big
   )
   if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
 }
+
+case class BmbI2cGenerator(apbOffset : Handle[BigInt] = Unset)
+                           (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
+  val parameter = createDependency[I2cSlaveMemoryMappedGenerics]
+  val i2c = produceIo(logic.io.i2c)
+  val bus = produce(logic.io.ctrl)
+  val interrupt = produce(logic.io.interrupt)
+
+  val accessSource = Handle[BmbAccessCapabilities]
+  val accessRequirements = createDependency[BmbAccessParameter]
+  interconnect.addSlave(
+    accessSource = accessSource,
+    accessCapabilities = accessSource.derivate(BmbGpio2.getBmbCapabilities),
+    accessRequirements = accessRequirements,
+    bus = bus,
+    mapping = apbOffset.derivate(SizeMapping(_, 1 << Gpio.addressWidth))
+  )
+  if(decoder != null) interconnect.addConnection(decoder.bus, bus)
+
+  val logic = add task BmbI2cCtrl(parameter, accessRequirements.toBmbParameter())
+
+  def connectInterrupt(ctrl : InterruptCtrlGeneratorI, id : Int): Unit = {
+    ctrl.addInterrupt(interrupt, id)
+  }
+}
+
 
 case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
                              (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
