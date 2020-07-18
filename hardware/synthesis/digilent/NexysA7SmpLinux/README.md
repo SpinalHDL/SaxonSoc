@@ -3,7 +3,7 @@
 ## Repo setup
 
 ```sh
-cd hardware/synthesis/nexys_a7
+cd hardware/synthesis/digilent/NexysA7SmpLinux/
 make repo-setup
 ```
 
@@ -12,14 +12,14 @@ make repo-setup
 ### SPI flash software
 
 ```sh
-cd hardware/synthesis/nexys_a7
+cd hardware/synthesis/digilent/NexysA7SmpLinux/
 make spi-flash-sw
 ```
 
 ### Hardware (and bootloader)
 
 ```sh
-cd hardware/synthesis/nexys_a7
+cd hardware/synthesis/digilent/NexysA7SmpLinux/
 make clean-sw
 make
 ```
@@ -29,14 +29,14 @@ make
 ### QSPI flash programming (load hardware + u-boot)
 
 ```sh
-cd hardware/synthesis/nexys_a7
+cd hardware/synthesis/digilent/NexysA7SmpLinux/
 make flash
 ```
 
 ### Direct FPGA RAM programming (update only hardware for quick test)
 
 ```sh
-cd hardware/synthesis/nexys_a7
+cd hardware/synthesis/digilent/NexysA7SmpLinux/
 make prog
 ```
 
