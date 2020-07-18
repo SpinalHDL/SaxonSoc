@@ -139,20 +139,66 @@ openocd/src/openocd -c "set CPU0_YAML $PWD/SaxonSoc/cpu0.yaml" -s openocd/tcl -s
 
 ## Misc
 
-### Uboot
-
+### Load Linux from SD
+ Use ramfs in RAM
 ```sh
 load mmc 0 80000000 uImage
 load mmc 0 80ff0000 dtb
 load mmc 0 80ffffc0 rootfs.cpio.uboot
 bootm 80000000 80ffffc0 80ff0000
 ```
-
+ Use rootfs from SD
 ```sh
 load mmc 0 80000000 uImage
 load mmc 0 80ff0000 dtb
 bootm 80000000 - 80ff0000
 ```
+
+### Load Linux from TFTP server
+
+```sh
+setenv serverip 10.0.0.1
+setenv ipaddr 10.0.0.2
+saveenv
+
+tftp 80400000 uImage
+tftp 80ff0000 dtb
+tftp 80ffffc0 rootfs.cpio.uboot
+bootm 80400000 80ffffc0 80ff0000
+```
+
+```sh
+setenv serverip 10.0.0.1
+setenv ipaddr 10.0.0.2
+setenv pxefile_addr_r 81000000
+setenv kernel_addr_r 80400000
+setenv ramdisk_addr_r 80ffffc0
+setenv fdt_addr_r 80ff0000
+saveenv
+
+pxe get
+pxe boot
+```
+
+```sh
+#tftp server (0A000002=10.0.0.2)
+$ tree /local/tftpboot/
+/local/tftpboot/
+├── dtb
+├── pxelinux.cfg
+│   └── 0A000002
+├── rootfs.cpio.uboot
+└── uImage
+
+1 directory, 4 files
+
+$ cat /local/tftpboot/pxelinux.cfg/0A000002
+label sdcard
+kernel uImage
+fdt dtb
+#initrd rootfs.cpio.uboot
+```
+ Uncomment the last line above to use ramfs in RAM instead of rootfs from SD
 
 ### Linux
 
@@ -324,4 +370,14 @@ ping 10.0.0.1
     };
   };
 };
+```
+
+## Simulation
+
+### Ethernet
+
+```sh
+make RISCV_BIN=/opt/riscv_xpacks/bin/riscv-none-embed- -C software/standalone/bootloader BSP=digilent/NexysA7SmpLinux SPINAL_SIM=yes clean all
+make RISCV_BIN=/opt/riscv_xpacks/bin/riscv-none-embed- -C software/standalone/ethernet BSP=digilent/NexysA7SmpLinux SPINAL_SIM=yes clean all
+sbt "runMain saxon.board.digilent.NexysA7SmpLinuxSystemSim"
 ```
