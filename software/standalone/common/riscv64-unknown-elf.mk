@@ -1,4 +1,13 @@
+ifneq (, $(shell which riscv64-unknown-elf-gcc))
 RISCV_BIN ?= riscv64-unknown-elf-
+else
+ifneq (, $(shell which riscv-none-embed-gcc))
+RISCV_BIN ?= riscv-none-embed-
+else
+$(error No RISC-V toolchain detected, please install riscv-none-embed- from xpack)
+endif
+endif
+
 RISCV_CC=${RISCV_BIN}gcc
 RISCV_OBJCOPY=${RISCV_BIN}objcopy
 RISCV_OBJDUMP=${RISCV_BIN}objdump

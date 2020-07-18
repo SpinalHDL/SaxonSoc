@@ -3,7 +3,6 @@
 SAXON_SOURCED_SH=$(realpath ${BASH_SOURCE})
 SAXON_ROOT=$(dirname $SAXON_SOURCED_SH)/"../../../.."
 
-
 saxon_source(){
   cd $SAXON_ROOT
   source $SAXON_SOURCED_SH
@@ -93,8 +92,8 @@ saxon_buildroot_compile(){
   cd $SAXON_ROOT/buildroot
   make linux-rebuild all -j$(nproc)
   sleep 2
-  riscv64-unknown-elf-objcopy  -O binary output/images/vmlinux output/images/Image
-  riscv64-unknown-elf-objdump  -S -d output/images/vmlinux > output/images/linux.asm
+  riscv-none-embed-objcopy  -O binary output/images/vmlinux output/images/Image
+  riscv-none-embed-objdump  -S -d output/images/vmlinux > output/images/linux.asm
   output/host/bin/mkimage -A riscv -O linux -T kernel -C none -a 0x80000000 -e 0x80000000 -n Linux -d output/images/Image output/images/uImage
   saxon_buildroot_dts
 }  
@@ -112,24 +111,24 @@ saxon_buildroot_dts(){
 
 saxon_opensbi(){
   cd $SAXON_ROOT/opensbi
-  export CROSS_COMPILE=/opt/riscv/bin/riscv64-unknown-elf-
+  export CROSS_COMPILE=riscv-none-embed-
   export PLATFORM_RISCV_XLEN=32
   make PLATFORM=spinal/saxon/digilent/artyA7Smp clean 
   make PLATFORM=spinal/saxon/digilent/artyA7Smp -j$(nproc) SAXON_PATH=../SaxonSoc BSP=digilent/ArtyA7SmpLinux
-  riscv64-unknown-elf-objdump  -S -d /media/data/open/opensbi/build/platform/spinal/vexriscv/sim/smp/firmware/fw_jump.elf > fw_jump.asm
+  riscv-none-embed-objdump  -S -d /media/data/open/opensbi/build/platform/spinal/vexriscv/sim/smp/firmware/fw_jump.elf > fw_jump.asm
 }
 
 saxon_uboot_clean(){
   cd $SAXON_ROOT/u-boot
-  CROSS_COMPILE=/opt/riscv_uboot/bin/riscv64-unknown-elf- make clean
+  CROSS_COMPILE=riscv-none-embed- make clean
 }
 
 saxon_uboot_compile(){
   cd $SAXON_ROOT/u-boot
-  CROSS_COMPILE=/opt/riscv_xpacks/bin/riscv-none-embed- make saxon_arty_a7_smp_defconfig
-  CROSS_COMPILE=/opt/riscv_xpacks/bin/riscv-none-embed- make -j$(nproc)
+  CROSS_COMPILE=riscv-none-embed- make saxon_arty_a7_smp_defconfig
+  CROSS_COMPILE=riscv-none-embed- make -j$(nproc)
   rm -p u-boot.asm
-  riscv64-unknown-elf-objdump  -S -d u-boot >  u-boot.asm
+  riscv-none-embed-objdump  -S -d u-boot >  u-boot.asm
 }
 
 saxon_uboot(){

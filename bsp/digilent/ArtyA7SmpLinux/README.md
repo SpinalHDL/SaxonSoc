@@ -64,12 +64,15 @@ sudo apt-get update
 sudo apt-get install sbt
 
 # RISC-V toolchain
-VERSION=riscv64-unknown-elf-gcc-8.3.0-2019.08.0-x86_64-linux-ubuntu14
-wget https://static.dev.sifive.com/dev-tools/$VERSION.tar.gz
-tar -xzvf $VERSION.tar.gz
-sudo mv $VERSION /opt/riscv
-echo 'export PATH=/opt/riscv/bin:$PATH' >> ~/.bashrc
-export PATH=/opt/riscv/bin:$PATH
+mkdir -p ~/opt
+cd ~/opt
+VERSION=8.3.0-1.2
+wget https://github.com/xpack-dev-tools/riscv-none-embed-gcc-xpack/releases/download/v$VERSION/xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
+tar -xvf xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
+rm xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
+mv xpack-riscv-none-embed-gcc-$VERSION xpack-riscv-none-embed-gcc
+echo 'export PATH=~/opt/xpack-riscv-none-embed-gcc/bin:$PATH' >> ~/.bashrc
+export PATH=~/opt/xpack-riscv-none-embed-gcc/bin:$PATH
 
 # Vivado in the path for synthesis
 ```
