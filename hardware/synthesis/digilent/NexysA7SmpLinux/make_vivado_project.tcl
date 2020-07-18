@@ -14,16 +14,10 @@ if {[llength $files] != 0} {
 create_project -part $part $project_name $outputdir
 
 #add source files to Vivado project
-#add_files -fileset sim_1 ./path/to/testbench.vhd
-#add_files [glob ./path/to/sources/*.vhd]
-#add_files -fileset constrs_1 ./path/to/constraint/constraint.xdc
-#add_files [glob ./path/to/library/sources/*.vhd]
-#set_property -library userDefined [glob ./path/to/library/sources/*.vhd]
-#add_files [glob $base/*.v]
 add_files [glob $base/../xilinx/common/*.v]
 add_files [glob $topv]
-add_files -fileset constrs_1 $base/NexysA7.xdc
-add_files -fileset constrs_1 $base/NexysA7_DDR.xdc
+add_files -fileset constrs_1 ../NexysA7.xdc
+add_files -fileset constrs_1 ../NexysA7_DDR.xdc
 
 #set top level module and update compile order
 set_property top $top [current_fileset]

@@ -1,11 +1,11 @@
 #ROOT shall point to location of build.sbt
-ROOT=../../..
+ROOT=../../../..
 SWBASE=$(ROOT)/software/standalone
 SOCSW=bootloader
 SOCMEMSRC=$(SWBASE)/$(SOCSW)/build/$(SOCSW).elf
 
 TOP=NexysA7SmpLinux
-TOPV=../../netlist/$(TOP).v
+TOPV=$(ROOT)/hardware/netlist/$(TOP).v
 
 RISCV_BIN?=/opt/riscv_xpacks/bin/riscv-none-embed-
 
@@ -17,7 +17,7 @@ repo-setup:
 	(cd $(ROOT)/..;git clone https://github.com/SpinalHDL/opensbi.git -b spinal)
 
 spi-flash-sw:
-	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot saxon_arty_a7_smp_defconfig
+	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot mrproper saxon_nexys_a7_defconfig
 	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../u-boot -j$(nproc)
 	CROSS_COMPILE=$(RISCV_BIN) make -C $(ROOT)/../opensbi PLATFORM=spinal/saxon/digilent/artyA7Smp SAXON_PATH=../SaxonSoc BSP=digilent/$(TOP) clean all
 
@@ -25,15 +25,15 @@ sdcard:
 	make -C $(ROOT) formatsdcard
 	make -C $(ROOT) linux2sdcard
 
-$(TOPV) : $(SOCMEMSRC) ../../scala/saxon/board/digilent/$(TOP).scala
-	(cd ../../..; sbt "runMain saxon.board.digilent.$(TOP)")
+$(TOPV) : $(SOCMEMSRC) $(ROOT)/hardware/scala/saxon/board/digilent/$(TOP).scala
+	(cd $(ROOT); sbt "runMain saxon.board.digilent.$(TOP)")
 
 generate: $(TOPV)
 
 .PHONY: $(SOCMEMSRC)
 $(SOCMEMSRC):
 	mkdir -p build
-	RISCV_BIN=$(RISCV_BIN) make -C $(SWBASE)/$(SOCSW) BSP=digilent/$(TOP)
+	make RISCV_BIN=$(RISCV_BIN) -C $(SWBASE)/$(SOCSW) BSP=digilent/$(TOP)
 
 build/latest.bit : $(TOPV)
 	mkdir -p build
