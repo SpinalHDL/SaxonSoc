@@ -94,7 +94,7 @@ source SaxonSoc/bsp/digilent/ArtyA7SmpLinux/source.sh
 saxon_clone
 
 # Build the FPGA bitstream
-saxon_bootloader
+saxon_baremetal_compile bootloader
 saxon_netlist
 saxon_bitstream
 
@@ -104,7 +104,7 @@ saxon_uboot
 saxon_buildroot
 
 # Build the programming tools
-saxon_sdramInit
+saxon_baremetal_compile sdramInit
 saxon_openocd
 ```
 

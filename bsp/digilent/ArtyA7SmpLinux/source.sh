@@ -1,139 +1,32 @@
 #!/bin/sh
 
+# Locations
 SAXON_SOURCED_SH=$(realpath ${BASH_SOURCE})
-SAXON_ROOT=$(dirname $SAXON_SOURCED_SH)/"../../../.."
+SAXON_BSP_PATH=$(dirname $SAXON_SOURCED_SH)
+SAXON_ROOT=$SAXON_BSP_PATH/"../../../.."
+SAXON_BSP_COMMON_SCRIPTS=$SAXON_ROOT/SaxonSoc/bsp/common/scripts
 
-saxon_source(){
-  cd $SAXON_ROOT
-  source $SAXON_SOURCED_SH
-}
+# Configurations
+SAXON_OPENSBI_PLATEFORM=spinal/saxon/digilent/artyA7Smp
+SAXON_UBOOT_DEFCONFIG=saxon_arty_a7_smp_defconfig
+SAXON_BUILDROOT_DEFCONFIG=spinal_saxon_arty_a7_smp_defconfig
+SAXON_BUILDROOT_DTS=board/spinal/saxon_arty_a7_smp/dts
 
-saxon_clone() {
-  cd $SAXON_ROOT
-  git clone https://github.com/SpinalHDL/u-boot.git --branch smp 
-  git clone https://github.com/SpinalHDL/buildroot.git --branch spinal 
-  git clone https://github.com/SpinalHDL/linux.git --branch vexriscv 
-  git clone https://github.com/SpinalHDL/opensbi.git --branch spinal 
-  git clone https://github.com/SpinalHDL/openocd_riscv.git
-}
-
-saxon_openocd(){
-  cd $SAXON_ROOT/openocd_riscv
-  ./bootstrap
-  ./configure --enable-ftdi --enable-dummy
-  make -j$(nproc)
-}
-
-
-saxon_bootloader(){
-  cd $SAXON_ROOT/SaxonSoc/software/standalone/bootloader
-  make clean all BSP=digilent/ArtyA7SmpLinux
-}
-
-
-saxon_sdramInit(){
-  cd $SAXON_ROOT/SaxonSoc/software/standalone/sdramInit
-  make clean all BSP=digilent/ArtyA7SmpLinux
-}
-
+# Functionalities
+source $SAXON_BSP_COMMON_SCRIPTS/base.sh
+source $SAXON_BSP_COMMON_SCRIPTS/openocd.sh
+source $SAXON_BSP_COMMON_SCRIPTS/opensbi.sh
+source $SAXON_BSP_COMMON_SCRIPTS/uboot.sh
+source $SAXON_BSP_COMMON_SCRIPTS/buildroot.sh
 
 saxon_netlist(){
   cd $SAXON_ROOT/SaxonSoc
   sbt "runMain saxon.board.digilent.ArtyA7SmpLinux"
 }
 
-
 saxon_bitstream(){
   cd $SAXON_ROOT/SaxonSoc/hardware/synthesis/digilent/ArtyA7SmpLinux
   make all
-}
-
-saxon_fpga_load(){
-  cd $SAXON_ROOT/SaxonSoc
-  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f fpga_load.cfg
-}
-
-saxon_openocd_connect(){
-  cd $SAXON_ROOT/SaxonSoc
-  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f soc_init.cfg
-}
-
-saxon_buildroot_load(){
-  cd $SAXON_ROOT/SaxonSoc
-  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f soc_init.cfg -f linux_boot.cfg -c 'exit'
-  echo ""
-  echo "!!! u-boot will by default try to boot on the SDCARD !!!"
-  echo "In order to boot from the jtag, you will have to stop the boot sequance and enter :"
-  echo "bootm 0x80000000 0x80FFFFC0 0x80FF0000"
-}
-
-saxon_baremetal_load(){
-  cd $SAXON_ROOT/SaxonSoc
-  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -c "set APP_BIN $1" -f usb_connect.cfg -f soc_init.cfg -f baremetal.cfg
-}
-
-saxon_standalone_load(){
-  cd $SAXON_ROOT/SaxonSoc
-  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s bsp/digilent/ArtyA7SmpLinux/openocd -c 'set CPU0_YAML cpu0.yaml' -c "set APP_BIN software/standalone/$1/build/$1.bin" -f usb_connect.cfg -f soc_init.cfg -f baremetal.cfg
-}
-
-
-saxon_buildroot_clean(){
-  cd $SAXON_ROOT/buildroot
-  make clean 
-}
-
-saxon_buildroot_setup(){
-  cd $SAXON_ROOT/buildroot
-  make spinal_saxon_arty_a7_smp_defconfig
-}  
-
-saxon_buildroot_compile(){
-  cd $SAXON_ROOT/buildroot
-  make linux-rebuild all -j$(nproc)
-  sleep 2
-  riscv-none-embed-objcopy  -O binary output/images/vmlinux output/images/Image
-  riscv-none-embed-objdump  -S -d output/images/vmlinux > output/images/linux.asm
-  output/host/bin/mkimage -A riscv -O linux -T kernel -C none -a 0x80000000 -e 0x80000000 -n Linux -d output/images/Image output/images/uImage
-  saxon_buildroot_dts
-}  
-
-saxon_buildroot(){
-  saxon_buildroot_clean
-  saxon_buildroot_setup
-  saxon_buildroot_compile
-}
-
-saxon_buildroot_dts(){
-  cd $SAXON_ROOT/buildroot
-  dtc -O dtb -o output/images/dtb board/spinal/saxon_arty_a7_smp/dts
-}  
-
-saxon_opensbi(){
-  cd $SAXON_ROOT/opensbi
-  export CROSS_COMPILE=riscv-none-embed-
-  export PLATFORM_RISCV_XLEN=32
-  make PLATFORM=spinal/saxon/digilent/artyA7Smp clean 
-  make PLATFORM=spinal/saxon/digilent/artyA7Smp -j$(nproc) SAXON_PATH=../SaxonSoc BSP=digilent/ArtyA7SmpLinux
-  riscv-none-embed-objdump  -S -d /media/data/open/opensbi/build/platform/spinal/vexriscv/sim/smp/firmware/fw_jump.elf > fw_jump.asm
-}
-
-saxon_uboot_clean(){
-  cd $SAXON_ROOT/u-boot
-  CROSS_COMPILE=riscv-none-embed- make clean
-}
-
-saxon_uboot_compile(){
-  cd $SAXON_ROOT/u-boot
-  CROSS_COMPILE=riscv-none-embed- make saxon_arty_a7_smp_defconfig
-  CROSS_COMPILE=riscv-none-embed- make -j$(nproc)
-  rm -p u-boot.asm
-  riscv-none-embed-objdump  -S -d u-boot >  u-boot.asm
-}
-
-saxon_uboot(){
-  saxon_uboot_clean
-  saxon_uboot_compile
 }
 
 saxon_serial(){
@@ -156,4 +49,3 @@ saxon_ftp_load(){
   cp u-boot/u-boot.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
   cp SaxonSoc/bsp/digilent/ArtyA7SmpLinux/scripts/linux_tools.sh /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
 }
-
