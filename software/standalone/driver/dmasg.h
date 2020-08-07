@@ -62,11 +62,17 @@ static void dmasg_start(u32 base, u32 channel, u32 bytes, u32 self_restart){
     write_u32(DMASG_CHANNEL_STATUS_START | (self_restart ? DMASG_CHANNEL_STATUS_SELF_RESTART : 0), ca + DMASG_CHANNEL_STATUS);
 }
 
-static void dmasg_interrupt(u32 base, u32 channel, u32 mask){
+static void dmasg_interrupt_config(u32 base, u32 channel, u32 mask){
     u32 ca = dmasg_ca(base, channel);
     write_u32(mask, ca+DMASG_CHANNEL_INTERRUPT_PENDING);
     write_u32(mask, ca+DMASG_CHANNEL_INTERRUPT_ENABLE);
 }
+
+static void dmasg_interrupt_pending_clear(u32 base, u32 channel, u32 mask){
+    u32 ca = dmasg_ca(base, channel);
+    write_u32(mask, ca+DMASG_CHANNEL_INTERRUPT_PENDING);
+}
+
 
 static u32 dmasg_busy(u32 base, u32 channel){
     u32 ca = dmasg_ca(base, channel);
