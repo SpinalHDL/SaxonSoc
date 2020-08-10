@@ -31,6 +31,9 @@
 #define DMASG_CHANNEL_INTERRUPT_PENDING 0x54
 #define DMASG_CHANNEL_INTERRUPT_COMPLETION_MASK BIT0
 #define DMASG_CHANNEL_INTERRUPT_HALF_COMPLETION_MASK BIT1
+#define DMASG_CHANNEL_INTERRUPT_INPUT_PACKET_MASK BIT4
+
+#define DMASG_CHANNEL_PROGRESS_BYTES 0x60
 
 static void dmasg_push_memory(u32 base, u32 channel, u32 address, u32 byte_per_burst){
     u32 ca = dmasg_ca(base, channel);
@@ -64,7 +67,7 @@ static void dmasg_start(u32 base, u32 channel, u32 bytes, u32 self_restart){
 
 static void dmasg_interrupt_config(u32 base, u32 channel, u32 mask){
     u32 ca = dmasg_ca(base, channel);
-    write_u32(mask, ca+DMASG_CHANNEL_INTERRUPT_PENDING);
+    write_u32(0xFFFFFFFF, ca+DMASG_CHANNEL_INTERRUPT_PENDING);
     write_u32(mask, ca+DMASG_CHANNEL_INTERRUPT_ENABLE);
 }
 
@@ -87,4 +90,9 @@ static void dmasg_fifo(u32 base, u32 channel, u32 fifo_base, u32 fifo_bytes){
 static void dmasg_priority(u32 base, u32 channel, u32 priority){
     u32 ca = dmasg_ca(base, channel);
     write_u32(priority,  ca+DMASG_CHANNEL_PRIORITY);
+}
+
+static u32 dmasg_progress_bytes(u32 base, u32 channel){
+    u32 ca = dmasg_ca(base, channel);
+    return read_u32(ca + DMASG_CHANNEL_PROGRESS_BYTES);
 }
