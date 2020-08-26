@@ -38,15 +38,15 @@ void main() {
     // M -> M transfer using pulling to wait completion
     dmasg_push_memory(DMASG_BASE, DMASG_CHANNEL,  (u32)buffer[0], 16);
     dmasg_pop_memory (DMASG_BASE, DMASG_CHANNEL,  (u32)buffer[1], 16);
-    dmasg_start(DMASG_BASE, DMASG_CHANNEL, BUFFER_SIZE*4, 0);
+    dmasg_direct_start(DMASG_BASE, DMASG_CHANNEL, BUFFER_SIZE*4, 0);
     while(dmasg_busy(DMASG_BASE, DMASG_CHANNEL));
     bsp_putString("first transfer done");
 
     dmasg_push_memory(DMASG_BASE, DMASG_CHANNEL,  (u32)buffer[0], 16);
     dmasg_pop_memory (DMASG_BASE, DMASG_CHANNEL,  (u32)buffer[1], 16);
-    dmasg_interrupt_config(DMASG_BASE, DMASG_CHANNEL, DMASG_CHANNEL_INTERRUPT_COMPLETION_MASK); //Enable interrupt when the DMA finish its transfer
+    dmasg_interrupt_config(DMASG_BASE, DMASG_CHANNEL, DMASG_CHANNEL_INTERRUPT_CHANNEL_COMPLETION_MASK); //Enable interrupt when the DMA finish its transfer
     dmasg_completion = 0; //Used for the demo purpose, allow to wait the interrupt by pulling this variable.
-    dmasg_start(DMASG_BASE, DMASG_CHANNEL, BUFFER_SIZE*4, 0);
+    dmasg_direct_start(DMASG_BASE, DMASG_CHANNEL, BUFFER_SIZE*4, 0);
     while(!dmasg_completion);
     bsp_putString("seconde transfer done");
 
