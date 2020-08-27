@@ -13,7 +13,8 @@ void externalInterrupt();
 void crash();
 
 #define BUFFER_SIZE 64
-u32 buffer[2][BUFFER_SIZE];
+u8 source_buffer[BUFFER_SIZE];
+u8 destination_buffer[BUFFER_SIZE];
 
 u32 dmasg_completion;
 
@@ -31,25 +32,56 @@ void init(){
     csr_write(mstatus, MSTATUS_MPP | MSTATUS_MIE);
 }
 
+void flush_data_cache(){
+    asm(".word(0x500F)");
+}
+
+struct dmasg_descriptor descriptors[3];
 
 void main() {
     bsp_putString("DMA demo");
 
-    // M -> M transfer using pulling to wait completion
-    dmasg_push_memory(DMASG_BASE, DMASG_CHANNEL,  (u32)buffer[0], 16);
-    dmasg_pop_memory (DMASG_BASE, DMASG_CHANNEL,  (u32)buffer[1], 16);
+    // direct M -> M transfer using pulling to wait completion
+    dmasg_input_memory(DMASG_BASE, DMASG_CHANNEL,  (u32)source_buffer, 16);
+    dmasg_output_memory (DMASG_BASE, DMASG_CHANNEL,  (u32)destination_buffer, 16);
     dmasg_direct_start(DMASG_BASE, DMASG_CHANNEL, BUFFER_SIZE*4, 0);
     while(dmasg_busy(DMASG_BASE, DMASG_CHANNEL));
+    flush_data_cache();
     bsp_putString("first transfer done");
 
-    dmasg_push_memory(DMASG_BASE, DMASG_CHANNEL,  (u32)buffer[0], 16);
-    dmasg_pop_memory (DMASG_BASE, DMASG_CHANNEL,  (u32)buffer[1], 16);
+
+    // direct M -> M transfer using interrupt to wait completion
+    dmasg_input_memory(DMASG_BASE, DMASG_CHANNEL,  (u32)source_buffer, 16);
+    dmasg_output_memory (DMASG_BASE, DMASG_CHANNEL,  (u32)destination_buffer, 16);
     dmasg_interrupt_config(DMASG_BASE, DMASG_CHANNEL, DMASG_CHANNEL_INTERRUPT_CHANNEL_COMPLETION_MASK); //Enable interrupt when the DMA finish its transfer
     dmasg_completion = 0; //Used for the demo purpose, allow to wait the interrupt by pulling this variable.
     dmasg_direct_start(DMASG_BASE, DMASG_CHANNEL, BUFFER_SIZE*4, 0);
     while(!dmasg_completion);
+    flush_data_cache();
     bsp_putString("seconde transfer done");
 
+
+    // linked list M -> M transfer using pulling to wait completion
+    descriptors[0].control = BUFFER_SIZE/2-1; //Transfer the half of the buffer
+    descriptors[0].from    = (u32) source_buffer;
+    descriptors[0].to      = (u32) destination_buffer;
+    descriptors[0].next    = (u32) (descriptors + 1);
+    descriptors[0].status  = 0; //Clear the completion flag
+
+    descriptors[1].control = BUFFER_SIZE/2-1; //Transfer the (second) half of the buffer
+    descriptors[1].from    = (u32) source_buffer + BUFFER_SIZE/2;
+    descriptors[1].to      = (u32) destination_buffer + BUFFER_SIZE/2;
+    descriptors[1].next    = (u32) (descriptors + 2);
+    descriptors[1].status  = 0; //Clear the completion flag
+
+    descriptors[2].status  = DMASG_DESCRIPTOR_STATUS_COMPLETED; //Set the completion flag to stop the DMA
+
+    dmasg_input_memory(DMASG_BASE, DMASG_CHANNEL, 0, 16); // (the address do not care as it will be loaded by the linked list
+    dmasg_output_memory (DMASG_BASE, DMASG_CHANNEL, 0, 16);
+    dmasg_linked_list_start(DMASG_BASE, DMASG_CHANNEL, (u32) descriptors);
+    while(dmasg_busy(DMASG_BASE, DMASG_CHANNEL));
+    flush_data_cache();
+    bsp_putString("third transfer done");
 }
 
 //Called by trap_entry on both exceptions and interrupts events
