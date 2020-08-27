@@ -64,9 +64,9 @@ sudo apt-get update
 sudo apt-get install sbt
 
 # RISC-V toolchain
+VERSION=8.3.0-1.2
 mkdir -p ~/opt
 cd ~/opt
-VERSION=8.3.0-1.2
 wget https://github.com/xpack-dev-tools/riscv-none-embed-gcc-xpack/releases/download/v$VERSION/xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
 tar -xvf xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
 rm xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
