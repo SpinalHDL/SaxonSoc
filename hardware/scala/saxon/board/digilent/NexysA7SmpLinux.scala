@@ -185,14 +185,18 @@ object NexysA7SmpLinuxSystem{
   def default(g : NexysA7SmpLinuxAbtract) = g {
     import g._
 
-    for(coreId <- 0 until cpuCount) {
-      cores(coreId).cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
-        hartId = coreId,
-        ioRange = _ (31 downto 28) === 0x1,
-        resetVector = 0x10A00000l,
-        iBusWidth = 64,
-        dBusWidth = 64
-      ))
+    // Configure the CPUs
+    cpuCount.load(2)
+    cores.produce {
+      for ((cpu, coreId) <- cores.cpu.zipWithIndex) {
+        cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
+          hartId = coreId,
+          ioRange = _ (31 downto 28) === 0x1,
+          resetVector = 0x10A00000l,
+          iBusWidth = 64,
+          dBusWidth = 64
+        ))
+      }
     }
 
     ramA.size.load(8 KiB)
@@ -247,7 +251,7 @@ object NexysA7SmpLinuxSystem{
     )
 
     // Add some interconnect pipelining to improve FMax
-    for(core <- cores) interconnect.setPipelining(core.cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
+    cores.produce{for(cpu <- cores.cpu) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)}
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
@@ -275,7 +279,7 @@ object NexysA7SmpLinux {
         inlineRom = true
       ).addStandardMemBlackboxing(blackboxByteEnables)
        .generateVerilog(InOutWrapper(default(new NexysA7SmpLinux()).toComponent()))
-    BspGenerator("digilent/NexysA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores(0).cpu.dBus)
+    BspGenerator("digilent/NexysA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores.cpu.get(0).dBus)
   }
 }
 

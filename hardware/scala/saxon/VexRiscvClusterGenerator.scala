@@ -12,7 +12,7 @@ import vexriscv.VexRiscvBmbGenerator
 import vexriscv.plugin.CsrPlugin
 
 class VexRiscvClusterGenerator extends Generator {
-  val cpuCount = export(Handle(2))
+  val cpuCount = export(Handle[Int]())
 
   // Define the BMB interconnect utilities
   implicit val interconnect = BmbInterconnectGenerator()
@@ -28,20 +28,24 @@ class VexRiscvClusterGenerator extends Generator {
   cpuCount.derivate(clint.cpuCount.load)
 
   // Defines the VexRiscv cores with their connections to the PLIC and CLINT
-  val cores = for(cpuId <- 0 until cpuCount) yield new Area{
-    val cpu = VexRiscvBmbGenerator()
-    cpu.setTimerInterrupt(clint.timerInterrupt(cpuId))
-    cpu.setSoftwareInterrupt(clint.softwareInterrupt(cpuId))
-    plic.priorityWidth.load(2)
-    plic.mapping.load(PlicMapping.sifive)
-    plic.addTarget(cpu.externalInterrupt)
-    plic.addTarget(cpu.externalSupervisorInterrupt)
-    List(clint.logic, cpu.logic).produce{
-      for (plugin <- cpu.config.plugins) plugin match {
-        case plugin : CsrPlugin if plugin.utime != null =>plugin.utime := clint.logic.io.time
-        case _ =>
+  val cores = new Generator{
+    dependencies += cpuCount
+    interconnect.lock.retain()
+    val cpu = add task (for(cpuId <- 0 until cpuCount) yield {
+      val vex = VexRiscvBmbGenerator()
+      vex.setTimerInterrupt(clint.timerInterrupt(cpuId))
+      vex.setSoftwareInterrupt(clint.softwareInterrupt(cpuId))
+      plic.addTarget(vex.externalInterrupt)
+      plic.addTarget(vex.externalSupervisorInterrupt)
+      List(clint.logic, vex.logic).produce{
+        for (plugin <- vex.config.plugins) plugin match {
+          case plugin : CsrPlugin if plugin.utime != null =>plugin.utime := clint.logic.io.time
+          case _ =>
+        }
       }
-    }
+      vex
+    })
+    add task interconnect.lock.release()
   }
 
   // Can be use to define a SMP memory fabric with mainly 3 attatchement points (iBus, dBusCoherent, dBusIncoherent)
@@ -59,12 +63,12 @@ class VexRiscvClusterGenerator extends Generator {
       invalidationMonitor.output -> List(dBus.bmb)
     )
 
-    for(core <- cores) {
+    cores.produce(for(cpu <- cores.cpu) {
       interconnect.addConnection(
-        core.cpu.iBus -> List(iBus.bmb),
-        core.cpu.dBus -> List(dBusCoherent.bmb)
+        cpu.iBus -> List(iBus.bmb),
+        cpu.dBus -> List(dBusCoherent.bmb)
       )
-    }
+    })
 
     interconnect.masters(dBus.bmb).withOutOfOrderDecoder()
   }
@@ -72,9 +76,13 @@ class VexRiscvClusterGenerator extends Generator {
   // Utility to create the debug fabric usable by JTAG
   def withDebugBus(debugCd : ClockDomainResetGenerator, systemCd : ClockDomainResetGenerator, address : Long) = new Area{
     val ctrl = BmbBridgeGenerator() onClockDomain(debugCd.outputClockDomain)
-    for(i <- 0 until cpuCount) {
-      cores(i).cpu.enableDebugBmb(debugCd, systemCd, SizeMapping(address + i*0x1000, 0x1000))
-      interconnect.addConnection(ctrl.bmb, cores(i).cpu.debugBmb)
+    interconnect.lock.retain()
+    cores.produce {
+      interconnect.lock.release()
+      for ((cpu,i) <- cores.cpu.zipWithIndex) {
+        cores.cpu.get(i).enableDebugBmb(debugCd, systemCd, SizeMapping(address + i * 0x1000, 0x1000))
+        interconnect.addConnection(ctrl.bmb, cpu.debugBmb)
+      }
     }
 
     def withJtag() = {
