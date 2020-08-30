@@ -11,7 +11,7 @@ import spinal.lib.misc.plic.PlicMapping
 import vexriscv.VexRiscvBmbGenerator
 import vexriscv.plugin.CsrPlugin
 
-class VexRiscvClusterGenerator  extends Generator {
+class VexRiscvClusterGenerator extends Generator {
   val cpuCount = export(Handle(2))
 
   // Define the BMB interconnect utilities

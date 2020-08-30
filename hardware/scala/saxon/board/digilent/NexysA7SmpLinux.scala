@@ -36,55 +36,16 @@ import vexriscv.demo.smp._
 import vexriscv.plugin._
 import vexriscv._
 
-class NexysA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
-  val ramA = BmbOnChipRamGenerator(0xA00000l)
-  ramA.hexOffset = 0x10000000 //TODO
-  ramA.dataWidth.load(32)
-  interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
+class NexysA7SmpLinuxAbtract() extends VexRiscvClusterGenerator{
+  val fabric = withDefaultFabric()
 
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l)
   val sdramA0 = sdramA.addPort()
 
-
-  val iBridge = BmbBridgeGenerator()
-  val exclusiveMonitor = BmbExclusiveMonitorGenerator()
-  val invalidationMonitor = BmbInvalidateMonitorGenerator() //TODO add context remover
-
-  interconnect.addConnection(exclusiveMonitor.output, invalidationMonitor.input)
-
-
-  val cpuCount = Handle(2)
-  val cores = for(cpuId <- 0 until cpuCount) yield new Area{
-    val cpu = VexRiscvBmbGenerator()
-    interconnect.addConnection(
-      cpu.iBus -> List(iBridge.bmb),
-      cpu.dBus -> List(exclusiveMonitor.input)
-    )
-    cpu.setTimerInterrupt(clint.timerInterrupt(cpuId))
-    cpu.setSoftwareInterrupt(clint.softwareInterrupt(cpuId))
-    plic.priorityWidth.load(2)
-    plic.mapping.load(PlicMapping.sifive)
-    plic.addTarget(cpu.externalInterrupt)
-    plic.addTarget(cpu.externalSupervisorInterrupt)
-    List(clint.logic, cpu.logic).produce{
-      for (plugin <- cpu.config.plugins) plugin match {
-        case plugin : CsrPlugin if plugin.utime != null =>plugin.utime := clint.logic.io.time
-        case _ =>
-      }
-    }
-  }
-  export(cpuCount)
-
-  clint.cpuCount.merge(cpuCount)
-
-  interconnect.addConnection(
-    iBridge.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
-    invalidationMonitor.output -> List(sdramA0.bmb, bmbPeripheral.bmb)
-  )
-  interconnect.masters(invalidationMonitor.output).withOutOfOrderDecoder()
-
-
   val gpioA = BmbGpioGenerator(0x00000)
+
+  val uartA = BmbUartGenerator(0x10000)
+  uartA.connectInterrupt(plic, 1)
 
   val spiA = new BmbSpiGenerator(0x20000){
     val decoder = SpiPhyDecoderGenerator(phy)
@@ -97,6 +58,17 @@ class NexysA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
   val mac = BmbMacEthGenerator(0x40000)
   mac.connectInterrupt(plic, 3)
   val eth = mac.withPhyRmii()
+
+
+  val ramA = BmbOnChipRamGenerator(0xA00000l)
+  ramA.hexOffset = bmbPeripheral.mapping.lowerBound
+  ramA.dataWidth.load(32)
+  interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
+
+  interconnect.addConnection(
+    fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
+    fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
+  )
 }
 
 class NexysA7SmpLinux extends Generator{
@@ -116,15 +88,12 @@ class NexysA7SmpLinux extends Generator{
     omitReset = true
   )
 
-  val system = new NexysA7SmpLinuxSystem()
+  val system = new NexysA7SmpLinuxAbtract()
   system.onClockDomain(systemCd.outputClockDomain)
   system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
-  val debug = Bscane2BmbMasterGenerator(userId = 2)(system.interconnect) onClockDomain(debugCd.outputClockDomain)
-  for(i <- 0 until system.cpuCount) {
-    system.cores(i).cpu.enableDebugBmb(debugCd, sdramCd, SizeMapping(0x10B80000 + i*0x1000, 0x1000))
-    system.interconnect.addConnection(debug.bmb, system.cores(i).cpu.debugBmb)
-  }
+  // Enable native JTAG debug
+  val debug = system.withDebugBus(debugCd, sdramCd, 0x10B80000).withBscane2(userId = 2)
 
   val sdramDomain = new Generator{
     implicit val interconnect = system.interconnect
@@ -213,7 +182,7 @@ class NexysA7SmpLinux extends Generator{
 }
 
 object NexysA7SmpLinuxSystem{
-  def default(g : NexysA7SmpLinuxSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) = g {
+  def default(g : NexysA7SmpLinuxAbtract) = g {
     import g._
 
     for(coreId <- 0 until cpuCount) {
@@ -277,12 +246,13 @@ object NexysA7SmpLinuxSystem{
       txBufferByteSize = 4096
     )
 
-    for(core <- cores) interconnect.setConnector(core.cpu.dBus)(_.pipelined(cmdValid = true, invValid = true, ackValid = true, syncValid = true) >> _)
-    interconnect.setConnector(exclusiveMonitor.input)(_.pipelined(cmdValid = true, cmdReady = true, rspValid = true) >> _)
-    interconnect.setConnector(invalidationMonitor.output)(_.pipelined(cmdValid = true, cmdReady = true, rspValid = true) >> _)
-    interconnect.setConnector(bmbPeripheral.bmb)(_.pipelined(cmdHalfRate = true, rspHalfRate = true) >> _)
-    interconnect.setConnector(sdramA0.bmb)(_.pipelined(cmdValid = true, cmdReady = true, rspValid = true) >> _)
-    interconnect.setConnector(iBridge.bmb)(_.pipelined(cmdValid = true) >> _)
+    // Add some interconnect pipelining to improve FMax
+    for(core <- cores) interconnect.setPipelining(core.cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
+    interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
+    interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
 
     g
   }
@@ -293,7 +263,7 @@ object NexysA7SmpLinux {
   def default(g : NexysA7SmpLinux) = g{
     import g._
     sdramDomain.phyA.sdramLayout.load(MT47H64M16HR.layout)
-    NexysA7SmpLinuxSystem.default(system, debugCd, sdramCd)
+    NexysA7SmpLinuxSystem.default(system)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     g
   }
@@ -326,7 +296,7 @@ object NexysA7SmpLinuxSystemSim {
 //    simConfig.withConfig(SpinalConfig(anonymSignalPrefix = "zz_"))
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-    simConfig.compile(new NexysA7SmpLinuxSystem(){
+    simConfig.compile(new NexysA7SmpLinuxAbtract(){
       val debugCd = ClockDomainResetGenerator()
       debugCd.enablePowerOnReset()
       debugCd.holdDuration.load(63)
@@ -348,13 +318,9 @@ object NexysA7SmpLinuxSystemSim {
       sdramA.mapCtrlAt(0x100000)
       interconnect.addConnection(bmbPeripheral.bmb, sdramA.ctrl)
 
-      val bridge = JtagTapDebuggerGenerator() onClockDomain(debugCd.outputClockDomain)
-      for(i <- 0 until cpuCount) {
-        cores(i).cpu.enableDebugBmb(debugCd, systemCd, SizeMapping(0x10B80000 + i*0x1000, 0x1000))
-        interconnect.addConnection(bridge.bmb, cores(i).cpu.debugBmb)
-      }
+      val jtagTap = withDebugBus(debugCd, systemCd, address = 0x10B80000).withJtag()
 
-      NexysA7SmpLinuxSystem.default(this, debugCd, systemCd)
+      NexysA7SmpLinuxSystem.default(this)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
 //      ramA.hexInit.load("software/standalone/ethernet/build/ethernet.hex")
       val macCd = ClockDomain.external("macCd", withReset = false)
@@ -391,38 +357,10 @@ object NexysA7SmpLinuxSystemSim {
         }
       }
 
-//      fork{
-//        val duration = 999
-//        disableSimWave()
-//        clockDomain.waitSampling(100)
-//        waitUntil(dut.uartA.rxd.get.toBoolean == false)
-//        sleep(500*1000000000l)
-//        waitUntil(dut.uartA.rxd.get.toBoolean == false)
-//        println("\n\n********************")
-//        enableSimWave()
-//        sleep(duration*1000000000l)
-//        println("********************\n\n")
-//        while(true) {
-//          disableSimWave()
-//          sleep(100000 * 10000)
-//          enableSimWave()
-//          sleep(  100 * 10000)
-//        }
-//      }
-
-//      fork{
-//        while(true) {
-//          disableSimWave()
-//          sleep(100000 * 10000)
-//          enableSimWave()
-//          sleep(  100 * 10000)
-//        }
-//      }
-
-//      val tcpJtag = JtagTcp(
-//        jtag = dut.bridge.jtag,
-//        jtagClkPeriod = jtagClkPeriod
-//      )
+      val tcpJtag = JtagTcp(
+        jtag = dut.jtagTap.jtag,
+        jtagClkPeriod = jtagClkPeriod
+      )
 
       val uartTx = UartDecoder(
         uartPin =  dut.uartA.uart.txd,
@@ -447,7 +385,7 @@ object NexysA7SmpLinuxSystemSim {
       println("DRAM loading done")
 */
 
-//*
+
       dut.phy.logic.loadBin(0x00F80000, "software/standalone/ethernet/build/ethernet_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
       println("DRAM loading done")
@@ -475,7 +413,6 @@ object NexysA7SmpLinuxSystemSim {
           inPacket = false
         }
       }
-//*/
     }
   }
 }
