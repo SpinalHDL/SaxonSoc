@@ -1,111 +1,39 @@
 package saxon.board.digilent
 
-import java.nio.file.{Files, Paths}
-
 import saxon.common.I2cModel
 import saxon._
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
-import spinal.lib.bus.amba3.apb.Apb3Config
-import spinal.lib.bus.amba3.apb.sim.{Apb3Listener, Apb3Monitor}
 import spinal.lib.bus.bmb._
-import spinal.lib.bus.bmb.sim.BmbMonitor
 import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
 import spinal.lib.bus.simple.{PipelinedMemoryBus, PipelinedMemoryBusDecoder}
-import spinal.lib.com.eth.{MacEthParameter, Mii, MiiParameter, MiiRxParameter, MiiTxParameter, PhyParameter}
-import spinal.lib.com.i2c.{I2cMasterMemoryMappedGenerics, I2cSlaveGenerics, I2cSlaveMemoryMappedGenerics}
-import spinal.lib.com.i2c.sim.OpenDrainInterconnect
-import spinal.lib.com.jtag.{Jtag, JtagTap, JtagTapDebuggerGenerator, JtagTapInstructionCtrl}
+import spinal.lib.com.eth.{MacEthParameter, PhyParameter}
 import spinal.lib.com.jtag.sim.JtagTcp
+import spinal.lib.com.jtag.{Jtag, JtagTap, JtagTapDebuggerGenerator, JtagTapInstructionCtrl}
 import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
-import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
-import spinal.lib.eda.bench.{Bench, Rtl, XilinxStdTargets}
 import spinal.lib.generator._
 import spinal.lib.io.{Gpio, InOutWrapper}
-import spinal.lib.{master, slave}
 import spinal.lib.memory.sdram.sdr._
-import spinal.lib.memory.sdram.sdr.sim.SdramModel
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
-import spinal.lib.misc.plic.PlicMapping
-import spinal.lib.system.debugger.{JtagBridge, JtagBridgeNoTap, SystemDebugger, SystemDebuggerConfig}
-import vexriscv.VexRiscvBmbGenerator
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
-import vexriscv.plugin.CsrPlugin
 
 
-
-
-
-class VexRiscvSmpGenerator  extends Generator {
-  implicit val interconnect = BmbInterconnectGenerator()
-  val bmbPeripheral = BmbBridgeGenerator(mapping = SizeMapping(0x10000000, 16 MiB)).peripheral(dataWidth = 32)
-  implicit val peripheralDecoder = bmbPeripheral.asPeripheralDecoder()
-
-  val plic = BmbPlicGenerator(0xC00000)
-  plic.priorityWidth.load(2)
-  plic.mapping.load(PlicMapping.sifive)
-
-  val clint = BmbClintGenerator(0xB00000)
-
-  val uartA = BmbUartGenerator(0x10000)
-  uartA.connectInterrupt(plic, 1)
-}
-
-
-class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
-  val ramA = BmbOnChipRamGenerator(0xA00000l)
-  ramA.hexOffset = 0x10000000 //TODO
-  ramA.dataWidth.load(32)
-  interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
+// Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
+class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
+  val fabric = withDefaultFabric()
 
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l)
   val sdramA0 = sdramA.addPort()
 
-
-  val iBridge = BmbBridgeGenerator()
-  val exclusiveMonitor = BmbExclusiveMonitorGenerator()
-  val invalidationMonitor = BmbInvalidateMonitorGenerator() //TODO add context remover
-
-  interconnect.addConnection(exclusiveMonitor.output, invalidationMonitor.input)
-
-
-  val cpuCount = Handle(2)
-  val cores = for(cpuId <- 0 until cpuCount) yield new Area{
-    val cpu = VexRiscvBmbGenerator()
-    interconnect.addConnection(
-      cpu.iBus -> List(iBridge.bmb),
-      cpu.dBus -> List(exclusiveMonitor.input)
-    )
-    cpu.setTimerInterrupt(clint.timerInterrupt(cpuId))
-    cpu.setSoftwareInterrupt(clint.softwareInterrupt(cpuId))
-    plic.priorityWidth.load(2)
-    plic.mapping.load(PlicMapping.sifive)
-    plic.addTarget(cpu.externalInterrupt)
-    plic.addTarget(cpu.externalSupervisorInterrupt)
-    List(clint.logic, cpu.logic).produce{
-      for (plugin <- cpu.config.plugins) plugin match {
-        case plugin : CsrPlugin if plugin.utime != null =>plugin.utime := clint.logic.io.time
-        case _ =>
-      }
-    }
-  }
-  export(cpuCount)
-
-  clint.cpuCount.merge(cpuCount)
-
-  interconnect.addConnection(
-    iBridge.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
-    invalidationMonitor.output -> List(sdramA0.bmb, bmbPeripheral.bmb)
-  )
-  interconnect.masters(invalidationMonitor.output).withOutOfOrderDecoder()
-
-
   val gpioA = BmbGpioGenerator(0x00000)
+
+  val uartA = BmbUartGenerator(0x10000)
+  uartA.connectInterrupt(plic, 1)
 
   val spiA = new BmbSpiGenerator(0x20000){
     val decoder = SpiPhyDecoderGenerator(phy)
@@ -118,9 +46,20 @@ class ArtyA7SmpLinuxSystem() extends VexRiscvSmpGenerator{
   val mac = BmbMacEthGenerator(0x40000)
   mac.connectInterrupt(plic, 3)
   val eth = mac.withPhyMii()
+
+  val ramA = BmbOnChipRamGenerator(0xA00000l)
+  ramA.hexOffset = bmbPeripheral.mapping.lowerBound
+  ramA.dataWidth.load(32)
+  interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
+
+  interconnect.addConnection(
+    fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
+    fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
+  )
 }
 
 class ArtyA7SmpLinux extends Generator{
+  // Define the clock domains used by the SoC
   val debugCd = ClockDomainResetGenerator()
   debugCd.holdDuration.load(4095)
   debugCd.enablePowerOnReset()
@@ -137,16 +76,15 @@ class ArtyA7SmpLinux extends Generator{
     omitReset = true
   )
 
-  val system = new ArtyA7SmpLinuxSystem()
+  // ...
+  val system = new ArtyA7SmpLinuxAbstract()
   system.onClockDomain(systemCd.outputClockDomain)
   system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
-  val debug = Bscane2BmbMasterGenerator(userId = 2)(system.interconnect) onClockDomain(debugCd.outputClockDomain)
-  for(i <- 0 until system.cpuCount) {
-    system.cores(i).cpu.enableDebugBmb(debugCd, sdramCd, SizeMapping(0x10B80000 + i*0x1000, 0x1000))
-    system.interconnect.addConnection(debug.bmb, system.cores(i).cpu.debugBmb)
-  }
+  // Enable native JTAG debug
+  val debug = system.withDebugBus(debugCd, sdramCd, 0x10B80000).withBscane2(userId = 2)
 
+  // The DDR3 controller use its own clock domain and need peripheral bus access for configuration
   val sdramDomain = new Generator{
     implicit val interconnect = system.interconnect
 
@@ -163,6 +101,7 @@ class ArtyA7SmpLinux extends Generator{
     interconnect.addConnection(bmbCc.bmb, system.sdramA.ctrl)
   }
 
+  //Manage clocks and PLL
   val clocking = add task new Area{
     val GCLK100 = in Bool()
 
@@ -226,15 +165,17 @@ class ArtyA7SmpLinux extends Generator{
     sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
   }
 
+  // Allow to access the native SPI flash clock pin
   val startupe2 = system.spiA.flash.produce(
     STARTUPE2.driveSpiClk(system.spiA.flash.sclk.setAsDirectionLess())
   )
 }
 
-object ArtyA7SmpLinuxSystem{
-  def default(g : ArtyA7SmpLinuxSystem, debugCd : ClockDomainResetGenerator, resetCd : ClockDomainResetGenerator) = g {
+object ArtyA7SmpLinuxAbstract{
+  def default(g : ArtyA7SmpLinuxAbstract) = g {
     import g._
 
+    // Configure the CPUs
     for(coreId <- 0 until cpuCount) {
       cores(coreId).cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
         hartId = coreId,
@@ -243,45 +184,9 @@ object ArtyA7SmpLinuxSystem{
         iBusWidth = 64,
         dBusWidth = 64
       ))
-//      cores(coreId).cpu.enableDebugBus(debugCd, resetCd)
-//
-//      cores.map(_.cpu.debugBus)
-//      if(coreId == 0){
-//        cores(0).cpu.enableJtag(debugCd, resetCd)
-//      } else {
-//        cores(coreId).cpu.disableDebug()
-//      }
     }
 
-//    new Generator{
-//      dependencies ++= cores.map(_.cpu.debugBus)
-//      onClockDomain(debugCd.outputClockDomain)
-//
-//      val logic = add task new Area{
-//        val jtagConfig = SystemDebuggerConfig(
-//          memAddressWidth = 32,
-//          memDataWidth    = 32,
-//          remoteCmdWidth  = 1
-//        )
-//        val jtagBridge = new JtagBridge(jtagConfig)
-//        val debugger = new SystemDebugger(jtagConfig)
-//        debugger.io.remote <> jtagBridge.io.remote
-//
-//        val mmMaster = debugger.io.mem.toPipelinedMemoryBus()
-//        val mmDecoder = PipelinedMemoryBusDecoder(
-//          busConfig = mmMaster.config,
-//          mappings = Seq.tabulate(cpuCount)(c => SizeMapping(0x10B80000 + c*0x100, 0x1000))
-//        )
-//        mmDecoder.io.input << mmMaster
-//        for(coreId <- 0 until cpuCount) {
-//          mmDecoder.io.outputs(coreId) >> cores(coreId).cpu.debugBus.fromPipelinedMemoryBus()
-//        }
-//      }
-//    }
-//    cores(0).cpu.config.load(VexRiscvConfigs.linuxTest(0x20000000l, openSbi = true))
-
-
-
+    // Configure the peripherals
     ramA.size.load(8 KiB)
     ramA.hexInit.load(null)
 
@@ -333,12 +238,13 @@ object ArtyA7SmpLinuxSystem{
       txBufferByteSize = 4096
     )
 
+    // Add some interconnect pipelining to improve FMax
     for(core <- cores) interconnect.setPipelining(core.cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
-    interconnect.setPipelining(exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
-    interconnect.setPipelining(invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
-    interconnect.setPipelining(iBridge.bmb)(cmdValid = true)
+    interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
 
     g
   }
@@ -351,71 +257,7 @@ object ArtyA7SmpLinux {
     import g._
 
     sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
-    ArtyA7SmpLinuxSystem.default(system, debugCd, sdramCd)
-
-//    new Generator{
-//      dependencies += system.mac.mii
-//      add task {
-//
-//        Cat(List(system.mac.mii.TX.asBits.resize(8))).asOutput().setName("ja")
-//      }
-//    }
-
-
-    //def vivadoDebug(that : Data) : Unit = that.addAttribute("""mark_debug = "true"""")
-
-    /*
-    system.plic.logic.derivate{plic =>
-      plic.targets.foreach{target =>
-        vivadoDebug(target.ie)
-        vivadoDebug(target.claim)
-        vivadoDebug(target.threshold)
-        vivadoDebug(target.iep)
-      }
-      system.plic.gateways.foreach{gateway =>
-        vivadoDebug(gateway.ip)
-      }
-    }*/
-
-//    system.ramA.bmb.derivate{bus =>
-//      bus.cmd.valid.addAttribute("""mark_debug = "true"""")
-//      bus.cmd.ready.addAttribute("""mark_debug = "true"""")
-//      bus.cmd.address.addAttribute("""mark_debug = "true"""")
-//      bus.cmd.data.addAttribute("""mark_debug = "true"""")
-//    }
-//    system.clint.logic.derivate(_.logic.time.addAttribute("""mark_debug = "true""""))
- /*   system.cores.foreach(_.cpu.externalInterrupt.derivate(_.addAttribute("""mark_debug = "true"""")))
-    system.cores.foreach(_.cpu.externalSupervisorInterrupt.derivate(_.addAttribute("""mark_debug = "true"""")))
-
-    system.cores.foreach{ core =>
-      core.cpu.logic derivate{ cpu =>
-        List(
-          "CsrPlugin_privilege",
-          "CsrPlugin_sip_SEIP_SOFT",
-          "CsrPlugin_sip_SEIP_INPUT",
-          "CsrPlugin_sip_SEIP_OR",
-          "CsrPlugin_sip_STIP",
-          "CsrPlugin_sip_SSIP",
-          "CsrPlugin_sie_SEIE",
-          "CsrPlugin_sie_STIE",
-          "CsrPlugin_sie_SSIE",
-          "CsrPlugin_sstatus_SIE"
-        ).foreach(n =>  vivadoDebug(cpu.cpu.reflectBaseType(n)))
-      }
-    }*/
-
-//    debug.logic.derivate(d => Cat(
-//      d.bscane2.TMS.pull(),
-//      d.bscane2.RESET.pull(),
-//      d.bscane2.SHIFT.pull(),
-//      d.bscane2.UPDATE.pull(),
-//      d.bscane2.CAPTURE.pull(),
-//      d.bscane2.SEL.pull(),
-//      d.bscane2.DRCK.pull(),
-//      d.bscane2.TCK.pull()
-//    ).asOutput().setName("ja"))
-
-
+    ArtyA7SmpLinuxAbstract.default(system)
 
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     g
@@ -436,8 +278,6 @@ object ArtyA7SmpLinux {
 
 
 
-
-
 object ArtyA7SmpLinuxSystemSim {
   import spinal.core.sim._
 
@@ -445,12 +285,10 @@ object ArtyA7SmpLinuxSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-    simConfig.withWave
-    simConfig.withFstWave
-//    simConfig.withConfig(SpinalConfig(anonymSignalPrefix = "zz_"))
+//    simConfig.withFstWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-    simConfig.compile(new ArtyA7SmpLinuxSystem(){
+    simConfig.compile(new ArtyA7SmpLinuxAbstract(){
       val debugCd = ClockDomainResetGenerator()
       debugCd.enablePowerOnReset()
       debugCd.holdDuration.load(63)
@@ -467,18 +305,13 @@ object ArtyA7SmpLinuxSystemSim {
       val phy = RtlPhyGenerator()
       phy.layout.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))
       phy.connect(sdramA)
-//      phy.logic.derivate(_.ram.simPublic())
 
       sdramA.mapCtrlAt(0x100000)
       interconnect.addConnection(bmbPeripheral.bmb, sdramA.ctrl)
 
-      val bridge = JtagTapDebuggerGenerator() onClockDomain(debugCd.outputClockDomain)
-      for(i <- 0 until cpuCount) {
-        cores(i).cpu.enableDebugBmb(debugCd, systemCd, SizeMapping(0x10B80000 + i*0x1000, 0x1000))
-        interconnect.addConnection(bridge.bmb, cores(i).cpu.debugBmb)
-      }
+      val jtagTap = withDebugBus(debugCd, systemCd, address = 0x10B80000).withJtag()
 
-      ArtyA7SmpLinuxSystem.default(this, debugCd, systemCd)
+      ArtyA7SmpLinuxAbstract.default(this)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
 //      ramA.hexInit.load("software/standalone/ethernet/build/ethernet.hex")
     }.toComponent().setDefinitionName("miaou2")).doSimUntilVoid("test", 42){dut =>
@@ -512,38 +345,10 @@ object ArtyA7SmpLinuxSystemSim {
         }
       }
 
-//      fork{
-//        val duration = 999
-//        disableSimWave()
-//        clockDomain.waitSampling(100)
-//        waitUntil(dut.uartA.rxd.get.toBoolean == false)
-//        sleep(500*1000000000l)
-//        waitUntil(dut.uartA.rxd.get.toBoolean == false)
-//        println("\n\n********************")
-//        enableSimWave()
-//        sleep(duration*1000000000l)
-//        println("********************\n\n")
-//        while(true) {
-//          disableSimWave()
-//          sleep(100000 * 10000)
-//          enableSimWave()
-//          sleep(  100 * 10000)
-//        }
-//      }
-
-//      fork{
-//        while(true) {
-//          disableSimWave()
-//          sleep(100000 * 10000)
-//          enableSimWave()
-//          sleep(  100 * 10000)
-//        }
-//      }
-
-//      val tcpJtag = JtagTcp(
-//        jtag = dut.bridge.jtag,
-//        jtagClkPeriod = jtagClkPeriod
-//      )
+      val tcpJtag = JtagTcp(
+        jtag = dut.jtagTap.jtag,
+        jtagClkPeriod = jtagClkPeriod
+      )
 
       val uartTx = UartDecoder(
         uartPin =  dut.uartA.uart.txd,
@@ -573,73 +378,6 @@ object ArtyA7SmpLinuxSystemSim {
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
       println("DRAM loading done")
-
-
-//      fork{
-//        val rxCd = ClockDomain(dut.eth.mii.RX.CLK)
-//        rxCd.forkStimulus(40000)
-//        while(true) {
-//          rxCd.waitSampling(1000)
-//          dut.mac.mii.RX.simReceive(List(0x55,0x55,0xD5, 0x12, 0x34, 0x56, 0x78, 0xAA, 0xBB), rxCd)
-//        }
-//      }
-
-
-//      val txCd = ClockDomain(dut.eth.mii.TX.CLK)
-//      txCd.forkStimulus(40000)
-//      var inPacket = false
-//      var packet = BigInt(0)
-//      txCd.onSamplings{
-//        if(dut.eth.mii.TX.EN.toBoolean){
-//          inPacket = true
-//          packet = (packet << 4) | dut.eth.mii.TX.D.toInt
-//        } else {
-//          if(inPacket){
-//            println(packet.toString(16))
-//            packet = 0
-//          }
-//          inPacket = false
-//        }
-//      }
     }
   }
 }
-
-
-
-//
-//object ArtyA7SmpLinuxSynthesis{
-//  def main(args: Array[String]): Unit = {
-//    val soc = new Rtl {
-//      override def getName(): String = "ArtyA7SmpLinux"
-//      override def getRtlPath(): String = "ArtyA7SmpLinux.v"
-//      SpinalConfig(defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC), inlineRom = true)
-//        .generateVerilog(InOutWrapper(ArtyA7SmpLinux.default(new ArtyA7SmpLinux()).toComponent()).setDefinitionName(getRtlPath().split("\\.").head))
-//    }
-//
-//    val rtls = List(soc)
-////    val targets = XilinxStdTargets(
-////      vivadoArtix7Path = "/media/miaou/HD/linux/Xilinx/Vivado/2018.3/bin"
-////    )
-//    val targets = List(
-//      new Target {
-//        override def getFamilyName(): String = "Artix 7"
-//        override def synthesise(rtl: Rtl, workspace: String): Report = {
-//          VivadoFlow(
-//            vivadoPath=vivadoArtix7Path,
-//            workspacePath=workspace,
-//            toplevelPath=rtl.getRtlPath(),
-//            family=getFamilyName(),
-//            device="xc7a35ticsg324-1L" // xc7k70t-fbg676-3"
-//          )
-//        }
-//      }
-//    )
-//
-//    Bench(rtls, targets, "/media/miaou/HD/linux/tmp")
-//  }
-//}
-//
-//
-//
-//

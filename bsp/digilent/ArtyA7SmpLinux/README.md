@@ -146,12 +146,12 @@ wget $FTP_PATH/linux_tools.sh
 source ./linux_tools.sh
 
 # FPGA SPI flash
-tool_fpga_flash
-tool_opensbi_flash
-tool_uboot_flash
+saxon_fpga_flash
+saxon_opensbi_flash
+saxon_uboot_flash
 
 # SDCARD flash
-tool_sdcard_format
-tool_sdcard_p1
-tool_sdcard_p2
+saxon_sdcard_format
+saxon_sdcard_p1
+saxon_sdcard_p2
 ```
