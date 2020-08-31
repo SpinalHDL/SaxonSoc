@@ -1,10 +1,10 @@
 #!/bin/sh
 
 saxon_fpga_flash(){
-  wget $FTP_PATH/ArtyA7SmpLinux.bit -O ArtyA7SmpLinux.bit
+  wget $FTP_PATH/bitstream -O bitstream
   flash_erase /dev/mtd0 0 0
-  cat ArtyA7SmpLinux.bit > /dev/mtd0
-  rm ArtyA7SmpLinux.bit
+  cat bitstream > /dev/mtd0
+  rm bitstream
 }
 
 saxon_opensbi_flash(){
