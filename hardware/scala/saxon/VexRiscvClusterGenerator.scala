@@ -30,7 +30,8 @@ class VexRiscvClusterGenerator extends Generator {
   // Defines the VexRiscv cores with their connections to the PLIC and CLINT
   val cores = new Generator{
     dependencies += cpuCount
-    interconnect.lock.retain()
+    plic.dependencies += this
+    interconnect.dependencies += this
     val cpu = add task (for(cpuId <- 0 until cpuCount) yield {
       val vex = VexRiscvBmbGenerator()
       vex.setTimerInterrupt(clint.timerInterrupt(cpuId))
@@ -45,7 +46,6 @@ class VexRiscvClusterGenerator extends Generator {
       }
       vex
     })
-    add task interconnect.lock.release()
   }
 
   // Can be use to define a SMP memory fabric with mainly 3 attatchement points (iBus, dBusCoherent, dBusIncoherent)
@@ -76,9 +76,7 @@ class VexRiscvClusterGenerator extends Generator {
   // Utility to create the debug fabric usable by JTAG
   def withDebugBus(debugCd : ClockDomainResetGenerator, systemCd : ClockDomainResetGenerator, address : Long) = new Area{
     val ctrl = BmbBridgeGenerator() onClockDomain(debugCd.outputClockDomain)
-    interconnect.lock.retain()
-    cores.produce {
-      interconnect.lock.release()
+    interconnect.dependencies += cores.produce {
       for ((cpu,i) <- cores.cpu.zipWithIndex) {
         cores.cpu.get(i).enableDebugBmb(debugCd, systemCd, SizeMapping(address + i * 0x1000, 0x1000))
         interconnect.addConnection(ctrl.bmb, cpu.debugBmb)
