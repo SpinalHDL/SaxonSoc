@@ -42,7 +42,7 @@ Flash sdcard
 ```sh
 export SDCARD=???
 export SDCARD_P1=???
-export SDCARD_p2=???
+export SDCARD_P2=???
 
 source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
 cd $SAXON_ROOT
