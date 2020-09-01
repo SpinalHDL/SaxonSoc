@@ -12,7 +12,7 @@ import spinal.lib.generator.{Dependable, Export, Generator, Handle, InterruptCtr
 import spinal.lib.io.{BmbGpio2, Gpio}
 import spinal.lib.master
 import spinal.lib.memory.sdram.SdramLayout
-import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
+import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, XilinxS7Phy}
 import spinal.lib.memory.sdram.xdr.{BmbPortParameter, CoreParameter, CtrlParameter, CtrlWithPhy, CtrlWithoutPhy, CtrlWithoutPhyBmb, PhyLayout}
 import spinal.lib.misc.{BmbClint, Clint}
 import spinal.lib.misc.plic.{PlicGateway, PlicGatewayActiveHigh, PlicMapper, PlicMapping, PlicTarget}
@@ -61,7 +61,7 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
 
   val accessSource = Handle[BmbAccessCapabilities]
   val accessRequirements = createDependency[BmbAccessParameter]
-  def mapCtrlAt(address : BigInt)(implicit interconnect: BmbInterconnectGenerator) : this.type = {
+  def mapCtrlAt(address : BigInt)(implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) : this.type = {
     interconnect.addSlave(
       accessSource = accessSource,
       accessCapabilities = accessSource.derivate(CtrlWithoutPhyBmb.getBmbCapabilities),
@@ -69,6 +69,7 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
       bus = ctrl,
       mapping = SizeMapping(address, 1 << CtrlWithoutPhyBmb.addressWidth)
     )
+    if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
     this
   }
 
@@ -152,6 +153,20 @@ case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect
     }
   }
   if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
+}
+
+case class Ecp5Sdrx2PhyGenerator() extends Generator{
+  val sdramLayout = createDependency[SdramLayout]
+  val sdram = produceIo(logic.io.sdram)
+  val logic = add task Ecp5Sdrx2Phy(sdramLayout)
+
+  def connect(ctrl : SdramXdrBmbGenerator): this.type = {
+    ctrl.phyParameter.derivatedFrom(sdramLayout)(Ecp5Sdrx2Phy.phyLayout)
+    List(ctrl.logic, logic).produce{
+      ctrl.logic.io.phy <> logic.io.ctrl
+    }
+    this
+  }
 }
 
 
