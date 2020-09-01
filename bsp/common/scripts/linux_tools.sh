@@ -29,18 +29,23 @@ saxon_sdcard_format(){
   echo 1
   echo
   echo +100M
+  echo y
   echo n
   echo p
   echo 2
   echo
   echo +200M
+  echo y
   echo p
+  echo t
+  echo 1
+  echo b
   echo w
   ) | fdisk /dev/mmcblk0
 }
 
 saxon_sdcard_p1(){
-  mke2fs /dev/mmcblk0p1
+  mkdosfs /dev/mmcblk0p1
   mkdir -p sdcard
   mount /dev/mmcblk0p1 sdcard
   wget $FTP_PATH/dtb -O sdcard/dtb
