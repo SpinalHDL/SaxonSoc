@@ -14,7 +14,7 @@ source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
 saxon_clone
 
 # Build the FPGA bitstream
-saxon_standalone_compile bootloader
+saxon_standalone_compile bootloader CFLAGS_ARGS="-DSDRAM_TIMING=MT48LC16M16A2_6A_ps"
 saxon_netlist
 saxon_bitstream
 
@@ -24,7 +24,7 @@ saxon_uboot
 saxon_buildroot
 
 # Build the programming tools
-saxon_standalone_compile sdramInit
+saxon_standalone_compile sdramInit CFLAGS_ARGS="-DSDRAM_TIMING=MT48LC16M16A2_6A_ps"
 saxon_openocd
 ```
 
