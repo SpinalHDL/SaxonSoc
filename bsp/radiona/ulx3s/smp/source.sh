@@ -26,7 +26,8 @@ saxon_netlist(){
 
 saxon_bitstream(){
   cd $SAXON_ROOT/SaxonSoc/hardware/synthesis/radiona/ulx3s/smp
-  make clean bin/toplevel.bit
+  make clean
+  make
 }
 
 saxon_serial(){

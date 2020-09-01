@@ -233,7 +233,7 @@ object Ulx3sSmp {
     }
 
     Ulx3sSmpAbstract.default(system)
-//    system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
+    system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 
     g
   }

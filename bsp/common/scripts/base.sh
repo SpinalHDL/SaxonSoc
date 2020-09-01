@@ -16,7 +16,7 @@ saxon_clone() {
 }
 
 
-saxon_baremetal_compile(){
+saxon_standalone_compile(){
   cd $SAXON_ROOT/SaxonSoc/software/standalone/$1
   make clean all BSP_PATH=$SAXON_BSP_PATH "${@:2}"
 }

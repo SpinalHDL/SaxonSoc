@@ -1,10 +1,51 @@
 
+Clone and build
 
+```
+# Getting this repository
+mkdir Ulx3sSmp 
+cd Ulx3sSmp
+git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev-0.1_software --recursive SaxonSoc
 
+# Sourcing the build script
+source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
+
+# Clone opensbi, u-boot, linux, buildroot, openocd
+saxon_clone
+
+# Build the FPGA bitstream
+saxon_standalone_compile bootloader
+saxon_netlist
+saxon_bitstream
+
+# Build the firmware
+saxon_opensbi
+saxon_uboot
+saxon_buildroot
+
+# Build the programming tools
+saxon_standalone_compile sdramInit
+saxon_openocd
+```
+
+Flash SPI 
+
+```sh
+source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
+cd $SAXON_ROOT
+fujprog -j FLASH SaxonSoc/hardware/synthesis/radiona/ulx3s/smp/bin/toplevel.bit
+fujprog -j FLASH -f 0x340000 opensbi/build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin
+fujprog -j FLASH -f 0x380000 u-boot/u-boot.bin
+```
+
+Flash sdcard 
 ```sh
 export SDCARD=???
 export SDCARD_P1=???
 export SDCARD_p2=???
+
+source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
+cd $SAXON_ROOT
 
 (
 echo o
@@ -20,18 +61,16 @@ echo 2
 echo
 echo +200M
 echo y
-echo p
 echo t
 echo 1
 echo b
+echo p
 echo w
-) | fdisk $SDCARD
-
+) | sudo fdisk $SDCARD
 
 sudo mkfs.vfat $SDCARD_P1
 sudo mke2fs $SDCARD_P2
 
-cd $SAXON_ROOT
 mkdir -p sdcard
 sudo mount $SDCARD_P1 sdcard
 sudo cp buildroot/output/images/dtb sdcard/dtb
@@ -40,7 +79,6 @@ sudo cp buildroot/output/images/uImage sdcard/uImage
 sudo umount sdcard
 rm -r sdcard
 
-cd $SAXON_ROOT
 mkdir -p sdcard
 sudo mount $SDCARD_P2 sdcard
 sudo tar xf buildroot/output/images/rootfs.tar -C sdcard
