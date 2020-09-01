@@ -141,7 +141,8 @@ Then on your VexRiscv linux :
 # !!! Be sure your linux booted on a ramfs and that the SDCARD isn't mounted !!!
 
 # Get the flashing script
-export FTP_PATH=ftp://YOUR_PC_IP/pub/saxon/digilent/ArtyA7SmpLinux
+export FTP_IP=YOUR_PC_IP
+export FTP_PATH=ftp://$FTP_IP/pub/saxon/digilent/ArtyA7SmpLinux
 wget $FTP_PATH/linux_tools.sh
 source ./linux_tools.sh
 

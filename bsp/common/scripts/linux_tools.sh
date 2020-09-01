@@ -36,10 +36,10 @@ saxon_sdcard_format(){
   echo
   echo +200M
   echo y
-  echo p
   echo t
   echo 1
   echo b
+  echo p
   echo w
   ) | fdisk /dev/mmcblk0
 }
