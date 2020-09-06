@@ -28,6 +28,14 @@ saxon_standalone_compile sdramInit CFLAGS_ARGS="-DSDRAM_TIMING=MT48LC16M16A2_6A_
 saxon_openocd
 ```
 
+Customize SDRAM_SIZE and FPGA_SIZE for blue ULX3S board with 85F and 64Mb SDRAM
+
+```sh
+saxon_standalone_compile bootloader CFLAGS_ARGS="-DSDRAM_TIMING=AS4C32M16SB_7TCN_ps"
+SDRAM_SIZE=64 saxon_netlist
+FPGA_SIZE=85 saxon_bitstream
+```
+
 Flash SPI 
 
 ```sh
