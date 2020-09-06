@@ -21,7 +21,7 @@ source $SAXON_BSP_COMMON_SCRIPTS/buildroot.sh
 
 saxon_netlist(){
   cd $SAXON_ROOT/SaxonSoc
-  sbt "runMain saxon.board.radiona.ulx3s.Ulx3sSmp"
+  sbt "runMain saxon.board.radiona.ulx3s.Ulx3sSmp $SDRAM_SIZE"
 }
 
 saxon_bitstream(){
