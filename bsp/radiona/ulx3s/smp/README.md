@@ -28,6 +28,13 @@ saxon_standalone_compile sdramInit CFLAGS_ARGS="-DSDRAM_TIMING=MT48LC16M16A2_6A_
 saxon_openocd
 ```
 
+Customize SDRAM_SIZE or FPGA_SIZE
+
+```sh
+SDRAM_SIZE=64 saxon_netlist
+FPGA_SIZE=85 saxon_bitstream
+```
+
 Flash SPI 
 
 ```sh
