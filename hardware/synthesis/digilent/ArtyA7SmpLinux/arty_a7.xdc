@@ -79,7 +79,8 @@ set_property -dict {PACKAGE_PIN H1 IOSTANDARD LVCMOS33} [get_ports {system_spiA_
 set_property -dict {PACKAGE_PIN F1 IOSTANDARD LVCMOS33} [get_ports system_spiA_user_sclk]
 #set_property -dict { PACKAGE_PIN C1    IOSTANDARD LVCMOS33 } [get_ports { ck_ss }]; #IO_L16N_T2_35 Sch=ck_ss
 
-set_property -dict { PACKAGE_PIN U11   IOSTANDARD LVCMOS33 } [get_ports { inWfi }]; #IO_L19N_T3_A09_D25_VREF_14 Sch=ck_io[26]
+# Audio
+set_property -dict { PACKAGE_PIN U11   IOSTANDARD LVCMOS33 } [get_ports { system_audioOut_outputs[0] }]; #IO_L19N_T3_A09_D25_VREF_14 Sch=ck_io[26]
 
 
 set_property -dict {PACKAGE_PIN E3 IOSTANDARD LVCMOS33} [get_ports clocking_GCLK100]

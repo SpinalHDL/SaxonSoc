@@ -27,6 +27,7 @@ import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
+import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
 import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
 
@@ -57,19 +58,35 @@ class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
 
   implicit val bsbInterconnect = BsbInterconnectGenerator()
   val dma = new DmaSgGenerator(0x80000){
-    val vgaChannel = createChannel()
-    vgaChannel.fixedBurst(64)
-    vgaChannel.withCircularMode()
-    vgaChannel.fifoMapping load Some(0, 256)
+    val vga = new Area{
+      val channel = createChannel()
+      channel.fixedBurst(64)
+      channel.withCircularMode()
+      channel.fifoMapping load Some(0, 256)
 
-    val vgaStream = createOutput(byteCount = 8)
-    vgaChannel.outputsPorts += vgaStream
+      val stream = createOutput(byteCount = 8)
+      channel.outputsPorts += stream
+
+    }
+
+    val audioOut = new Area{
+      val channel = createChannel()
+      channel.fixedBurst(64)
+      channel.withCircularMode()
+      channel.fifoMapping load Some(0, 256)
+
+      val stream = createOutput(byteCount = 8)
+      channel.outputsPorts += stream
+    }
   }
  // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
   interconnect.addConnection(dma.read,  fabric.dBus.bmb)
 
   val vga = BmbVgaCtrlGenerator(0x90000)
-  bsbInterconnect.connect(dma.vgaStream.output, vga.input)
+  bsbInterconnect.connect(dma.vga.stream.output, vga.input)
+
+  val audioOut = BmbBsbToDeltaSigmaGenerator(0x94000)
+  bsbInterconnect.connect(dma.audioOut.stream.output, audioOut.input)
 
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
@@ -294,6 +311,12 @@ object ArtyA7SmpLinuxAbstract{
       rgbConfig = RgbConfig(4,4,4)
     )
 
+    audioOut.parameter load BsbToDeltaSigmaParameter(
+      channels = 1,
+      channelWidth = 16,
+      rateWidth = 12
+    )
+
     // Add some interconnect pipelining to improve FMax
     interconnect.dependencies += cores.produce{for(cpu <- cores.cpu) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)}
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
@@ -393,7 +416,7 @@ object ArtyA7SmpLinuxSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-//    simConfig.withWave
+    simConfig.withFstWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
     simConfig.compile(new ArtyA7SmpLinuxAbstract(){
@@ -408,13 +431,15 @@ object ArtyA7SmpLinuxSystemSim {
       systemCd.holdDuration.load(63)
       systemCd.setInput(debugCd)
 
-      val vgaCd = ClockDomainResetGenerator()
-      vgaCd.holdDuration.load(63)
-      vgaCd.makeExternal(withResetPin = false)
-      vgaCd.asyncReset(debugCd)
+//      val vgaCd = ClockDomainResetGenerator()
+//      vgaCd.holdDuration.load(63)
+//      vgaCd.makeExternal(withResetPin = false)
+//      vgaCd.asyncReset(debugCd)
+//
+//      vga.vgaCd.merge(vgaCd.outputClockDomain)
+//      vga.output.derivate(_.simPublic())
 
-      vga.vgaCd.merge(vgaCd.outputClockDomain)
-      vga.output.derivate(_.simPublic())
+      vga.vgaCd.merge(vga.generatorClockDomain)
 
       this.onClockDomain(systemCd.outputClockDomain)
 
@@ -438,13 +463,13 @@ object ArtyA7SmpLinuxSystemSim {
       val clockDomain = dut.debugCd.inputClockDomain.get
       clockDomain.forkStimulus(debugClkPeriod)
 
-      dut.vgaCd.inputClockDomain.get.forkStimulus(40000)
+//      dut.vgaCd.inputClockDomain.get.forkStimulus(40000)
 //      clockDomain.forkSimSpeedPrinter(2.0)
 
 
       fork{
         val at = 0
-        val duration = 10
+        val duration = 100
         while(simTime() < at*1000000000l) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -477,7 +502,7 @@ object ArtyA7SmpLinuxSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
-      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
+//      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
 
       dut.spiA.sdcard.data.read #= 3
 
@@ -492,7 +517,7 @@ object ArtyA7SmpLinuxSystemSim {
 //      dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
 
 
-//      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dmasg/build/dmasg.bin")
+      dut.phy.logic.loadBin(0x00F80000, "software/standalone/audioOut/build/audioOut.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
