@@ -1,11 +1,16 @@
 package saxon.board.digilent
 
+import java.awt.image.BufferedImage
+import java.awt.{Color, Dimension, Graphics}
+
+import javax.swing.{JFrame, JPanel, WindowConstants}
 import saxon.common.I2cModel
 import saxon._
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
 import spinal.lib.bus.bmb._
+import spinal.lib.bus.bsb.BsbInterconnectGenerator
 import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
 import spinal.lib.bus.simple.{PipelinedMemoryBus, PipelinedMemoryBusDecoder}
 import spinal.lib.com.eth.{MacEthParameter, PhyParameter}
@@ -16,10 +21,13 @@ import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.generator._
+import spinal.lib.graphic.RgbConfig
+import spinal.lib.graphic.vga.{BmbVgaCtrlGenerator, BmbVgaCtrlParameter, Vga}
 import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
+import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
 
 
@@ -47,6 +55,22 @@ class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
   mac.connectInterrupt(plic, 3)
   val eth = mac.withPhyMii()
 
+  implicit val bsbInterconnect = BsbInterconnectGenerator()
+  val dma = new DmaSgGenerator(0x80000){
+    val vgaChannel = createChannel()
+    vgaChannel.fixedBurst(64)
+    vgaChannel.withCircularMode()
+    vgaChannel.fifoMapping load Some(0, 256)
+
+    val vgaStream = createOutput(byteCount = 8)
+    vgaChannel.outputsPorts += vgaStream
+  }
+ // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
+  interconnect.addConnection(dma.read,  fabric.dBus.bmb)
+
+  val vga = BmbVgaCtrlGenerator(0x90000)
+  bsbInterconnect.connect(dma.vgaStream.output, vga.input)
+
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
   ramA.dataWidth.load(32)
@@ -64,6 +88,11 @@ class ArtyA7SmpLinux extends Generator{
   debugCd.holdDuration.load(4095)
   debugCd.enablePowerOnReset()
 
+
+  val vgaCd = ClockDomainResetGenerator()
+  vgaCd.holdDuration.load(63)
+  vgaCd.asyncReset(debugCd)
+
   val sdramCd = ClockDomainResetGenerator()
   sdramCd.holdDuration.load(63)
   sdramCd.asyncReset(debugCd)
@@ -77,7 +106,9 @@ class ArtyA7SmpLinux extends Generator{
   )
 
   // ...
-  val system = new ArtyA7SmpLinuxAbstract()
+  val system = new ArtyA7SmpLinuxAbstract(){
+    val vgaPhy = vga.withRegisterPhy(withColorEn = false)
+  }
   system.onClockDomain(systemCd.outputClockDomain)
   system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
@@ -160,6 +191,9 @@ class ArtyA7SmpLinux extends Generator{
         frequency = FixedFrequency(150 MHz)
       )
     )
+    vgaCd.setInput(ClockDomain(clk25))
+    system.vga.vgaCd.merge(vgaCd.outputClockDomain)
+
     sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
     sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
     sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
@@ -242,6 +276,24 @@ object ArtyA7SmpLinuxAbstract{
       txBufferByteSize = 4096
     )
 
+    dma.parameter.layout load DmaMemoryLayout(
+      bankCount     = 2,
+      bankWords     = 128,
+      bankWidth     = 32,
+      priorityWidth = 2
+    )
+
+    dma.setBmbParameter(
+      addressWidth = 32,
+      dataWidth = 64,
+      lengthWidth = 6
+    )
+    dma.connectInterrupts(plic, 12)
+
+    vga.parameter load BmbVgaCtrlParameter(
+      rgbConfig = RgbConfig(4,4,4)
+    )
+
     // Add some interconnect pipelining to improve FMax
     interconnect.dependencies += cores.produce{for(cpu <- cores.cpu) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)}
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
@@ -279,7 +331,59 @@ object ArtyA7SmpLinux {
   }
 }
 
+object VgaDisplaySim{
+  def apply(vga : Vga, cd : ClockDomain): Unit ={
 
+    var width = 160
+    var height = 120
+    val image = new BufferedImage(width, height, BufferedImage.TYPE_INT_BGR);
+
+    val frame = new JFrame{
+      setPreferredSize(new Dimension(800, 600));
+
+      add(new JPanel{
+        this.setPreferredSize(new Dimension(width, height))
+        override def paintComponent(g : Graphics) : Unit = {
+          g.drawImage(image, 0, 0, width*4,height*4, null)
+        }
+      })
+
+      pack();
+      setVisible(true);
+      setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+    }
+
+//    def resize(newWidth : Int, newHeight : Int): Unit ={
+//
+//    }
+    var overflow = false
+    var x,y = 0
+    cd.onSamplings{
+      val vsync = vga.vSync.toBoolean
+      val hsync = vga.hSync.toBoolean
+      val colorEn = vga.colorEn.toBoolean
+      if(colorEn) {
+        val color = vga.color.r.toInt << (16 + 8 - vga.rgbConfig.rWidth) | vga.color.g.toInt << (8 + 8 - vga.rgbConfig.gWidth) | vga.color.b.toInt << (0 + 8 - vga.rgbConfig.bWidth)
+        if(x < width && y < height) {
+          image.setRGB(x, y, color)
+        }
+        x+=1
+      }
+      if(!vsync){
+        y = 0
+      }
+      if(!hsync){
+        if(x != 0){
+          y+=1
+          frame.repaint()
+        }
+        x = 0
+      }
+    }
+
+
+  }
+}
 
 
 object ArtyA7SmpLinuxSystemSim {
@@ -289,7 +393,7 @@ object ArtyA7SmpLinuxSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-//    simConfig.withFstWave
+//    simConfig.withWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
     simConfig.compile(new ArtyA7SmpLinuxAbstract(){
@@ -303,6 +407,14 @@ object ArtyA7SmpLinuxSystemSim {
       val systemCd = ClockDomainResetGenerator()
       systemCd.holdDuration.load(63)
       systemCd.setInput(debugCd)
+
+      val vgaCd = ClockDomainResetGenerator()
+      vgaCd.holdDuration.load(63)
+      vgaCd.makeExternal(withResetPin = false)
+      vgaCd.asyncReset(debugCd)
+
+      vga.vgaCd.merge(vgaCd.outputClockDomain)
+      vga.output.derivate(_.simPublic())
 
       this.onClockDomain(systemCd.outputClockDomain)
 
@@ -325,12 +437,14 @@ object ArtyA7SmpLinuxSystemSim {
 
       val clockDomain = dut.debugCd.inputClockDomain.get
       clockDomain.forkStimulus(debugClkPeriod)
+
+      dut.vgaCd.inputClockDomain.get.forkStimulus(40000)
 //      clockDomain.forkSimSpeedPrinter(2.0)
 
 
       fork{
         val at = 0
-        val duration = 0
+        val duration = 10
         while(simTime() < at*1000000000l) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -363,20 +477,22 @@ object ArtyA7SmpLinuxSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
+      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
+
       dut.spiA.sdcard.data.read #= 3
 
       val uboot = "../u-boot/"
       val opensbi = "../opensbi/"
       val linuxPath = "../buildroot/output/images/"
 
-      dut.phy.logic.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
-      dut.phy.logic.loadBin(0x00F00000, uboot + "u-boot.bin")
-      dut.phy.logic.loadBin(0x00000000, linuxPath + "uImage")
-      dut.phy.logic.loadBin(0x00FF0000, linuxPath + "dtb")
-      dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
+//      dut.phy.logic.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
+//      dut.phy.logic.loadBin(0x00F00000, uboot + "u-boot.bin")
+//      dut.phy.logic.loadBin(0x00000000, linuxPath + "uImage")
+//      dut.phy.logic.loadBin(0x00FF0000, linuxPath + "dtb")
+//      dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
 
 
-//      dut.phy.logic.loadBin(0x00F80000, "software/standalone/ethernet/build/ethernet.bin")
+//      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dmasg/build/dmasg.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")

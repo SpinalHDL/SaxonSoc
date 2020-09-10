@@ -2,6 +2,7 @@
 
 #include "bsp.h"
 #include "sdram.h"
+#include "vgaInit.h"
 
 #define SDRAM_CTRL SYSTEM_SDRAM_A_CTRL
 #define SDRAM_PHY  SDRAM_DOMAIN_PHY_A_CTRL
@@ -38,5 +39,8 @@ void bspMain() {
         SDRAM_BASE
     );
 #endif
+
+    vgaInit();
+
     asm("ebreak");
 }

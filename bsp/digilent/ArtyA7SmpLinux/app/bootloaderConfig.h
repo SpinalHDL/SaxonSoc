@@ -4,6 +4,7 @@
 #include "start.h"
 #include "sdram.h"
 #include "spiFlash.h"
+#include "vgaInit.h"
 
 #define SDRAM_CTRL SYSTEM_SDRAM_A_CTRL
 #define SDRAM_PHY  SDRAM_DOMAIN_PHY_A_CTRL
@@ -27,7 +28,20 @@
 #define CTRL_BURST_LENGHT 2
 #define PHY_CLK_RATIO 2
 
+#define DMASG_BASE SYSTEM_DMA_CTRL
+
+#define VGA_BASE SYSTEM_VGA_CTRL
+#define VGA_CHANNEL     0
+#define VGA_PORT     0
+#define VGA_SINK 0
+
+#define VGA_BYTE_PER_PIXEL 2
+#define VGA_BUFFER     0x8F000000
+#define VGA_BUFFER_SIZE (VGA_WIDTH * VGA_HEIGHT * VGA_BYTE_PER_PIXEL)
+
 void bspMain() {
+    bsp_putString("\n");
+    bsp_putString("SDRAM init\n");
     sdram_init(
         SDRAM_CTRL,
         RL,
@@ -55,10 +69,15 @@ void bspMain() {
 
     spiFlash_init(SPI, SPI_CS);
     spiFlash_wake(SPI, SPI_CS);
+    bsp_putString("OpenSBI copy\n");
     spiFlash_f2m(SPI, SPI_CS, OPENSBI_FLASH, OPENSBI_MEMORY, OPENSBI_SIZE);
+    bsp_putString("U-Boot copy\n");
     spiFlash_f2m(SPI, SPI_CS, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
 #endif
 
+    vgaInit();
+
+    bsp_putString("OpenSBI boot\n");
     void (*userMain)(u32, u32, u32) = (void (*)(u32, u32, u32))OPENSBI_MEMORY;
     smp_unlock(userMain);
     userMain(0,0,0);
