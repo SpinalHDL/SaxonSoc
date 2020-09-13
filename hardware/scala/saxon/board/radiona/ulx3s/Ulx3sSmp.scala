@@ -172,7 +172,7 @@ object Ulx3sSmpAbstract{
   def default(g : Ulx3sSmpAbstract) = g {
     import g._
 
-    cpuCount.load(1)
+    //cpuCount.load(1)
 
     // Configure the CPUs
     cores.produce{
@@ -280,7 +280,7 @@ object Ulx3sSmpAbstract{
 
 object Ulx3sSmp {
   //Function used to configure the SoC
-  def default(g : Ulx3sSmp, sdramSize : Int) = g{
+  def default(g : Ulx3sSmp, sdramSize : Int, cpuCount : Int) = g{
     import g._
 
     system.spiA.flash.produce {
@@ -297,6 +297,8 @@ object Ulx3sSmp {
       system.phyA.sdramLayout.load(AS4C32M16SB.layout)
     }
 
+    system.cpuCount.load(cpuCount)
+
     Ulx3sSmpAbstract.default(system)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 
@@ -305,8 +307,13 @@ object Ulx3sSmp {
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
-    val sdramSize = if (args.length > 0 && args(0) == "64")  64 else 32
-    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp, sdramSize).toComponent()))
+        val sdramSize = if (sys.env.getOrElse("SDRAM_SIZE", "32") == "64")  64 else 32
+    println("SDRAM_SIZE is " + sdramSize)
+
+    val cpuCount = sys.env.getOrElse("CPU_COUNT", "1").toInt
+    println("CPU_COUNT is " + cpuCount)
+
+    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp, sdramSize, cpuCount).toComponent()))
     BspGenerator("radiona/ulx3s/smp", report.toplevel.generator, report.toplevel.generator.system.cores.cpu.get(0).dBus)
   }
 }
