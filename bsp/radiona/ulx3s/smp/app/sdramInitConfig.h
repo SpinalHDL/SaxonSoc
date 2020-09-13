@@ -4,6 +4,7 @@
 #include "start.h"
 #include "sdram.h"
 #include "spiFlash.h"
+#include "vgaInit.h"
 
 #define SDRAM_CTRL SYSTEM_SDRAM_A_CTRL
 #define SDRAM_PHY  SDRAM_DOMAIN_PHY_A_CTRL
@@ -41,6 +42,7 @@ void bspMain() {
         PHY_CLK_RATIO
     );
 
+    vgaInit();
     asm("ebreak");
 }
 

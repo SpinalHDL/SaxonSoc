@@ -28,17 +28,6 @@
 #define CTRL_BURST_LENGHT 2
 #define PHY_CLK_RATIO 2
 
-#define DMASG_BASE SYSTEM_DMA_CTRL
-
-#define VGA_BASE SYSTEM_VGA_CTRL
-#define VGA_CHANNEL     0
-#define VGA_PORT     0
-#define VGA_SINK 0
-
-#define VGA_BYTE_PER_PIXEL 2
-#define VGA_BUFFER     0x8F000000
-#define VGA_BUFFER_SIZE (VGA_WIDTH * VGA_HEIGHT * VGA_BYTE_PER_PIXEL)
-
 void bspMain() {
     bsp_putString("\n");
     bsp_putString("SDRAM init\n");

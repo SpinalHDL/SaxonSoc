@@ -2,11 +2,13 @@ package saxon.board.radiona.ulx3s
 
 import saxon.common.I2cModel
 import saxon._
-import spinal.core._
+import spinal.core
+import spinal.core.{Clock, _}
 import spinal.core.sim._
 import spinal.lib.blackbox.lattice.ecp5.ODDRX1F
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
 import spinal.lib.bus.bmb._
+import spinal.lib.bus.bsb.BsbInterconnectGenerator
 import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
 import spinal.lib.bus.simple.{PipelinedMemoryBus, PipelinedMemoryBusDecoder}
 import spinal.lib.com.eth.{MacEthParameter, PhyParameter}
@@ -17,10 +19,13 @@ import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.generator._
+import spinal.lib.graphic.RgbConfig
+import spinal.lib.graphic.vga.{BmbVgaCtrlGenerator, BmbVgaCtrlParameter}
 import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, XilinxS7Phy}
+import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
 
 
@@ -43,6 +48,26 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
     val flash = decoder.spiMasterId(0)
     val sdcard = decoder.spiMasterId(1)
   }
+
+  implicit val bsbInterconnect = BsbInterconnectGenerator()
+  val dma = new DmaSgGenerator(0x80000){
+    val vga = new Area{
+      val channel = createChannel()
+      channel.fixedBurst(64)
+      channel.withCircularMode()
+      channel.fifoMapping load Some(0, 256)
+
+      val stream = createOutput(byteCount = 4)
+      channel.outputsPorts += stream
+    }
+  }
+
+  // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
+  interconnect.addConnection(dma.read,  fabric.dBus.bmb)
+
+  val vga = BmbVgaCtrlGenerator(0x90000)
+  bsbInterconnect.connect(dma.vga.stream.output, vga.input)
+
 
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
@@ -81,6 +106,14 @@ class Ulx3sSmp extends Generator{
   globalCd.holdDuration.load(255)
   globalCd.enablePowerOnReset()
 
+  val vgaCd = ClockDomainResetGenerator()
+  vgaCd.holdDuration.load(63)
+  vgaCd.asyncReset(globalCd)
+
+  val hdmiCd = ClockDomainResetGenerator()
+  hdmiCd.holdDuration.load(63)
+  hdmiCd.asyncReset(globalCd)
+
   val systemCd = ClockDomainResetGenerator()
   systemCd.setInput(globalCd)
   systemCd.holdDuration.load(63)
@@ -88,6 +121,7 @@ class Ulx3sSmp extends Generator{
   // ...
   val system = new Ulx3sSmpAbstract(){
     val phyA = Ecp5Sdrx2PhyGenerator().connect(sdramA)
+    val hdmiPhy = vga.withHdmiEcp5(hdmiCd.outputClockDomain)
   }
   system.onClockDomain(systemCd.outputClockDomain)
 
@@ -95,7 +129,6 @@ class Ulx3sSmp extends Generator{
   val debug = system.withDebugBus(globalCd, systemCd, 0x10B80000).withJtag()
 
   //Manage clocks and PLL
-
   val clocking = add task new Area{
     val clk_25mhz = in Bool()
     val sdram_clk = out Bool()
@@ -114,6 +147,13 @@ class Ulx3sSmp extends Generator{
         )
       )
     )
+
+    Clock.syncDrive(pll.clkin, pll.clkout0)
+    Clock.syncDrive(pll.clkin, pll.clkout3)
+
+    vgaCd.setInput(ClockDomain(pll.clkout3))
+    hdmiCd.setInput(ClockDomain(pll.clkout0))
+    system.vga.vgaCd.merge(vgaCd.outputClockDomain)
 
     val bb = ClockDomain(pll.clkout1, False)(ODDRX1F())
     bb.D0 <> True
@@ -141,8 +181,14 @@ object Ulx3sSmpAbstract{
           hartId = coreId,
           ioRange = _ (31 downto 28) === 0x1,
           resetVector = 0x10A00000l,
-          iBusWidth = 64,
-          dBusWidth = 64
+          iBusWidth = 32,
+          dBusWidth = 32,
+          iCacheSize = 8192,
+          dCacheSize = 8192,
+          iCacheWays = 2,
+          dCacheWays = 2,
+          iBusRelax = true,
+          earlyBranch = false
         ))
       }
     }
@@ -199,6 +245,25 @@ object Ulx3sSmpAbstract{
       rspFifoDepth = 256
     )
 
+    vga.parameter load BmbVgaCtrlParameter(
+      rgbConfig = RgbConfig(5,6,5)
+    )
+
+
+    dma.parameter.layout load DmaMemoryLayout(
+      bankCount     = 1,
+      bankWords     = 128,
+      bankWidth     = 32,
+      priorityWidth = 2
+    )
+
+    dma.setBmbParameter(
+      addressWidth = 32,
+      dataWidth = 32,
+      lengthWidth = 6
+    )
+    dma.connectInterrupts(plic, 12)
+
 
     // Add some interconnect pipelining to improve FMax
     interconnect.dependencies += cores.produce{for(cpu <- cores.cpu) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)}
@@ -242,7 +307,7 @@ object Ulx3sSmp {
   def main(args: Array[String]): Unit = {
     val sdramSize = if (args.length > 0 && args(0) == "64")  64 else 32
     val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp, sdramSize).toComponent()))
-    BspGenerator("Ulx3sLinuxUboot", report.toplevel.generator, report.toplevel.generator.system.cores.cpu.get(0).dBus)
+    BspGenerator("radiona/ulx3s/smp", report.toplevel.generator, report.toplevel.generator.system.cores.cpu.get(0).dBus)
   }
 }
 

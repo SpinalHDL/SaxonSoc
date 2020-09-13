@@ -1,4 +1,4 @@
-VERILOG = ../../../../netlist/Ulx3sSmp.v pll_linux.v hdmi.v
+VERILOG = ../../../../netlist/Ulx3sSmp.v pll_linux.v
 
 FPGA_SIZE ?= 12
 
@@ -9,12 +9,15 @@ FPGA_KS ?= $(FPGA_SIZE)k
 ifeq ($(FPGA_SIZE), 12)
 	CHIP_ID=0x21111043
 	FPGA_KS = 25k
+	NEXTPNR_FLAGS += "--timing-allow-fail"
 endif
 ifeq ($(FPGA_SIZE), 25)
 	CHIP_ID=0x41111043
+	NEXTPNR_FLAGS += "--timing-allow-fail"
 endif
 ifeq ($(FPGA_SIZE), 45)
 	CHIP_ID=0x41112043
+	NEXTPNR_FLAGS += "--timing-allow-fail"
 endif
 ifeq ($(FPGA_SIZE), 85)
 	CHIP_ID=0x41113043
@@ -33,8 +36,10 @@ bin/toplevel.json: ${VERILOG}
 	rm -f Ulx3sSmp.v*.bin
 	cp ../../../../netlist/Ulx3sSmp.v*.bin . | true
 	yosys \
-		-p "synth_ecp5 -abc9 -json $@" \
+		-p "synth_ecp5 -abc9  -json $@" \
 		${VERILOG}
+
+#  -noflatten -abc9
 
 bin/toplevel.config: bin/toplevel.json
 	nextpnr-ecp5 \

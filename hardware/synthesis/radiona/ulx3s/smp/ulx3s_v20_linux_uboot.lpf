@@ -296,32 +296,32 @@ IOBUF PORT "system_phyA_sdram_DQ[14]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4 SLE
 IOBUF PORT "system_phyA_sdram_DQ[15]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4 SLEWRATE=FAST;
 
 # GPDI differential interface (Video) "gpdi" sheet
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dp[0]" SITE "A16"; # Blue +
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dn[0]" SITE "B16"; # Blue -
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dp[1]" SITE "A14"; # Green +
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dn[1]" SITE "C14"; # Green -
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dp[2]" SITE "A12"; # Red +
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dn[2]" SITE "A13"; # Red -
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dp[3]" SITE "A17"; # Clock +
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_dn[3]" SITE "B18"; # Clock -
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_ethp" SITE "A19"; # Ethernet +
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_ethn" SITE "B20"; # Ethernet -
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_cec" SITE "A18";
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_sda" SITE "B19"; # I2C shared with RTC
-LOCATE COMP "system_hdmiConsoleA_hdmi_gpdi_scl" SITE "E12"; # I2C shared with RTC C12->E12
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dp[0]" IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dn[0]" IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dp[1]" IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dn[1]" IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dp[2]" IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dn[2]" IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dp[3]" IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_dn[3]" IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_ethp" IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_ethn" IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_cec" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_sda" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiConsoleA_hdmi_gpdi_scl" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+LOCATE COMP "system_hdmiPhy_gpdi_dp[0]" SITE "A16"; # Blue +
+LOCATE COMP "system_hdmiPhy_gpdi_dn[0]" SITE "B16"; # Blue -
+LOCATE COMP "system_hdmiPhy_gpdi_dp[1]" SITE "A14"; # Green +
+LOCATE COMP "system_hdmiPhy_gpdi_dn[1]" SITE "C14"; # Green -
+LOCATE COMP "system_hdmiPhy_gpdi_dp[2]" SITE "A12"; # Red +
+LOCATE COMP "system_hdmiPhy_gpdi_dn[2]" SITE "A13"; # Red -
+LOCATE COMP "system_hdmiPhy_gpdi_dp[3]" SITE "A17"; # Clock +
+LOCATE COMP "system_hdmiPhy_gpdi_dn[3]" SITE "B18"; # Clock -
+LOCATE COMP "system_hdmiPhy_gpdi_ethp" SITE "A19"; # Ethernet +
+LOCATE COMP "system_hdmiPhy_gpdi_ethn" SITE "B20"; # Ethernet -
+LOCATE COMP "system_hdmiPhy_gpdi_cec" SITE "A18";
+LOCATE COMP "system_hdmiPhy_gpdi_sda" SITE "B19"; # I2C shared with RTC
+LOCATE COMP "system_hdmiPhy_gpdi_scl" SITE "E12"; # I2C shared with RTC C12->E12
+IOBUF PORT "system_hdmiPhy_gpdi_dp[0]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_dn[0]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_dp[1]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_dn[1]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_dp[2]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_dn[2]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_dp[3]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_dn[3]" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_ethp" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_ethn" IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_cec" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_sda" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_hdmiPhy_gpdi_scl" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 
 # GPIO (default single-ended) "gpio", "ram", "gpdi" sheet
 # Physical connector pins:

@@ -50,3 +50,9 @@ saxon_ftp_load(){
   cp u-boot/u-boot.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
   cp SaxonSoc/bsp/common/scripts/linux_tools.sh /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
 }
+
+
+saxon_fpga_load(){
+  cd $SAXON_ROOT
+  fujprog  SaxonSoc/hardware/synthesis/radiona/ulx3s/smp/bin/toplevel.bit
+}
