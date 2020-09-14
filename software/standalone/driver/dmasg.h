@@ -62,6 +62,7 @@
 // If the DMA read a completed descriptor, the channel is stopped and will produce a CHANNEL_COMPLETION interrupt.
 #define DMASG_DESCRIPTOR_STATUS_COMPLETED BIT_31
 
+// Should be aligned to 64 bytes !
 struct dmasg_descriptor {
    // See all DMASG_DESCRIPTOR_STATUS_* defines
    // Updated by the DMA at the end of each descriptor and when a S -> M packet is completely transferred into memory

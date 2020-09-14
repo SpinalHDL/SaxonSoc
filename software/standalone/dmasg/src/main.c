@@ -36,7 +36,7 @@ void flush_data_cache(){
     asm(".word(0x500F)");
 }
 
-struct dmasg_descriptor descriptors[3];
+volatile struct dmasg_descriptor descriptors[3]  __attribute__ ((aligned (64)));
 
 void main() {
     bsp_putString("\nDMA demo\n");
