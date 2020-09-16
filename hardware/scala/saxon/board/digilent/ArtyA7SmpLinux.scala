@@ -63,6 +63,7 @@ class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
       channel.fixedBurst(64)
       channel.withCircularMode()
       channel.fifoMapping load Some(0, 256)
+      channel.connectInterrupt(plic, 12)
 
       val stream = createOutput(byteCount = 8)
       channel.outputsPorts += stream
@@ -72,8 +73,9 @@ class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
     val audioOut = new Area{
       val channel = createChannel()
       channel.fixedBurst(64)
-      channel.withCircularMode()
+      channel.withScatterGatter()
       channel.fifoMapping load Some(0, 256)
+      channel.connectInterrupt(plic, 13)
 
       val stream = createOutput(byteCount = 8)
       channel.outputsPorts += stream
@@ -81,6 +83,8 @@ class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
   }
  // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
   interconnect.addConnection(dma.read,  fabric.dBus.bmb)
+  interconnect.addConnection(dma.readSg,  fabric.dBus.bmb)
+  interconnect.addConnection(dma.writeSg,  fabric.dBusCoherent.bmb)
 
   val vga = BmbVgaCtrlGenerator(0x90000)
   bsbInterconnect.connect(dma.vga.stream.output, vga.input)
@@ -97,6 +101,37 @@ class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
     fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
+
+
+//  def debug(that : Data) = that.addAttribute("""mark_debug = "true"""")
+//  audioOut.logic.derivate{c =>
+//    debug(c.core.io.input.valid)
+//    debug(c.core.io.input.ready)
+//    debug(c.core.io.run)
+//    debug(c.core.io.rate)
+//  }
+//  dma.logic.derivate{c =>
+//    debug(c.io.interrupts)
+//    debug(c.io.outputs(1).valid)
+//    debug(c.io.outputs(1).ready)
+//    debug(c.io.sgRead.cmd.valid)
+//    debug(c.io.sgRead.cmd.address)
+//    debug(c.io.sgRead.rsp.valid)
+//    debug(c.io.sgRead.rsp.data)
+//    debug(c.channels(1).channelValid)
+//    debug(c.channels(1).descriptorValid)
+//    debug(c.channels(1).interrupts.completion.enable)
+//    debug(c.channels(1).interrupts.completion.valid)
+//    debug(c.channels(1).push.memory)
+//    debug(c.channels(1).push.m2b.address)
+//    debug(c.channels(1).pop.memory)
+//    debug(c.channels(1).pop.b2s.portId)
+//    debug(c.channels(1).fifo.push.available)
+//    debug(c.channels(1).fifo.pop.empty)
+//    debug(c.io.read.cmd.valid)
+//    debug(c.io.read.cmd.address)
+//    debug(c.io.read.rsp.valid)
+//  }
 }
 
 class ArtyA7SmpLinux extends Generator{
@@ -305,7 +340,6 @@ object ArtyA7SmpLinuxAbstract{
       dataWidth = 64,
       lengthWidth = 6
     )
-    dma.connectInterrupts(plic, 12)
 
     vga.parameter load BmbVgaCtrlParameter(
       rgbConfig = RgbConfig(4,4,4)
