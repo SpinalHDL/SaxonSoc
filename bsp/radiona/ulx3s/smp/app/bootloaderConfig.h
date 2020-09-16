@@ -54,6 +54,18 @@ void bspMain() {
     );
 
 #ifndef SPINAL_SIM
+    while(1){
+        bsp_putString("Mem test .. ");
+        sdram_mem_init(SDRAM_BASE, 0x100000);
+        if(!sdram_mem_test(SDRAM_BASE, 0x100000)) {
+            bsp_putString("pass\n");
+            break;
+        }
+
+        bsp_putString("failure\n");
+        bsp_uDelay(1000000);
+    }
+
     spiFlash_init(SPI, SPI_CS);
     spiFlash_wake(SPI, SPI_CS);
     bsp_putString("OpenSBI copy\n");
