@@ -3,6 +3,7 @@
 #include "bsp.h"
 #include "audioOutConfig.h"
 #include "dmasg.h"
+#include "math.h"
 
 #define AUDIO_OUT_STATUS_RUN BIT_0
 #define AUDIO_OUT_STATUS 0x10
@@ -14,14 +15,18 @@ void main() {
     bsp_putString("Audio out demo\n");
 
     // Init the sound buffer with a ramp
-    u16 *samples = (u16*) AUDIO_OUT_BUFFER_BASE;
+    s16 *samples = (s16*) AUDIO_OUT_BUFFER_BASE;
     for(u32 sampleId = 0; sampleId < AUDIO_OUT_BUFFER_SAMPLES; sampleId++){
-        samples[sampleId] = sampleId << 8;
+//        samples[sampleId] = sampleId << 8;
+        if(sampleId & 1)
+            samples[sampleId] = sinf(sampleId/16.0f)*0x7FFF;
+        else
+            samples[sampleId] = sampleId << 8;
     }
 
     // Init the sigma delta DAC
     write_u32(BSP_CLINT_HZ/48000, AUDIO_OUT_BASE + AUDIO_OUT_RATE);
-    write_u32(AUDIO_OUT_STATUS_RUN, AUDIO_OUT_BASE + AUDIO_OUT_STATUS);
+    write_u32(2, AUDIO_OUT_BASE + AUDIO_OUT_STATUS);
 
     // If the were used in direct control / self reload mode :
 //    dmasg_input_memory(DMASG_BASE, AUDIO_OUT_CHANNEL,  (u32)AUDIO_OUT_BUFFER_BASE, 0);

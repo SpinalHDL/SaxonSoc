@@ -1,6 +1,7 @@
 PROJ_NAME=audioOut
 STANDALONE = ..
 
+LDFLAGS += -lm
 
 SRCS = 	$(wildcard src/*.c) \
 		$(wildcard src/*.cpp) \
