@@ -272,6 +272,7 @@ object Ulx3sSmpAbstract{
     interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
+    interconnect.setPipelining(dma.read)(rspValid = true)
 
     g
   }
