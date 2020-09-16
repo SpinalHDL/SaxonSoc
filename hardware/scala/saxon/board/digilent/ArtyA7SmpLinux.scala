@@ -346,7 +346,7 @@ object ArtyA7SmpLinuxAbstract{
     )
 
     audioOut.parameter load BsbToDeltaSigmaParameter(
-      channels = 1,
+      channels = 2,
       channelWidth = 16,
       rateWidth = 12
     )
@@ -358,6 +358,7 @@ object ArtyA7SmpLinuxAbstract{
     interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
+    interconnect.setPipelining(dma.read)(cmdHalfRate = true)
 
     g
   }
