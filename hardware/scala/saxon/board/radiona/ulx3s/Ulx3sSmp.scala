@@ -25,13 +25,14 @@ import spinal.lib.io.{Gpio, InOutWrapper}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, XilinxS7Phy}
+import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
 import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
 
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
 class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
-  val fabric = withDefaultFabric()
+  val fabric = withDefaultFabric(withOutOfOrderDecoder = true)
 
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l).mapCtrlAt(0x100000)
   val sdramA0 = sdramA.addPort()
@@ -56,6 +57,18 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
       channel.fixedBurst(64)
       channel.withCircularMode()
       channel.fifoMapping load Some(0, 256)
+      channel.connectInterrupt(plic, 12)
+
+      val stream = createOutput(byteCount = 4)
+      channel.outputsPorts += stream
+    }
+
+    val audioOut = new Area{
+      val channel = createChannel()
+      channel.fixedBurst(64)
+      channel.withScatterGatter()
+      channel.fifoMapping load Some(256, 256)
+      channel.connectInterrupt(plic, 13)
 
       val stream = createOutput(byteCount = 4)
       channel.outputsPorts += stream
@@ -64,10 +77,14 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
 
   // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
   interconnect.addConnection(dma.read,  fabric.dBus.bmb)
+  interconnect.addConnection(dma.readSg,  fabric.dBus.bmb)
+  interconnect.addConnection(dma.writeSg,  fabric.dBusCoherent.bmb)
 
   val vga = BmbVgaCtrlGenerator(0x90000)
   bsbInterconnect.connect(dma.vga.stream.output, vga.input)
 
+  val audioOut = BmbBsbToDeltaSigmaGenerator(0x94000)
+  bsbInterconnect.connect(dma.audioOut.stream.output, audioOut.input)
 
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
@@ -249,6 +266,12 @@ object Ulx3sSmpAbstract{
       rgbConfig = RgbConfig(5,6,5)
     )
 
+    audioOut.parameter load BsbToDeltaSigmaParameter(
+      channels = 2,
+      channelWidth = 16,
+      rateWidth = 16
+    )
+
 
     dma.parameter.layout load DmaMemoryLayout(
       bankCount     = 1,
@@ -262,17 +285,18 @@ object Ulx3sSmpAbstract{
       dataWidth = 32,
       lengthWidth = 6
     )
-    dma.connectInterrupts(plic, 12)
 
 
     // Add some interconnect pipelining to improve FMax
     interconnect.dependencies += cores.produce{for(cpu <- cores.cpu) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)}
+    interconnect.setPipelining(fabric.dBus.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
-    interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
-    interconnect.setPipelining(dma.read)(rspValid = true)
+    interconnect.setPipelining(dma.read)(cmdHalfRate = true, rspValid = true)
+    interconnect.setPipelining(dma.readSg)(rspValid = true)
 
     g
   }

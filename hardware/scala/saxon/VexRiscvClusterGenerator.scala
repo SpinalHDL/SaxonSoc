@@ -49,7 +49,7 @@ class VexRiscvClusterGenerator extends Generator {
   }
 
   // Can be use to define a SMP memory fabric with mainly 3 attatchement points (iBus, dBusCoherent, dBusIncoherent)
-  def withDefaultFabric() = new Area{
+  def withDefaultFabric(withOutOfOrderDecoder : Boolean = true) = new Area{
     val iBus = BmbBridgeGenerator()
     val dBusCoherent = BmbBridgeGenerator()
     val dBus = BmbBridgeGenerator()
@@ -70,7 +70,7 @@ class VexRiscvClusterGenerator extends Generator {
       )
     })
 
-    interconnect.masters(dBus.bmb).withOutOfOrderDecoder()
+    if(withOutOfOrderDecoder) interconnect.masters(dBus.bmb).withOutOfOrderDecoder()
   }
 
   // Utility to create the debug fabric usable by JTAG

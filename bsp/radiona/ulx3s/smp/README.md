@@ -77,7 +77,7 @@ echo w
 ) | sudo fdisk $SDCARD
 
 sudo mkfs.vfat $SDCARD_P1
-sudo mke2fs $SDCARD_P2
+echo Y | sudo  mke2fs $SDCARD_P2
 
 mkdir -p sdcard
 sudo mount $SDCARD_P1 sdcard

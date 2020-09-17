@@ -36,7 +36,7 @@ bin/toplevel.json: ${VERILOG}
 	rm -f Ulx3sSmp.v*.bin
 	cp ../../../../netlist/Ulx3sSmp.v*.bin . | true
 	yosys \
-		-p "synth_ecp5 -abc9  -json $@" \
+		-p "synth_ecp5 -json $@" \
 		${VERILOG}
 
 #  -noflatten -abc9
@@ -48,6 +48,7 @@ bin/toplevel.config: bin/toplevel.json
 		--lpf ulx3s_v20_linux_uboot.lpf \
 		--$(FPGA_KS) \
 		--freq 50 \
+		--seed 123 \
 		--package CABGA381 ${NEXTPNR_FLAGS}
 
 bin/toplevel.bit: bin/toplevel.config
