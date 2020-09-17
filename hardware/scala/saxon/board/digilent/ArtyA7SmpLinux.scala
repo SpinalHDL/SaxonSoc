@@ -74,7 +74,7 @@ class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
       val channel = createChannel()
       channel.fixedBurst(64)
       channel.withScatterGatter()
-      channel.fifoMapping load Some(0, 256)
+      channel.fifoMapping load Some(256, 256)
       channel.connectInterrupt(plic, 13)
 
       val stream = createOutput(byteCount = 8)
@@ -348,7 +348,7 @@ object ArtyA7SmpLinuxAbstract{
     audioOut.parameter load BsbToDeltaSigmaParameter(
       channels = 2,
       channelWidth = 16,
-      rateWidth = 12
+      rateWidth = 16
     )
 
     // Add some interconnect pipelining to improve FMax
@@ -472,7 +472,7 @@ object ArtyA7SmpLinuxSystemSim {
 //      vgaCd.asyncReset(debugCd)
 //
 //      vga.vgaCd.merge(vgaCd.outputClockDomain)
-//      vga.output.derivate(_.simPublic())
+      vga.output.derivate(_.simPublic())
 
       vga.vgaCd.merge(vga.generatorClockDomain)
 
@@ -538,6 +538,7 @@ object ArtyA7SmpLinuxSystemSim {
       )
 
 //      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
+      val vga = VgaDisplaySim(dut.vga.output, clockDomain)
 
       dut.spiA.sdcard.data.read #= 3
 
