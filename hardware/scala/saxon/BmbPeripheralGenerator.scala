@@ -186,7 +186,7 @@ case class  BmbGpioGenerator(apbOffset : Handle[BigInt] = Unset)
   @dontName var interruptCtrl : InterruptCtrlGeneratorI = null
   var interruptOffsetId = 0
   def connectInterrupts(ctrl : InterruptCtrlGeneratorI, offsetId : Int): Unit = interrupts.produce{
-    for(pinId <- parameter.interrupt) ctrl.addInterrupt(interrupts.get(pinId), offsetId + pinId)
+    for((pinId, localOffset) <- parameter.interrupt.zipWithIndex) ctrl.addInterrupt(interrupts.get(pinId), offsetId + localOffset)
     interruptCtrl = ctrl
     interruptOffsetId = offsetId
   }

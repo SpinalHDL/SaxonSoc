@@ -244,7 +244,7 @@ object Ulx3sSmpAbstract{
 
     gpioA.parameter load Gpio.Parameter(
       width = 24,
-      interrupt = List(0, 1, 2, 3)
+      interrupt = List(15)
     )
     gpioA.connectInterrupts(plic, 4)
 
