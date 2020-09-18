@@ -73,6 +73,15 @@ void bspMain() {
     bsp_putString("U-Boot copy\n");
     spiFlash_f2m(SPI, SPI_CS, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
 
+    bsp_putString("Image check .. ");
+    if(((u32*) OPENSBI_MEMORY)[0] != 0x00050433 || ((u32*) OPENSBI_MEMORY)[1] != 0x000584b3) {
+        bsp_putString("OpenSBI missmatch\n");
+    }
+    if(((u32*) UBOOT_MEMORY)[0] != 0x00050213 || ((u32*) UBOOT_MEMORY)[1] != 0x00058493) {
+        bsp_putString("U-Boot missmatch\n");
+    }
+    bsp_putString("pass\n");
+
     vgaInit();
 #endif
 
