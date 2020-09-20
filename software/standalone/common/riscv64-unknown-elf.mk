@@ -4,7 +4,7 @@ else
 ifneq (, $(shell which riscv-none-embed-gcc))
 RISCV_BIN ?= riscv-none-embed-
 else
-$(error No RISC-V toolchain detected, please install riscv-none-embed- from xpack)
+$(warning No RISC-V toolchain detected, please install riscv-none-embed- from xpack)
 endif
 endif
 
