@@ -32,6 +32,14 @@
 //Ex : make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSDRAM_TIMING=AS4C32M16SB_7TCN_ps"
 #endif
 
+void putHex(int value){
+    for(int i = 7; i >= 0;i--){
+        int hex = (value >> i*4) & 0xF;
+        bsp_putChar(hex > 9 ? 'A' + hex - 10 : '0' + hex);
+    }
+}
+
+
 void bspMain() {
     bsp_putString("\n");
     bsp_putString("SDRAM init\n");
@@ -76,9 +84,13 @@ void bspMain() {
     bsp_putString("Image check .. ");
     if(((u32*) OPENSBI_MEMORY)[0] != 0x00050433 || ((u32*) OPENSBI_MEMORY)[1] != 0x000584b3) {
         bsp_putString("OpenSBI missmatch\n");
+        putHex(((u32*) OPENSBI_MEMORY)[0]); bsp_putChar(' '); putHex(((u32*) OPENSBI_MEMORY)[1]);
+        while(1);
     }
     if(((u32*) UBOOT_MEMORY)[0] != 0x00050213 || ((u32*) UBOOT_MEMORY)[1] != 0x00058493) {
         bsp_putString("U-Boot missmatch\n");
+        putHex(((u32*) UBOOT_MEMORY)[0]); bsp_putChar(' '); putHex(((u32*) UBOOT_MEMORY)[1]);
+        while(1);
     }
     bsp_putString("pass\n");
 
