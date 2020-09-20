@@ -204,12 +204,22 @@ class NexysA7SmpLinux extends Generator{
         frequency = FixedFrequency(150 MHz)
       )
     )
-    vgaCd.setInput(ClockDomain(clk50))
+    vgaCd.setInput(
+      ClockDomain(
+        clock = pll.CLKOUT5,
+        frequency = FixedFrequency(50 MHz)
+      )
+    )
     system.vga.vgaCd.merge(vgaCd.outputClockDomain)
 
     sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
     sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
     sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
+  }
+
+  val audioOut = add task new Area{
+    val sd = out Bool()
+    sd := Bool(true)
   }
 
   val startupe2 = system.spiA.flash.produce(
