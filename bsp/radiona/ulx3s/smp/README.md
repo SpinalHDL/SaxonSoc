@@ -28,6 +28,12 @@ saxon_standalone_compile sdramInit CFLAGS_ARGS="-DSDRAM_TIMING=MT48LC16M16A2_6A_
 saxon_openocd
 ```
 
+If you want once to update the repo, you can do a :
+
+```sh
+saxon_update
+```
+
 Customize SDRAM_SIZE and FPGA_SIZE for blue ULX3S board with 85F and 64Mb SDRAM
 
 ```sh
