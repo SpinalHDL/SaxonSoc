@@ -17,6 +17,7 @@ saxon_clone() {
   saxon_clone_single "linux" "https://github.com/SpinalHDL/linux.git --branch vexriscv"
   saxon_clone_single "opensbi" "https://github.com/SpinalHDL/opensbi.git --branch spinal"
   saxon_clone_single "openocd_riscv" "https://github.com/SpinalHDL/openocd_riscv.git"
+  saxon_clone_single "SaxonSoc" "https://github.com/SpinalHDL/SaxonSoc.git"
 }
 saxon_update() {
     saxon_clone
