@@ -32,13 +32,19 @@
 //Ex : make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSDRAM_TIMING=AS4C32M16SB_7TCN_ps"
 #endif
 
-void putHex(int value){
+void putHexU32(int value){
     for(int i = 7; i >= 0;i--){
         int hex = (value >> i*4) & 0xF;
         bsp_putChar(hex > 9 ? 'A' + hex - 10 : '0' + hex);
     }
 }
 
+void putHexU8(u8 value){
+    for(int i = 1; i >= 0;i--){
+        int hex = (value >> i*4) & 0xF;
+        bsp_putChar(hex > 9 ? 'A' + hex - 10 : '0' + hex);
+    }
+}
 
 void bspMain() {
     bsp_putString("\n");
@@ -76,6 +82,9 @@ void bspMain() {
 
     spiFlash_init(SPI, SPI_CS);
     spiFlash_wake(SPI, SPI_CS);
+    spiFlash_software_reset(SPI, SPI_CS);
+    bsp_putString("Flash ID : 0x"); putHexU8(spiFlash_read_id(SPI, SPI_CS)); bsp_putChar('\n');
+    
     bsp_putString("OpenSBI copy\n");
     spiFlash_f2m(SPI, SPI_CS, OPENSBI_FLASH, OPENSBI_MEMORY, OPENSBI_SIZE);
     bsp_putString("U-Boot copy\n");
@@ -84,12 +93,12 @@ void bspMain() {
     bsp_putString("Image check .. ");
     if(((u32*) OPENSBI_MEMORY)[0] != 0x00050433 || ((u32*) OPENSBI_MEMORY)[1] != 0x000584b3) {
         bsp_putString("OpenSBI missmatch\n");
-        putHex(((u32*) OPENSBI_MEMORY)[0]); bsp_putChar(' '); putHex(((u32*) OPENSBI_MEMORY)[1]);
+        putHexU32(((u32*) OPENSBI_MEMORY)[0]); bsp_putChar(' '); putHexU32(((u32*) OPENSBI_MEMORY)[1]);
         while(1);
     }
     if(((u32*) UBOOT_MEMORY)[0] != 0x00050213 || ((u32*) UBOOT_MEMORY)[1] != 0x00058493) {
         bsp_putString("U-Boot missmatch\n");
-        putHex(((u32*) UBOOT_MEMORY)[0]); bsp_putChar(' '); putHex(((u32*) UBOOT_MEMORY)[1]);
+        putHexU32(((u32*) UBOOT_MEMORY)[0]); bsp_putChar(' '); putHexU32(((u32*) UBOOT_MEMORY)[1]);
         while(1);
     }
     bsp_putString("pass\n");
