@@ -77,7 +77,7 @@ class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
       channel.fifoMapping load Some(256, 256)
       channel.connectInterrupt(plic, 13)
 
-      val stream = createOutput(byteCount = 8)
+      val stream = createOutput(byteCount = 4)
       channel.outputsPorts += stream
     }
   }
