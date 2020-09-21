@@ -11,17 +11,18 @@
 
 volatile struct dmasg_descriptor descriptors[2]  __attribute__ ((aligned (64)));
 
+//(0 to 127).map(i => Math.sin(i*Math.PI*2/128)*0x3FFF toShort).mkString(",")
+s16 lut[] = {0,803,1605,2403,3196,3980,4755,5519,6269,7004,7722,8422,9101,9759,10393,11002,11584,12139,12664,13158,13621,14052,14448,14810,15135,15425,15677,15892,16068,16205,16304,16363,16383,16363,16304,16205,16068,15892,15677,15425,15135,14810,14448,14052,13621,13158,12664,12139,11584,11002,10393,9759,9101,8422,7722,7004,6269,5519,4755,3980,3196,2403,1605,803,0,-803,-1605,-2403,-3196,-3980,-4755,-5519,-6269,-7004,-7722,-8422,-9101,-9759,-10393,-11002,-11584,-12139,-12664,-13158,-13621,-14052,-14448,-14810,-15135,-15425,-15677,-15892,-16068,-16205,-16304,-16363,-16383,-16363,-16304,-16205,-16068,-15892,-15677,-15425,-15135,-14810,-14448,-14052,-13621,-13158,-12664,-12139,-11584,-11002,-10393,-9759,-9101,-8422,-7722,-7004,-6269,-5519,-4755,-3980,-3196,-2403,-1605,-803};
+
+
 void main() {
     bsp_putString("Audio out demo\n");
 
     // Init the sound buffer with a ramp
-    s16 *samples = (s16*) AUDIO_OUT_BUFFER_BASE;
+    s16 (*samples)[2] = (s16 (*)[2])AUDIO_OUT_BUFFER_BASE;
     for(u32 sampleId = 0; sampleId < AUDIO_OUT_BUFFER_SAMPLES; sampleId++){
-//        samples[sampleId] = sampleId << 8;
-        if(sampleId & 1)
-            samples[sampleId] = sinf(sampleId/16.0f)*0x7FFF;
-        else
-            samples[sampleId] = sampleId << 8;
+            samples[sampleId][0] = lut[sampleId]; //sinf(sampleId/16.0f)*0x7FFF;
+            samples[sampleId][1] = sampleId << 9;
     }
 
     // Init the sigma delta DAC
