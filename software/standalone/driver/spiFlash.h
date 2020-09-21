@@ -51,10 +51,6 @@ static void spiFlash_init(u32 spi, u32 cs){
 
 static void spiFlash_wake_(u32 spi){
     spi_write(spi, 0xAB);
-    spi_write(spi, 0x00);
-    spi_write(spi, 0x00);
-    spi_write(spi, 0x00);
-    spi_write(spi, 0x00);
 }
 
 static void spiFlash_wake_withGpioCs(u32 spi, u32 gpio, u32 cs){
@@ -70,6 +66,35 @@ static void spiFlash_wake(u32 spi, u32 cs){
     spiFlash_diselect(spi,cs);
     bsp_uDelay(200);
 }
+
+static void spiFlash_software_reset(u32 spi, u32 cs){
+    spiFlash_select(spi,cs);
+    spi_write(spi, 0x66);
+    spiFlash_diselect(spi,cs);
+    spiFlash_select(spi,cs);
+    spi_write(spi, 0x99);
+    spiFlash_diselect(spi,cs);
+    bsp_uDelay(200);
+}
+
+static u8 spiFlash_read_id_(u32 spi){
+    spi_write(spi, 0xAB);
+    spi_write(spi, 0x00);
+    spi_write(spi, 0x00);
+    spi_write(spi, 0x00);
+    return spi_read(spi);
+}
+
+static u8 spiFlash_read_id(u32 spi, u32 cs){
+    u8 id;
+    spiFlash_select(spi,cs);
+    id = spiFlash_read_id_(spi);
+    spiFlash_diselect(spi,cs);
+    return id;
+}
+
+
+
 
 static void spiFlash_f2m_(u32 spi, u32 flashAddress, u32 memoryAddress, u32 size){
     spi_write(spi, 0x0B);
