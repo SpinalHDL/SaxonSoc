@@ -8,7 +8,8 @@ saxon_buildroot(){
 
 saxon_buildroot_dts(){
   cd $SAXON_ROOT/buildroot
-  dtc -O dtb -o output/images/dtb $SAXON_BUILDROOT_DTS
+  cpp -nostdinc -I ../linux/include -I arch  -undef -x assembler-with-cpp  $SAXON_BUILDROOT_DTS output/images/dts.preprocessed
+  dtc -i ../linux/include  -O dtb -o output/images/dtb output/images/dts.preprocessed
 }
 
 saxon_buildroot_clean(){
