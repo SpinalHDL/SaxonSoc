@@ -243,7 +243,7 @@ object Ulx3sSmpAbstract{
     uartB.connectInterrupt(plic, 2)
 
     gpioA.parameter load Gpio.Parameter(
-      width = 24,
+      width = 26,
       interrupt = List(15)
     )
     gpioA.connectInterrupts(plic, 4)

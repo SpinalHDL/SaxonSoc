@@ -307,8 +307,8 @@ LOCATE COMP "system_hdmiPhy_gpdi_dn[3]" SITE "B18"; # Clock -
 LOCATE COMP "system_hdmiPhy_gpdi_ethp" SITE "A19"; # Ethernet +
 LOCATE COMP "system_hdmiPhy_gpdi_ethn" SITE "B20"; # Ethernet -
 LOCATE COMP "system_hdmiPhy_gpdi_cec" SITE "A18";
-LOCATE COMP "system_hdmiPhy_gpdi_sda" SITE "B19"; # I2C shared with RTC
-LOCATE COMP "system_hdmiPhy_gpdi_scl" SITE "E12"; # I2C shared with RTC C12->E12
+LOCATE COMP "system_gpioA_gpio[24]" SITE "B19"; # I2C shared with RTC
+LOCATE COMP "system_gpioA_gpio[25]" SITE "E12"; # I2C shared with RTC C12->E12
 IOBUF PORT "system_hdmiPhy_gpdi_dp[0]" IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "system_hdmiPhy_gpdi_dn[0]" IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "system_hdmiPhy_gpdi_dp[1]" IO_TYPE=LVCMOS33 DRIVE=4;
@@ -320,8 +320,8 @@ IOBUF PORT "system_hdmiPhy_gpdi_dn[3]" IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "system_hdmiPhy_gpdi_ethp" IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "system_hdmiPhy_gpdi_ethn" IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "system_hdmiPhy_gpdi_cec" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiPhy_gpdi_sda" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_hdmiPhy_gpdi_scl" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_gpioA_gpio[24]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "system_gpioA_gpio[25]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 
 # GPIO (default single-ended) "gpio", "ram", "gpdi" sheet
 # Physical connector pins:
@@ -428,9 +428,9 @@ LOCATE COMP "system_gpioA_gpio[22]" SITE "B15"; # J2_25+ GP22
 LOCATE COMP "gn[22]" SITE "C15"; # J2_25- GN22
 LOCATE COMP "system_gpioA_gpio[23]" SITE "B17"; # J2_27+ GP23
 LOCATE COMP "gn[23]" SITE "C17"; # J2_27- GN23
-LOCATE COMP "system_gpioA_gpio[24]" SITE "C16"; # J2_29+ GP24
+#LOCATE COMP "system_gpioA_gpio[24]" SITE "C16"; # J2_29+ GP24
 LOCATE COMP "gn[24]" SITE "D16"; # J2_29- GN24
-LOCATE COMP "system_gpioA_gpio[25]" SITE "D14"; # J2_31+ GP25
+#LOCATE COMP "system_gpioA_gpio[25]" SITE "D14"; # J2_31+ GP25
 LOCATE COMP "gn[25]" SITE "E14"; # J2_31- GN25
 LOCATE COMP "system_gpioA_gpio[26]" SITE "B13"; # J2_33+ GP26
 LOCATE COMP "gn[26]" SITE "C13"; # J2_33- GN26
@@ -442,14 +442,6 @@ IOBUF PORT "system_gpioA_gpio[22]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "gn[22]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "system_gpioA_gpio[23]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "gn[23]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_gpioA_gpio[24]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "gn[24]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_gpioA_gpio[25]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "gn[25]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_gpioA_gpio[26]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "gn[26]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "system_gpioA_gpio[27]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
-IOBUF PORT "gn[27]" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 
 ## PROGRAMN (reload bitstream from FLASH, exit from bootloader)
 # PCB v2.0.5 and higher
