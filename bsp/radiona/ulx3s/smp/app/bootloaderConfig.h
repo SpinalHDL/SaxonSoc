@@ -47,6 +47,7 @@ void putHexU8(u8 value){
 }
 
 void bspMain() {
+    bsp_uDelay(5000);
     bsp_putString("\n");
     bsp_putString("SDRAM init\n");
 

@@ -21,7 +21,8 @@ import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.generator._
 import spinal.lib.graphic.RgbConfig
 import spinal.lib.graphic.vga.{BmbVgaCtrlGenerator, BmbVgaCtrlParameter}
-import spinal.lib.io.{Gpio, InOutWrapper}
+import spinal.lib.io.{Gpio, InOutWrapper, TriStateOutput}
+import spinal.lib.master
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, XilinxS7Phy}
@@ -36,6 +37,8 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
 
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l).mapCtrlAt(0x100000)
   val sdramA0 = sdramA.addPort()
+
+  val systemCtrl = new Ulx3sSystemCtrl(0xBFF000)
 
   val gpioA = BmbGpioGenerator(0x00000)
 
@@ -97,6 +100,28 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
   )
 }
 
+class Ulx3sSystemCtrl(apbOffset : BigInt)
+                     (implicit interconnect: BmbInterconnectGenerator,
+                                decoder : BmbImplicitPeripheralDecoder)
+                      extends BmbPeripheralGenerator(apbOffset, addressWidth = 12) {
+
+  val logic = add task new Area{
+    val doRestart = ClockDomain.current.withBootReset on (RegInit(False))
+    val doShutdown = ClockDomain.current.withBootReset on (RegInit(False))
+
+    val mapper = BmbSlaveFactory(ctrl)
+    mapper.write(doRestart, 0, 0)
+    mapper.write(doShutdown, 0, 1)
+
+    val reloadn = master(TriStateOutput(Bool))
+    reloadn.write := False
+    reloadn.writeEnable := doRestart
+
+    val shutdown = master(TriStateOutput(Bool))
+    shutdown.write := True
+    shutdown.writeEnable := doShutdown
+  }
+}
 
 case class Ulx3sLinuxUbootPll() extends BlackBox{
   setDefinitionName("pll_linux")

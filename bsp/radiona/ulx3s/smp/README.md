@@ -48,7 +48,7 @@ Flash SPI
 source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
 cd $SAXON_ROOT
 fujprog -j FLASH SaxonSoc/hardware/synthesis/radiona/ulx3s/smp/bin/toplevel.bit
-fujprog -j FLASH -f 0x340000 opensbi/build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin
+fujprog -j FLASH -f 0x340000 opensbi/build/platform/spinal/saxon/radiona/ulx3s/firmware/fw_jump.bin
 fujprog -j FLASH -f 0x380000 u-boot/u-boot.bin
 ```
 

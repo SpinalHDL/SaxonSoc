@@ -48,6 +48,30 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
   if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
 }
 
+abstract case class BmbPeripheralGenerator(apbOffset : BigInt, addressWidth : Int)
+                                          (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
+
+
+
+  val accessSource = Handle[BmbAccessCapabilities]
+  val accessRequirements = createDependency[BmbAccessParameter]
+
+  val ctrl = accessRequirements.produce(Bmb(accessRequirements.toBmbParameter()))
+  dependencies += ctrl
+
+  interconnect.addSlave(
+    accessSource = accessSource,
+    accessCapabilities = accessSource.produce(BmbSlaveFactory.getBmbCapabilities(
+      accessSource,
+      addressWidth = addressWidth,
+      dataWidth = 32
+    )),
+    accessRequirements = accessRequirements,
+    bus = ctrl,
+    mapping = SizeMapping(apbOffset, 1 << addressWidth)
+  )
+  if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
+}
 
 case class SdramXdrBmbGenerator(memoryAddress: BigInt)
                                (implicit interconnect: BmbInterconnectGenerator) extends Generator {

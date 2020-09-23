@@ -7,7 +7,7 @@ SAXON_ROOT=$SAXON_BSP_PATH/"../../../../.."
 SAXON_BSP_COMMON_SCRIPTS=$SAXON_ROOT/SaxonSoc/bsp/common/scripts
 
 # Configurations
-SAXON_OPENSBI_PLATEFORM=spinal/saxon/digilent/artyA7Smp
+SAXON_OPENSBI_PLATEFORM=spinal/saxon/radiona/ulx3s
 SAXON_UBOOT_DEFCONFIG=saxon_ulx3s_defconfig
 SAXON_BUILDROOT_DEFCONFIG=spinal_saxon_ulx3s_defconfig
 SAXON_BUILDROOT_DTS=board/spinal/saxon_ulx3s/dts
@@ -46,7 +46,7 @@ saxon_ftp_load(){
   cp buildroot/output/images/uImage /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
   cp buildroot/output/images/rootfs.tar /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
   cp buildroot/output/images/rootfs.cpio.uboot /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
-  cp opensbi/build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp opensbi/build/platform/spinal/saxon/radiona/ulx3s/firmware/fw_jump.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
   cp u-boot/u-boot.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
   cp SaxonSoc/bsp/common/scripts/linux_tools.sh /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
 }
