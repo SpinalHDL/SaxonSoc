@@ -106,8 +106,8 @@ class Ulx3sSystemCtrl(apbOffset : BigInt)
                       extends BmbPeripheralGenerator(apbOffset, addressWidth = 12) {
 
   val logic = add task new Area{
-    val doRestart = ClockDomain.current.withBootReset on (RegInit(False))
-    val doShutdown = ClockDomain.current.withBootReset on (RegInit(False))
+    val doRestart = ClockDomain.current.withBootReset on (RegInit(False)) clearWhen(ClockDomain.current.isResetActive)
+    val doShutdown = ClockDomain.current.withBootReset on (RegInit(False)) clearWhen(ClockDomain.current.isResetActive)
 
     val mapper = BmbSlaveFactory(ctrl)
     mapper.write(doRestart, 0, 0)
