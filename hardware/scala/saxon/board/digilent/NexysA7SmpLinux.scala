@@ -71,7 +71,7 @@ class NexysA7SmpLinuxAbtract() extends VexRiscvClusterGenerator{
       channel.fifoMapping load Some(256, 256)
       channel.connectInterrupt(plic, 13)
 
-      val stream = createOutput(byteCount = 8)
+      val stream = createOutput(byteCount = 4)
       channel.outputsPorts += stream
     }
   }
@@ -148,12 +148,12 @@ class NexysA7SmpLinux extends Generator{
     val GCLK100 = in Bool()
 
     val pll = new BlackBox{
-      setDefinitionName("PLLE2_ADV")
+      setDefinitionName("MMCME2_ADV")
 
       addGenerics(
         "CLKIN1_PERIOD" -> 10.0,
-        "CLKFBOUT_MULT" -> 12,
-        "CLKOUT0_DIVIDE" -> 12,
+        "CLKFBOUT_MULT_F" -> 12,
+        "CLKOUT0_DIVIDE_F" -> 12,
         "CLKOUT0_PHASE" -> 0,
         "CLKOUT1_DIVIDE" -> 8,
         "CLKOUT1_PHASE" -> 0,
@@ -164,7 +164,9 @@ class NexysA7SmpLinux extends Generator{
         "CLKOUT4_DIVIDE" -> 4,
         "CLKOUT4_PHASE" -> 90,
         "CLKOUT5_DIVIDE" -> 24,
-        "CLKOUT5_PHASE" -> 0
+        "CLKOUT5_PHASE" -> 0,
+        "CLKOUT6_DIVIDE" -> 48,
+        "CLKOUT6_PHASE" -> 0
       )
 
       val CLKIN1   = in Bool()
@@ -176,12 +178,15 @@ class NexysA7SmpLinux extends Generator{
       val CLKOUT3  = out Bool()
       val CLKOUT4  = out Bool()
       val CLKOUT5  = out Bool()
+      val CLKOUT6  = out Bool()
 
+      Clock.syncDrive(CLKIN1, CLKOUT0)
       Clock.syncDrive(CLKIN1, CLKOUT1)
       Clock.syncDrive(CLKIN1, CLKOUT2)
       Clock.syncDrive(CLKIN1, CLKOUT3)
       Clock.syncDrive(CLKIN1, CLKOUT4)
       Clock.syncDrive(CLKIN1, CLKOUT5)
+      Clock.syncDrive(CLKIN1, CLKOUT6)
     }
 
     pll.CLKFBIN := pll.CLKFBOUT
@@ -206,8 +211,8 @@ class NexysA7SmpLinux extends Generator{
     )
     vgaCd.setInput(
       ClockDomain(
-        clock = pll.CLKOUT5,
-        frequency = FixedFrequency(50 MHz)
+        clock = pll.CLKOUT6,
+        frequency = FixedFrequency(25 MHz)
       )
     )
     system.vga.vgaCd.merge(vgaCd.outputClockDomain)
@@ -227,7 +232,7 @@ class NexysA7SmpLinux extends Generator{
   )
 }
 
-object NexysA7SmpLinuxSystem{
+object NexysA7SmpLinuxAbstract{
   def default(g : NexysA7SmpLinuxAbtract) = g {
     import g._
 
@@ -315,7 +320,7 @@ object NexysA7SmpLinuxSystem{
     )
 
     audioOut.parameter load BsbToDeltaSigmaParameter(
-      channels = 1,
+      channels = 2,
       channelWidth = 16,
       rateWidth = 16
     )
@@ -338,7 +343,7 @@ object NexysA7SmpLinux {
   def default(g : NexysA7SmpLinux) = g{
     import g._
     sdramDomain.phyA.sdramLayout.load(MT47H64M16HR.layout)
-    NexysA7SmpLinuxSystem.default(system)
+    NexysA7SmpLinuxAbstract.default(system)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     g
   }
@@ -395,7 +400,7 @@ object NexysA7SmpLinuxSystemSim {
 
       val jtagTap = withDebugBus(debugCd, systemCd, address = 0x10B80000).withJtag()
 
-      NexysA7SmpLinuxSystem.default(this)
+      NexysA7SmpLinuxAbstract.default(this)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
 //      ramA.hexInit.load("software/standalone/ethernet/build/ethernet.hex")
       val macCd = ClockDomain.external("macCd", withReset = false)
