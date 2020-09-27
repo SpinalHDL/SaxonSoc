@@ -23,21 +23,26 @@
 
 #define VGA_BYTE_PER_PIXEL   2
 #define VGA_BUFFER           0x87000000
-#define VGA_BUFFER_SIZE      0x01000000
-//#define VGA_BUFFER_SIZE     (VGA_WIDTH * VGA_HEIGHT * VGA_BYTE_PER_PIXEL)
+#define VGA_BUFFER_SIZE     (VGA_WIDTH * VGA_HEIGHT * VGA_BYTE_PER_PIXEL)
+
+/* Dreaw R,G,B,W colors in the four quadrants using RGB565 */
+void fillFrameBuffer(){
+    for(u32 y = 0;y < VGA_HEIGHT;y++){
+        for(u32 x = 0;x < VGA_WIDTH;x++){
+            ((u16*)VGA_BUFFER)[y*VGA_WIDTH + x] = (y < VGA_HEIGHT/2 ?
+                (x < VGA_WIDTH/2 ? 0xf800 : 0x07e0) :
+                (x < VGA_WIDTH/2 ? 0x001f : 0xffff));
+        }
+    }
+}
 
 void vgaInit(){
     bsp_putString("VGA init\n");
+    fillFrameBuffer();
 
     vga_set_timing(VGA_BASE, VGA_TIMINGS);
     vga_start(VGA_BASE);
 
-    u32 i = 0;
-    for(u32 y = 0;y < VGA_HEIGHT;y++){
-        for(u32 x = 0;x < VGA_WIDTH;x++){
-            ((u16*)VGA_BUFFER)[y*VGA_WIDTH + x] = y == 0 || x == 0 || x == VGA_WIDTH-1 || y == VGA_HEIGHT-1 ? 0xFFFF : (((x & 0x1F) << 11) | ((((x+y) >> 2) & 0x3F) << 5) | ((y & 0x1F) << 0));
-        }
-    }
     dmasg_input_memory(DMASG_BASE, VGA_CHANNEL,  (u32)VGA_BUFFER, 0);
     dmasg_output_stream(DMASG_BASE, VGA_CHANNEL, VGA_PORT, 0, VGA_SINK, 1);
     dmasg_direct_start(DMASG_BASE, VGA_CHANNEL, VGA_BUFFER_SIZE, 1);
