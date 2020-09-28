@@ -51,6 +51,7 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
     val user = decoder.spiMasterNone()
     val flash = decoder.spiMasterId(0)
     val sdcard = decoder.spiMasterId(1)
+    val oled = decoder.spiMasterId(2)
   }
 
   implicit val bsbInterconnect = BsbInterconnectGenerator()
@@ -268,7 +269,7 @@ object Ulx3sSmpAbstract{
     uartB.connectInterrupt(plic, 2)
 
     gpioA.parameter load Gpio.Parameter(
-      width = 26,
+      width = 28,
       interrupt = List(15)
     )
     gpioA.connectInterrupts(plic, 4)
@@ -280,7 +281,7 @@ object Ulx3sSmpAbstract{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 2
+          ssWidth = 3
         )
       ) .addFullDuplex(id = 0),
       cmdFifoDepth = 256,
