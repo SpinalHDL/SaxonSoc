@@ -54,6 +54,10 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
     val oled = decoder.spiMasterId(2)
   }
 
+  val mac = BmbMacEthGenerator(0x40000)
+  mac.connectInterrupt(plic, 3)
+  val eth = mac.withPhyRmii()
+
   implicit val bsbInterconnect = BsbInterconnectGenerator()
   val dma = new DmaSgGenerator(0x80000){
     val vga = new Area{
@@ -161,6 +165,7 @@ class Ulx3sSmp extends Generator{
   systemCd.setInput(globalCd)
   systemCd.holdDuration.load(63)
 
+
   // ...
   val system = new Ulx3sSmpAbstract(){
     val phyA = Ecp5Sdrx2PhyGenerator().connect(sdramA)
@@ -197,6 +202,9 @@ class Ulx3sSmp extends Generator{
     vgaCd.setInput(ClockDomain(pll.clkout3))
     hdmiCd.setInput(ClockDomain(pll.clkout0))
     system.vga.vgaCd.merge(vgaCd.outputClockDomain)
+
+    system.mac.txCd.load(ClockDomain(pll.clkout2))
+    system.mac.rxCd.load(ClockDomain(pll.clkout2))
 
     val bb = ClockDomain(pll.clkout1, False)(ODDRX1F())
     bb.D0 <> True
@@ -288,6 +296,16 @@ object Ulx3sSmpAbstract{
       rspFifoDepth = 256
     )
 
+    mac.parameter load MacEthParameter(
+      phy = PhyParameter(
+        txDataWidth = 2,
+        rxDataWidth = 2
+      ),
+      rxDataWidth = 32,
+      rxBufferByteSize = 4096,
+      txDataWidth = 32,
+      txBufferByteSize = 4096
+    )
     vga.parameter load BmbVgaCtrlParameter(
       rgbConfig = RgbConfig(5,6,5)
     )
