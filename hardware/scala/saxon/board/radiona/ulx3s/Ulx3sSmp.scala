@@ -57,6 +57,7 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
   val mac = BmbMacEthGenerator(0x40000)
   mac.connectInterrupt(plic, 3)
   val eth = mac.withPhyRmii()
+  eth.mii.derivate(_.RX.ER.setAsDirectionLess() := False)
 
   implicit val bsbInterconnect = BsbInterconnectGenerator()
   val dma = new DmaSgGenerator(0x80000){
@@ -203,8 +204,9 @@ class Ulx3sSmp extends Generator{
     hdmiCd.setInput(ClockDomain(pll.clkout0))
     system.vga.vgaCd.merge(vgaCd.outputClockDomain)
 
-    system.mac.txCd.load(ClockDomain(pll.clkout2))
-    system.mac.rxCd.load(ClockDomain(pll.clkout2))
+    val rmii_clk = in Bool()
+    system.mac.txCd.load(ClockDomain(rmii_clk))
+    system.mac.rxCd.load(ClockDomain(rmii_clk))
 
     val bb = ClockDomain(pll.clkout1, False)(ODDRX1F())
     bb.D0 <> True
