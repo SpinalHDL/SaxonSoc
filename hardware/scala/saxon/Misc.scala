@@ -164,6 +164,8 @@ case class SpiPhyDecoderGenerator() extends Generator{
   def phyNone(dataWidth : Int = -1) : Handle[SpiXdrMaster] = whenRaw(-1,-1, false)
 
   def spiMasterId(ssId : Int, dataWidth : Int = -1) = phyId(ssId, dataWidth).derivate(phy => master(phy.toSpi()))
+  def spiMasterEcp5Id(ssId : Int, dataWidth : Int = -1) = phyId(ssId, dataWidth).derivate(phy => master(phy.toSpiEcp5()))
+  def spiMasterEcp5FlashId(ssId : Int, dataWidth : Int = -1) = phyId(ssId, dataWidth).derivate(phy => master(phy.toSpiEcp5Flash()))
   def spiMasterNone(dataWidth : Int = -1) = phyNone(dataWidth).derivate(phy => master(phy.toSpi()))
   def mdioMasterId(ssId : Int, dataWidth : Int = -1) = phyId(ssId, dataWidth).derivate(phy => master(phy.toMdio()))
 

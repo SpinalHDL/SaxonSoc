@@ -49,10 +49,21 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
   val spiA = new BmbSpiGenerator(0x20000){
     val decoder = SpiPhyDecoderGenerator(phy)
     val user = decoder.spiMasterNone()
-    val flash = decoder.spiMasterId(0)
-    val sdcard = decoder.spiMasterId(1)
-    val oled = decoder.spiMasterId(2)
+    val flash = decoder.spiMasterEcp5FlashId(0)
+    val sdcardPhy = decoder.phyId(1, -1)
+    val sdcard = sdcardPhy.derivate(phy => master(phy.toSpiEcp5()))
+    val oled = decoder.spiMasterEcp5Id(2)
   }
+
+//  List(spiA.phy,spiA.sdcardPhy).produce{
+//    val debug = out (Bits(5 bits).setName("gp"))
+//    debug(0) := RegNext(spiA.sdcardPhy.ss(0))
+//    debug(1) := RegNext(spiA.sdcardPhy.sclk.write(0))
+//    debug(2) := RegNext(spiA.sdcardPhy.data(0).write(0))
+//    debug(3) := RegNext(spiA.sdcardPhy.data(1).read(0))
+//    debug(4) := RegNext(spiA.phy.data(1).read(0))
+//  }
+
 
   val mac = BmbMacEthGenerator(0x40000)
   mac.connectInterrupt(plic, 3)
@@ -139,12 +150,6 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
   val locked = out Bool()
 }
 
-case class Ulx3sUsrMclk() extends BlackBox{
-  setDefinitionName("USRMCLK")
-
-  val USRMCLKI = in Bool()
-  val USRMCLKTS = in Bool()
-}
 
 
 
@@ -293,7 +298,7 @@ object Ulx3sSmpAbstract{
           ioRate = 1,
           ssWidth = 3
         )
-      ) .addFullDuplex(id = 0),
+      ) .addFullDuplex(id = 0, lateSampling = true),
       cmdFifoDepth = 256,
       rspFifoDepth = 256
     )
@@ -354,14 +359,6 @@ object Ulx3sSmp {
   def default(g : Ulx3sSmp, sdramSize : Int, cpuCount : Int) = g{
     import g._
 
-    system.spiA.flash.produce {
-      val sclk = system.spiA.flash.sclk
-      sclk.setAsDirectionLess()
-      val usrMclk = Ulx3sUsrMclk()
-      usrMclk.USRMCLKTS := False
-      usrMclk.USRMCLKI := sclk
-    }
-
     if (sdramSize == 32) {
       system.phyA.sdramLayout.load(MT48LC16M16A2.layout)
     } else {
@@ -413,6 +410,13 @@ object Ulx3sSmpSystemSim {
 
       this.onClockDomain(systemCd.outputClockDomain)
 
+      cpuCount.load(1)
+
+      mac.txCd.merge(systemCd.outputClockDomain)
+      mac.rxCd.merge(systemCd.outputClockDomain)
+
+      vga.vgaCd.merge(systemCd.outputClockDomain)
+
       globalCd.makeExternal(
         frequency = FixedFrequency(52 MHz)
       )
@@ -438,7 +442,7 @@ object Ulx3sSmpSystemSim {
 
       fork{
         val at = 0
-        val duration = 0
+        val duration = 10
         while(simTime() < at*1000000000l) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -471,13 +475,13 @@ object Ulx3sSmpSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
-      dut.spiA.sdcard.data.read #= 3
+//      dut.spiA.sdcard.data.read #= 3
 
       val uboot = "../u-boot/"
       val opensbi = "../opensbi/"
       val linuxPath = "../buildroot/output/images/"
 
-      dut.phy.logic.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
+      dut.phy.logic.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/radiona/ulx3s/firmware/fw_jump.bin")
       dut.phy.logic.loadBin(0x00F00000, uboot + "u-boot.bin")
 //      dut.phy.logic.loadBin(0x00000000, linuxPath + "uImage")
 //      dut.phy.logic.loadBin(0x00FF0000, linuxPath + "dtb")
