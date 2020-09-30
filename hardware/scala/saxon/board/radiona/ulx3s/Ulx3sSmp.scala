@@ -5,7 +5,7 @@ import saxon._
 import spinal.core
 import spinal.core.{Clock, _}
 import spinal.core.sim._
-import spinal.lib.blackbox.lattice.ecp5.ODDRX1F
+import spinal.lib.blackbox.lattice.ecp5.{IFS1P3BX, ODDRX1F, OFS1P3BX}
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
 import spinal.lib.bus.bmb._
 import spinal.lib.bus.bsb.BsbInterconnectGenerator
@@ -67,8 +67,12 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
 
   val mac = BmbMacEthGenerator(0x40000)
   mac.connectInterrupt(plic, 3)
-  val eth = mac.withPhyRmii()
-  eth.mii.derivate(_.RX.ER.setAsDirectionLess() := False)
+  val eth = mac.withPhyRmii(
+    ffIn =  IFS1P3BX.apply,
+    ffOut = OFS1P3BX.apply,
+    withEr = false
+  )
+//  eth.mii.derivate(_.RX.ER.setAsDirectionLess() := False)
 
   implicit val bsbInterconnect = BsbInterconnectGenerator()
   val dma = new DmaSgGenerator(0x80000){

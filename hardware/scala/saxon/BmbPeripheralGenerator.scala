@@ -388,7 +388,7 @@ case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
     }
   }
 
-  def withPhyRmii() = new Generator {
+  def withPhyRmii(ffIn : Bool => Bool = e => e, ffOut : Bool => Bool = e => e, withEr : Boolean = true) = new Generator {
     val mii = add task master(Rmii(
       RmiiParameter(
         RmiiTxParameter(
@@ -396,17 +396,26 @@ case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
         ),
         RmiiRxParameter(
           dataWidth = 2,
-          withEr    = true
+          withEr    = withEr
         )
       )
     ))
 
     List(mii, phy).produce{
+      val unpatched = cloneOf(mii.get)
       txCd.copy(reset = logic.mac.txReset) on {
-        mii.TX.fromTxStream() << phy.tx
+        mii.TX.EN := ffOut(unpatched.TX.EN)
+        mii.TX.D(0) := ffOut(unpatched.TX.D(0))
+        mii.TX.D(1) := ffOut(unpatched.TX.D(1))
+        unpatched.TX.fromTxStream() << phy.tx
       }
+
       rxCd on {
-        phy.rx << mii.RX.toRxFlow().toStream
+        unpatched.RX.CRS_DV := ffIn(mii.RX.CRS_DV)
+        unpatched.RX.D(0) := ffIn(mii.RX.D(0))
+        unpatched.RX.D(1) := ffIn(mii.RX.D(1))
+        if(withEr) unpatched.RX.ER := ffIn(mii.RX.ER)
+        phy.rx << unpatched.RX.toRxFlow().toStream
       }
     }
   }
