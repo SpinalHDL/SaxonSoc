@@ -53,6 +53,7 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
     val sdcardPhy = decoder.phyId(1, -1)
     val sdcard = sdcardPhy.derivate(phy => master(phy.toSpiEcp5()))
     val oled = decoder.spiMasterEcp5Id(2)
+    val md = decoder.mdioMasterId(3) //Ethernet phy
   }
 
 //  List(spiA.phy,spiA.sdcardPhy).produce{
@@ -303,9 +304,10 @@ object Ulx3sSmpAbstract{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 3
+          ssWidth = 4
         )
-      ) .addFullDuplex(id = 0, lateSampling = true),
+      ) .addFullDuplex(id = 0, lateSampling = true)
+        .addHalfDuplex(id = 1, rate = 1, ddr = false, spiWidth = 1, lateSampling = false),
       cmdFifoDepth = 256,
       rspFifoDepth = 256
     )
