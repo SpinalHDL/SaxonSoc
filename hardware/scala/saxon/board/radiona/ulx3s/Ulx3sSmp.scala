@@ -223,6 +223,9 @@ class Ulx3sSmp extends Generator{
     bb.Q <> sdram_clk
   }
 
+
+  val wifi_en = add task out(False)
+
 //  Dependable(system, system.hdmiConsoleA){
 //    system.hdmiConsoleA.pixclk := clocking.pll.clkout3
 //    system.hdmiConsoleA.pixclk_x5 := clocking.pll.clkout0
