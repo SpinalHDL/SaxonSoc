@@ -51,7 +51,7 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
     val user = decoder.spiMasterNone()
     val flash = decoder.spiMasterEcp5FlashId(0)
     val sdcardPhy = decoder.phyId(1, -1)
-    val sdcard = sdcardPhy.derivate(phy => master(phy.toSpiEcp5()))
+    val sdcard = sdcardPhy.derivate(phy => master(phy.lazySclk(ssIdle = 1, sclkValue = false).toSpiEcp5()))
     val oled = decoder.spiMasterEcp5Id(2)
     val md = decoder.mdioMasterId(3) //Ethernet phy
   }
