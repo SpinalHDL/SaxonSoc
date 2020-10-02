@@ -5,6 +5,7 @@
 #include "sdram.h"
 #include "spiFlash.h"
 #include "vgaInit.h"
+#include "mdio.h"
 
 #define SDRAM_CTRL SYSTEM_SDRAM_A_CTRL
 #define SDRAM_PHY  SDRAM_DOMAIN_PHY_A_CTRL
@@ -12,6 +13,7 @@
 
 #define SPI SYSTEM_SPI_A_CTRL
 #define SPI_CS 0
+#define MD_CS 3
 
 #define OPENSBI_MEMORY 0x80F80000
 #define OPENSBI_FLASH  0x00340000
@@ -32,41 +34,15 @@
 //Ex : make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSDRAM_TIMING=AS4C32M16SB_7TCN_ps"
 #endif
 
-#define MD_CS 3
-
-u16 mdio_read(u32 spi, u32 cs, u32 phy, u32 reg){
-    u16 data;
-    spi_select(spi, cs);
-    spi_write(spi, 0x60 | (phy >> 1) & 0x0F);
-    spi_write(spi, (phy << 7) & 0x80 | (reg << 2) & 0x7C);
-    data  = ((u16) spi_read(spi)) << 8;
-    data |= ((u16) spi_read(spi)) << 0;
-    spi_diselect(spi, cs);
-    return data;
-}
-
-void mdio_write(u32 spi, u32 cs, u32 phy, u32 reg, u16 data){
-    spi_select(spi, cs);
-    spi_write(spi, 0x50 | (phy >> 1) & 0x0F);
-    spi_write(spi, (phy << 7) & 0x80 | (reg << 2) & 0x7C | 0x02);
-    spi_write(spi, data >> 8);
-    spi_write(spi, data >> 0);
-    spi_diselect(spi, cs);
-}
-
-void mdio_init(u32 spi, u32 cs){
-    spi_select(spi, cs);
-    spi_write(spi, 0xFF);
-    spi_write(spi, 0xFF);
-    spi_write(spi, 0xFF);
-    spi_write(spi, 0xFF);
-    spi_diselect(spi, cs);
-
-    bsp_uDelay(100);
-}
-
 void putHexU32(int value){
     for(int i = 7; i >= 0;i--){
+        int hex = (value >> i*4) & 0xF;
+        bsp_putChar(hex > 9 ? 'A' + hex - 10 : '0' + hex);
+    }
+}
+
+void putHexU16(int value){
+    for(int i = 3; i >= 0;i--){
         int hex = (value >> i*4) & 0xF;
         bsp_putChar(hex > 9 ? 'A' + hex - 10 : '0' + hex);
     }
@@ -140,6 +116,7 @@ void bspMain() {
     vgaInit();
 
     // MDIO
+    bsp_putString("Configuring MDIO\n");
 
     u32 clkDivider = BSP_CLINT_HZ/(1000000*2)-1;
 
@@ -153,35 +130,18 @@ void bspMain() {
     spiCfg.ssDisable = clkDivider;
     spi_applyConfig(SPI, &spiCfg);
 
-    for(int i=0;i<2;i++) {
-      if (i == 0) {
-        bsp_putString("Resetting MDIO");
-      } else {
-       bsp_putString("New");
-      }
-
-      bsp_putString(" control/status = ");
-
-      mdio_init(SPI, MD_CS);
-      u16 control = mdio_read(SPI, MD_CS, 1, 0);
-      mdio_init(SPI, MD_CS);
-      u16 status = mdio_read(SPI, MD_CS, 1, 1);
+    bsp_putString("  control (old): ");
+    u16 control = mdio_read(SPI, MD_CS, 1, 0);
+    putHexU16(control);
+    bsp_putString("\n");
     
-      putHexU32(control << 16 | status);
-      bsp_putString(", id = ");
+    // Set 100Mbps and auto-negotiate
+    mdio_write(SPI, MD_CS, 1, 0,  0x3000);
     
-      mdio_init(SPI, MD_CS);
-      u16 id1 = mdio_read(SPI, MD_CS, 1, 2);
-      mdio_init(SPI, MD_CS);
-      u16 id2 = mdio_read(SPI, MD_CS, 1, 3);
-
-      putHexU32(id1 << 16 | id2);
-      bsp_putString("\n");
-    
-      // Set 100Mbps and auto-negotiate
-      mdio_init(SPI, MD_CS);
-      mdio_write(SPI, MD_CS, 1, 0,  0x3000);
-    }
+    bsp_putString("  control (new): ");
+    control = mdio_read(SPI, MD_CS, 1, 0);
+    putHexU16(control);
+    bsp_putString("\n");
 #endif
 
     bsp_putString("OpenSBI boot\n");
@@ -189,5 +149,4 @@ void bspMain() {
     smp_unlock(userMain);
     userMain(0,0,0);
 }
-
 
