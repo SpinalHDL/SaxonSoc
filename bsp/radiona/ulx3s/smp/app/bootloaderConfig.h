@@ -32,6 +32,39 @@
 //Ex : make clean all BSP=Ulx3sLinuxUboot CFLAGS_ARGS="-DSDRAM_TIMING=AS4C32M16SB_7TCN_ps"
 #endif
 
+#define MD_CS 3
+
+u16 mdio_read(u32 spi, u32 cs, u32 phy, u32 reg){
+    u16 data;
+    spi_select(spi, cs);
+    spi_write(spi, 0x60 | (phy >> 1) & 0x0F);
+    spi_write(spi, (phy << 7) & 0x80 | (reg << 2) & 0x7C);
+    data  = ((u16) spi_read(spi)) << 8;
+    data |= ((u16) spi_read(spi)) << 0;
+    spi_diselect(spi, cs);
+    return data;
+}
+
+void mdio_write(u32 spi, u32 cs, u32 phy, u32 reg, u16 data){
+    spi_select(spi, cs);
+    spi_write(spi, 0x50 | (phy >> 1) & 0x0F);
+    spi_write(spi, (phy << 7) & 0x80 | (reg << 2) & 0x7C | 0x02);
+    spi_write(spi, data >> 8);
+    spi_write(spi, data >> 0);
+    spi_diselect(spi, cs);
+}
+
+void mdio_init(u32 spi, u32 cs){
+    spi_select(spi, cs);
+    spi_write(spi, 0xFF);
+    spi_write(spi, 0xFF);
+    spi_write(spi, 0xFF);
+    spi_write(spi, 0xFF);
+    spi_diselect(spi, cs);
+
+    bsp_uDelay(100);
+}
+
 void putHexU32(int value){
     for(int i = 7; i >= 0;i--){
         int hex = (value >> i*4) & 0xF;
@@ -105,6 +138,46 @@ void bspMain() {
     bsp_putString("pass\n");
 
     vgaInit();
+
+    // MDIO
+
+    bsp_putString("Resetting MDIO, control/status = ");
+
+    u32 clkDivider = BSP_CLINT_HZ/(1000000*2)-1;
+
+    Spi_Config spiCfg;
+    spiCfg.cpol = 0;
+    spiCfg.cpha = 0;
+    spiCfg.mode = 1;
+    spiCfg.clkDivider = clkDivider;
+    spiCfg.ssSetup = clkDivider;
+    spiCfg.ssHold = clkDivider;
+    spiCfg.ssDisable = clkDivider;
+    spi_applyConfig(SPI, &spiCfg);
+
+    for(int i=0;i<2;i++) {
+      mdio_init(SPI, MD_CS);
+      u16 control = mdio_read(SPI, MD_CS, 1, 0);
+      mdio_init(SPI, MD_CS);
+      u16 status = mdio_read(SPI, MD_CS, 1, 1);
+    
+      putHexU32(control << 16 | status);
+      bsp_putString(", id = ");
+    
+      mdio_init(SPI, MD_CS);
+      u16 id1 = mdio_read(SPI, MD_CS, 1, 2);
+      mdio_init(SPI, MD_CS);
+      u16 id2 = mdio_read(SPI, MD_CS, 1, 3);
+
+      putHexU32(id1 << 16 | id2);
+      bsp_putString("\n");
+    
+      // Reset
+      mdio_init(SPI, MD_CS);
+      mdio_write(SPI, MD_CS, 0, 0,  0x3000);
+      mdio_init(SPI, MD_CS);
+      mdio_write(SPI, MD_CS, 1, 0,  0x3000);
+    }
 #endif
 
     bsp_putString("OpenSBI boot\n");
