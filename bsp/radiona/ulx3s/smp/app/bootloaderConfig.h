@@ -141,8 +141,6 @@ void bspMain() {
 
     // MDIO
 
-    bsp_putString("Resetting MDIO, control/status = ");
-
     u32 clkDivider = BSP_CLINT_HZ/(1000000*2)-1;
 
     Spi_Config spiCfg;
@@ -156,6 +154,14 @@ void bspMain() {
     spi_applyConfig(SPI, &spiCfg);
 
     for(int i=0;i<2;i++) {
+      if (i == 0) {
+        bsp_putString("Resetting MDIO");
+      } else {
+       bsp_putString("New");
+      }
+
+      bsp_putString(" control/status = ");
+
       mdio_init(SPI, MD_CS);
       u16 control = mdio_read(SPI, MD_CS, 1, 0);
       mdio_init(SPI, MD_CS);
@@ -172,9 +178,7 @@ void bspMain() {
       putHexU32(id1 << 16 | id2);
       bsp_putString("\n");
     
-      // Reset
-      mdio_init(SPI, MD_CS);
-      mdio_write(SPI, MD_CS, 0, 0,  0x3000);
+      // Set 100Mbps and auto-negotiate
       mdio_init(SPI, MD_CS);
       mdio_write(SPI, MD_CS, 1, 0,  0x3000);
     }
