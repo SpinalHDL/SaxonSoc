@@ -1,40 +1,31 @@
 package saxon.board.digilent
 
-import java.nio.file.{Files, Paths}
-
 import saxon._
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
-import spinal.lib.bus.amba3.apb.Apb3Config
-import spinal.lib.bus.amba3.apb.sim.{Apb3Listener, Apb3Monitor}
 import spinal.lib.bus.bmb._
-import spinal.lib.bus.bmb.sim.BmbMonitor
+import spinal.lib.bus.bsb.BsbInterconnectGenerator
 import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
 import spinal.lib.bus.simple.{PipelinedMemoryBus, PipelinedMemoryBusDecoder}
-import spinal.lib.com.eth._
-import spinal.lib.com.i2c.{I2cMasterMemoryMappedGenerics, I2cSlaveGenerics, I2cSlaveMemoryMappedGenerics}
-import spinal.lib.com.i2c.sim.OpenDrainInterconnect
-import spinal.lib.com.jtag.{Jtag, JtagTap, JtagTapDebuggerGenerator, JtagTapInstructionCtrl}
+import spinal.lib.com.eth.{MacEthParameter, PhyParameter}
 import spinal.lib.com.jtag.sim.JtagTcp
+import spinal.lib.com.jtag.{Jtag, JtagTap, JtagTapDebuggerGenerator, JtagTapInstructionCtrl}
 import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
-import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
-import spinal.lib.eda.bench.{Bench, Rtl, XilinxStdTargets}
 import spinal.lib.generator._
+import spinal.lib.graphic.RgbConfig
+import spinal.lib.graphic.vga.{BmbVgaCtrlGenerator, BmbVgaCtrlParameter, Vga}
 import spinal.lib.io.{Gpio, InOutWrapper}
-import spinal.lib._
 import spinal.lib.memory.sdram.sdr._
-import spinal.lib.memory.sdram.sdr.sim.SdramModel
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
-import spinal.lib.misc.plic.PlicMapping
-import spinal.lib.system.debugger.{JtagBridge, JtagBridgeNoTap, SystemDebugger, SystemDebuggerConfig}
-import vexriscv.demo.smp._
-import vexriscv.plugin._
-import vexriscv._
+import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
+import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
+import vexriscv.demo.smp.VexRiscvSmpClusterGen
+
 
 class NexysA7SmpLinuxAbtract() extends VexRiscvClusterGenerator{
   val fabric = withDefaultFabric()
@@ -59,6 +50,41 @@ class NexysA7SmpLinuxAbtract() extends VexRiscvClusterGenerator{
   mac.connectInterrupt(plic, 3)
   val eth = mac.withPhyRmii()
 
+  implicit val bsbInterconnect = BsbInterconnectGenerator()
+  val dma = new DmaSgGenerator(0x80000){
+    val vga = new Area{
+      val channel = createChannel()
+      channel.fixedBurst(64)
+      channel.withCircularMode()
+      channel.fifoMapping load Some(0, 256)
+      channel.connectInterrupt(plic, 12)
+
+      val stream = createOutput(byteCount = 8)
+      channel.outputsPorts += stream
+
+    }
+
+    val audioOut = new Area{
+      val channel = createChannel()
+      channel.fixedBurst(64)
+      channel.withScatterGatter()
+      channel.fifoMapping load Some(256, 256)
+      channel.connectInterrupt(plic, 13)
+
+      val stream = createOutput(byteCount = 4)
+      channel.outputsPorts += stream
+    }
+  }
+ // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
+  interconnect.addConnection(dma.read,  fabric.dBus.bmb)
+  interconnect.addConnection(dma.readSg,  fabric.dBus.bmb)
+  interconnect.addConnection(dma.writeSg,  fabric.dBusCoherent.bmb)
+
+  val vga = BmbVgaCtrlGenerator(0x90000)
+  bsbInterconnect.connect(dma.vga.stream.output, vga.input)
+
+  val audioOut = BmbBsbToDeltaSigmaGenerator(0x94000)
+  bsbInterconnect.connect(dma.audioOut.stream.output, audioOut.input)
 
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
@@ -76,6 +102,11 @@ class NexysA7SmpLinux extends Generator{
   debugCd.holdDuration.load(4095)
   debugCd.enablePowerOnReset()
 
+
+  val vgaCd = ClockDomainResetGenerator()
+  vgaCd.holdDuration.load(63)
+  vgaCd.asyncReset(debugCd)
+
   val sdramCd = ClockDomainResetGenerator()
   sdramCd.holdDuration.load(63)
   sdramCd.asyncReset(debugCd)
@@ -88,7 +119,9 @@ class NexysA7SmpLinux extends Generator{
     omitReset = true
   )
 
-  val system = new NexysA7SmpLinuxAbtract()
+  val system = new NexysA7SmpLinuxAbtract(){
+    val vgaPhy = vga.withRegisterPhy(withColorEn = false)
+  }
   system.onClockDomain(systemCd.outputClockDomain)
   system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
@@ -115,12 +148,12 @@ class NexysA7SmpLinux extends Generator{
     val GCLK100 = in Bool()
 
     val pll = new BlackBox{
-      setDefinitionName("PLLE2_ADV")
+      setDefinitionName("MMCME2_ADV")
 
       addGenerics(
         "CLKIN1_PERIOD" -> 10.0,
-        "CLKFBOUT_MULT" -> 12,
-        "CLKOUT0_DIVIDE" -> 12,
+        "CLKFBOUT_MULT_F" -> 12,
+        "CLKOUT0_DIVIDE_F" -> 12,
         "CLKOUT0_PHASE" -> 0,
         "CLKOUT1_DIVIDE" -> 8,
         "CLKOUT1_PHASE" -> 0,
@@ -131,7 +164,9 @@ class NexysA7SmpLinux extends Generator{
         "CLKOUT4_DIVIDE" -> 4,
         "CLKOUT4_PHASE" -> 90,
         "CLKOUT5_DIVIDE" -> 24,
-        "CLKOUT5_PHASE" -> 0
+        "CLKOUT5_PHASE" -> 0,
+        "CLKOUT6_DIVIDE" -> 30,
+        "CLKOUT6_PHASE" -> 0
       )
 
       val CLKIN1   = in Bool()
@@ -143,12 +178,15 @@ class NexysA7SmpLinux extends Generator{
       val CLKOUT3  = out Bool()
       val CLKOUT4  = out Bool()
       val CLKOUT5  = out Bool()
+      val CLKOUT6  = out Bool()
 
+      Clock.syncDrive(CLKIN1, CLKOUT0)
       Clock.syncDrive(CLKIN1, CLKOUT1)
       Clock.syncDrive(CLKIN1, CLKOUT2)
       Clock.syncDrive(CLKIN1, CLKOUT3)
       Clock.syncDrive(CLKIN1, CLKOUT4)
       Clock.syncDrive(CLKIN1, CLKOUT5)
+      Clock.syncDrive(CLKIN1, CLKOUT6)
     }
 
     pll.CLKFBIN := pll.CLKFBOUT
@@ -171,9 +209,22 @@ class NexysA7SmpLinux extends Generator{
         frequency = FixedFrequency(150 MHz)
       )
     )
+    vgaCd.setInput(
+      ClockDomain(
+        clock = pll.CLKOUT6,
+        frequency = FixedFrequency(40 MHz)
+      )
+    )
+    system.vga.vgaCd.merge(vgaCd.outputClockDomain)
+
     sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
     sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
     sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
+  }
+
+  val audioOut = add task new Area{
+    val sd = out Bool()
+    sd := Bool(true)
   }
 
   val startupe2 = system.spiA.flash.produce(
@@ -181,14 +232,15 @@ class NexysA7SmpLinux extends Generator{
   )
 }
 
-object NexysA7SmpLinuxSystem{
+object NexysA7SmpLinuxAbstract{
   def default(g : NexysA7SmpLinuxAbtract) = g {
     import g._
 
-    // Configure the CPUs
     cpuCount.load(2)
-    cores.produce {
-      for ((cpu, coreId) <- cores.cpu.zipWithIndex) {
+
+    // Configure the CPUs
+    cores.produce{
+      for((cpu, coreId) <- cores.cpu.zipWithIndex) {
         cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
           hartId = coreId,
           ioRange = _ (31 downto 28) === 0x1,
@@ -250,6 +302,29 @@ object NexysA7SmpLinuxSystem{
       txBufferByteSize = 4096
     )
 
+    dma.parameter.layout load DmaMemoryLayout(
+      bankCount     = 2,
+      bankWords     = 128,
+      bankWidth     = 32,
+      priorityWidth = 2
+    )
+
+    dma.setBmbParameter(
+      addressWidth = 32,
+      dataWidth = 64,
+      lengthWidth = 6
+    )
+
+    vga.parameter load BmbVgaCtrlParameter(
+      rgbConfig = RgbConfig(4,4,4)
+    )
+
+    audioOut.parameter load BsbToDeltaSigmaParameter(
+      channels = 2,
+      channelWidth = 16,
+      rateWidth = 16
+    )
+
     // Add some interconnect pipelining to improve FMax
     interconnect.dependencies += cores.produce{for(cpu <- cores.cpu) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)}
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
@@ -257,6 +332,7 @@ object NexysA7SmpLinuxSystem{
     interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
+    interconnect.setPipelining(dma.read)(cmdHalfRate = true)
 
     g
   }
@@ -267,7 +343,7 @@ object NexysA7SmpLinux {
   def default(g : NexysA7SmpLinux) = g{
     import g._
     sdramDomain.phyA.sdramLayout.load(MT47H64M16HR.layout)
-    NexysA7SmpLinuxSystem.default(system)
+    NexysA7SmpLinuxAbstract.default(system)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
     g
   }
@@ -324,7 +400,7 @@ object NexysA7SmpLinuxSystemSim {
 
       val jtagTap = withDebugBus(debugCd, systemCd, address = 0x10B80000).withJtag()
 
-      NexysA7SmpLinuxSystem.default(this)
+      NexysA7SmpLinuxAbstract.default(this)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
 //      ramA.hexInit.load("software/standalone/ethernet/build/ethernet.hex")
       val macCd = ClockDomain.external("macCd", withReset = false)

@@ -4,6 +4,7 @@
 #include "start.h"
 #include "sdram.h"
 #include "spiFlash.h"
+#include "vgaInit.h"
 
 #define SDRAM_CTRL SYSTEM_SDRAM_A_CTRL
 #define SDRAM_PHY  SDRAM_DOMAIN_PHY_A_CTRL
@@ -56,6 +57,8 @@ void bspMain() {
     spiFlash_f2m(SPI, SPI_CS, OPENSBI_FLASH, OPENSBI_MEMORY, OPENSBI_SIZE);
     spiFlash_f2m(SPI, SPI_CS, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
 #endif
+
+    vgaInit();
 
     void (*userMain)(u32, u32, u32) = (void (*)(u32, u32, u32))OPENSBI_MEMORY;
     smp_unlock(userMain);
