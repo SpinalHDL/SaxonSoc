@@ -165,7 +165,7 @@ class NexysA7SmpLinux extends Generator{
         "CLKOUT4_PHASE" -> 90,
         "CLKOUT5_DIVIDE" -> 24,
         "CLKOUT5_PHASE" -> 0,
-        "CLKOUT6_DIVIDE" -> 48,
+        "CLKOUT6_DIVIDE" -> 30,
         "CLKOUT6_PHASE" -> 0
       )
 
@@ -212,7 +212,7 @@ class NexysA7SmpLinux extends Generator{
     vgaCd.setInput(
       ClockDomain(
         clock = pll.CLKOUT6,
-        frequency = FixedFrequency(25 MHz)
+        frequency = FixedFrequency(40 MHz)
       )
     )
     system.vga.vgaCd.merge(vgaCd.outputClockDomain)
