@@ -183,6 +183,9 @@ class Ulx3sSmp extends Generator{
     val hdmiPhy = vga.withHdmiEcp5(hdmiCd.outputClockDomain)
   }
   system.onClockDomain(systemCd.outputClockDomain)
+  
+  val flash_holdn = add task out(True)
+  val flash_wpn = add task out(True)
 
   // Enable native JTAG debug
   val debug = system.withDebugBus(globalCd, systemCd, 0x10B80000).withJtag()
