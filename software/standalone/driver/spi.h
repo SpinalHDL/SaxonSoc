@@ -51,6 +51,14 @@ static void spi_write(u32 reg, u8 data){
     write_u32(data | SPI_CMD_WRITE, reg + SPI_DATA);
 }
 
+static u8 spi_writeRead(u32 reg, u8 data){
+    while(spi_cmdAvailability(reg) == 0);
+    write_u32(data | SPI_CMD_READ | SPI_CMD_WRITE, reg + SPI_DATA);
+    while(spi_rspOccupancy(reg) == 0);
+    return read_u32(reg + SPI_DATA);
+}
+
+
 static u8 spi_read(u32 reg){
     while(spi_cmdAvailability(reg) == 0);
     write_u32(SPI_CMD_READ, reg + SPI_DATA);

@@ -51,8 +51,9 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
     val user = decoder.spiMasterNone()
     val flash = decoder.spiMasterEcp5FlashId(0)
     val sdcardPhy = decoder.phyId(1, -1)
-    val sdcard = sdcardPhy.derivate(phy => master(phy.toSpiEcp5()))
+    val sdcard = sdcardPhy.derivate(phy => master(phy.lazySclk(ssIdle = 1, sclkValue = false).toSpiEcp5()))
     val oled = decoder.spiMasterEcp5Id(2)
+    val md = decoder.mdioMasterId(3) //Ethernet phy
   }
 
 //  List(spiA.phy,spiA.sdcardPhy).produce{
@@ -182,6 +183,9 @@ class Ulx3sSmp extends Generator{
     val hdmiPhy = vga.withHdmiEcp5(hdmiCd.outputClockDomain)
   }
   system.onClockDomain(systemCd.outputClockDomain)
+  
+  val flash_holdn = add task out(True)
+  val flash_wpn = add task out(True)
 
   // Enable native JTAG debug
   val debug = system.withDebugBus(globalCd, systemCd, 0x10B80000).withJtag()
@@ -303,9 +307,10 @@ object Ulx3sSmpAbstract{
         spi = SpiXdrParameter(
           dataWidth = 2,
           ioRate = 1,
-          ssWidth = 3
+          ssWidth = 4
         )
-      ) .addFullDuplex(id = 0, lateSampling = true),
+      ) .addFullDuplex(id = 0, lateSampling = true)
+        .addHalfDuplex(id = 1, rate = 1, ddr = false, spiWidth = 1, lateSampling = false),
       cmdFifoDepth = 256,
       rspFifoDepth = 256
     )
