@@ -228,7 +228,13 @@ class Ulx3sSmp extends Generator{
   }
 
 
-  val wifi_en = add task out(False)
+  val esp32_disable = add task new Area {
+    val wifi_en = out(Bool)
+    val sw = in(Bits(1 bits))
+
+    wifi_en := sw(0)
+  }
+
 
 //  Dependable(system, system.hdmiConsoleA){
 //    system.hdmiConsoleA.pixclk := clocking.pll.clkout3

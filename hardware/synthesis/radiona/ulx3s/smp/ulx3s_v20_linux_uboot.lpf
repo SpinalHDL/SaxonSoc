@@ -60,11 +60,11 @@ IOBUF PORT "btn[5]" PULLMODE=DOWN IO_TYPE=LVCMOS33;
 IOBUF PORT "btn[6]" PULLMODE=DOWN IO_TYPE=LVCMOS33;
 
 ## DIP switch "blinkey", "gpio" sheet
-LOCATE COMP "sw[0]" SITE "E8"; # SW1
+LOCATE COMP "esp32_disable_sw" SITE "E8"; # SW1
 LOCATE COMP "sw[1]" SITE "D8"; # SW2
 LOCATE COMP "sw[2]" SITE "D7"; # SW3
 LOCATE COMP "sw[3]" SITE "E7"; # SW4
-IOBUF PORT "sw[0]" PULLMODE=DOWN IO_TYPE=LVCMOS33;
+IOBUF PORT "esp32_disable_sw" PULLMODE=DOWN IO_TYPE=LVCMOS33;
 IOBUF PORT "sw[1]" PULLMODE=DOWN IO_TYPE=LVCMOS33;
 IOBUF PORT "sw[2]" PULLMODE=DOWN IO_TYPE=LVCMOS33;
 IOBUF PORT "sw[3]" PULLMODE=DOWN IO_TYPE=LVCMOS33;
@@ -167,7 +167,7 @@ IOBUF PORT "system_audioOut_outputs[1]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=16;
 
 ## WiFi ESP-32 "wifi", "usb", "flash" sheet
 # other pins are shared with GP/GN, SD card and JTAG
-LOCATE COMP "wifi_en" SITE "F1"; # enable/reset WiFi
+LOCATE COMP "esp32_disable_wifi_en" SITE "F1"; # enable/reset WiFi
 LOCATE COMP "wifi_rxd" SITE "K3"; # FPGA transmits to WiFi
 LOCATE COMP "wifi_txd" SITE "K4"; # FPGA receives from WiFi
 LOCATE COMP "system_noReset_wifi_gpio0" SITE "L2";
@@ -175,7 +175,7 @@ LOCATE COMP "wifi_gpio5" SITE "N4"; # WIFI LED
 LOCATE COMP "system_uartB_uart_txd" SITE "L1"; # Serial1 RX
 LOCATE COMP "system_uartB_uart_rxd" SITE "N3"; # Serial1 TX
 # LOCATE COMP "prog_done" SITE "Y3"; # not GPIO, always active
-IOBUF PORT "wifi_en" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
+IOBUF PORT "esp32_disable_wifi_en" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "wifi_rxd" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "wifi_txd" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "system_noReset_wifi_gpio0" PULLMODE=UP IO_TYPE=LVCMOS33 DRIVE=4;
