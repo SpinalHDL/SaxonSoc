@@ -122,10 +122,10 @@ class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
   )
 }
 
-class Ulx3sSystemCtrl(apbOffset : BigInt)
+class Ulx3sSystemCtrl(addressOffset : BigInt)
                      (implicit interconnect: BmbInterconnectGenerator,
                                 decoder : BmbImplicitPeripheralDecoder)
-                      extends BmbPeripheralGenerator(apbOffset, addressWidth = 12) {
+                      extends BmbPeripheralGenerator(addressOffset, addressWidth = 12) {
 
   val logic = add task new Area{
     val doRestart = ClockDomain.current.withBootReset on (RegInit(False)) clearWhen(ClockDomain.current.isResetActive)
