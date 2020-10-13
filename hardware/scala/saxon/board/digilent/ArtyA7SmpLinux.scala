@@ -299,7 +299,7 @@ object ArtyA7SmpLinuxAbstract{
 
     gpioA.parameter load Gpio.Parameter(
       width = 32,
-      interrupt = List(0, 1, 2, 3, 24, 25, 26, 27)
+      interrupt = List(24, 25, 26, 27)
     )
     gpioA.connectInterrupts(plic, 4)
 
