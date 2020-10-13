@@ -173,3 +173,14 @@ saxon_sdcard_p2
 ```
 load mmc 0:1 0x80000000 uImage;load mmc 0:1 0x80FF0000 dtb; load mmc 0:1 0x80FFFFC0 rootfs.cpio.uboot;bootm 0x80000000 0x80FFFFC0 0x80FF0000
 ```
+
+## Running a baremetal simulation
+
+```bash
+source SaxonSoc/bsp/digilent/ArtyA7SmpLinux/source.sh
+
+saxon_standalone_compile freertosDemo SPINAL_SIM=yes
+saxon_standalone_compile bootloader SPINAL_SIM=yes
+
+saxon_sim --bin $SAXON_ROOT/SaxonSoc/software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin
+```

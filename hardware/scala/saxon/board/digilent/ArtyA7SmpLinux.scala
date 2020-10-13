@@ -449,9 +449,24 @@ object ArtyA7SmpLinuxSystemSim {
 
   def main(args: Array[String]): Unit = {
 
+    case class Config(trace : Boolean, bin : String)
+    val parser = new scopt.OptionParser[Config]("SpinalCore") {
+      opt[Boolean]("trace") action { (v, c) => c.copy(trace = v)} text("Store fst wave")
+      opt[String]("bin") action { (v, c) => c.copy(bin = v) } text("Baremetal app")
+    }
+
+    val config = parser.parse(args, Config(
+      trace = false,
+      bin = "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin"
+    )) match {
+      case Some(config) => config
+      case None         => ???
+    }
+
+
     val simConfig = SimConfig
     simConfig.allOptimisation
-    simConfig.withFstWave
+    if(config.trace) simConfig.withFstWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
     simConfig.compile(new ArtyA7SmpLinuxAbstract(){
@@ -546,6 +561,8 @@ object ArtyA7SmpLinuxSystemSim {
       val opensbi = "../opensbi/"
       val linuxPath = "../buildroot/output/images/"
 
+
+      dut.phy.logic.loadBin(0x00F80000, config.bin)
 //      dut.phy.logic.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
 //      dut.phy.logic.loadBin(0x00F00000, uboot + "u-boot.bin")
 //      dut.phy.logic.loadBin(0x00000000, linuxPath + "uImage")
@@ -553,7 +570,7 @@ object ArtyA7SmpLinuxSystemSim {
 //      dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
 
 
-      dut.phy.logic.loadBin(0x00F80000, "software/standalone/audioOut/build/audioOut.bin")
+//      dut.phy.logic.loadBin(0x00F80000, "software/standalone/audioOut/build/audioOut.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")

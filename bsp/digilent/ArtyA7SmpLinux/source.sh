@@ -49,3 +49,9 @@ saxon_ftp_load(){
   cp u-boot/u-boot.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
   cp SaxonSoc/bsp/common/scripts/linux_tools.sh /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
 }
+
+
+saxon_sim(){
+  echo "runMain saxon.board.digilent.ArtyA7SmpLinuxSystemSim $@"
+  (cd $SAXON_ROOT/SaxonSoc && sbt "runMain saxon.board.digilent.ArtyA7SmpLinuxSystemSim $@")
+}
