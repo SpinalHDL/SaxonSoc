@@ -76,6 +76,8 @@ static void prvSetupHardware( void );
 /* Send a message to the UART initialised in prvSetupHardware. */
 void vSendString( const char * const pcString );
 
+extern void hal_setup();
+
 /*-----------------------------------------------------------*/
 int main( void )
 {
@@ -99,6 +101,8 @@ static void prvSetupHardware( void )
 {
     extern void freertos_risc_v_trap_handler();
     csr_write(mtvec, freertos_risc_v_trap_handler);
+
+    hal_setup();
 
     vSendString( "Hello world\n" );
 }
