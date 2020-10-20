@@ -43,6 +43,7 @@ FPGA_SIZE=85 saxon_bitstream
 ```
 
 To activate additional CPUs you will also need to edit dts file to enable additional cores
+under cpus and interrupt-controller to enable additional interrupts-extended for new cores
 which are commented out before running saxon_buildroot
 
 ```sh
