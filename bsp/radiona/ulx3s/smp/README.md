@@ -34,12 +34,19 @@ If you want once to update the repo, you can do a :
 saxon_update
 ```
 
-Customize SDRAM_SIZE and FPGA_SIZE for blue ULX3S board with 85F and 64Mb SDRAM
+Customize SDRAM_SIZE, FPGA_SIZE and CPU_COUNT for blue ULX3S board with 85F and 64Mb SDRAM
 
 ```sh
 saxon_standalone_compile bootloader CFLAGS_ARGS="-DSDRAM_TIMING=AS4C32M16SB_7TCN_ps"
-SDRAM_SIZE=64 saxon_netlist
+SDRAM_SIZE=64 CPU_COUNT=4 saxon_netlist
 FPGA_SIZE=85 saxon_bitstream
+```
+
+To activate additional CPUs you will also need to edit dts file to enable additional cores
+which are commented out before running saxon_buildroot
+
+```sh
+vi buildroot/board/spinal/saxon_ulx3s/dts
 ```
 
 Flash SPI 
