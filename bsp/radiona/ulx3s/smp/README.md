@@ -21,7 +21,7 @@ saxon_bitstream
 # Build the firmware
 saxon_opensbi
 saxon_uboot
-saxon_buildroot
+CPU_COUNT=4 saxon_buildroot # CPU_COUNT is the number of VexRiscv CPU, used for the DTS generation
 
 # Build the programming tools
 saxon_standalone_compile sdramInit CFLAGS_ARGS="-DSDRAM_TIMING=MT48LC16M16A2_6A_ps"
@@ -42,12 +42,11 @@ SDRAM_SIZE=64 CPU_COUNT=4 saxon_netlist
 FPGA_SIZE=85 saxon_bitstream
 ```
 
-To activate additional CPUs you will also need to edit dts file to enable additional cores
-under cpus and interrupt-controller to enable additional interrupts-extended for new cores
-which are commented out before running saxon_buildroot
+When you change the number of CPU, you need to update the linux DTB. 
+It is automatically done via the `CPU_COUNT=??? saxon_buildroot` command, but a much faster way is :  
 
 ```sh
-vi buildroot/board/spinal/saxon_ulx3s/dts
+CPU_COUNT=??? saxon_buildroot_dts
 ```
 
 Flash SPI 
