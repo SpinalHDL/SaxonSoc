@@ -32,7 +32,7 @@ import vexriscv.demo.smp.VexRiscvSmpClusterGen
 
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
-class Ulx3sSmpAbstract() extends VexRiscvClusterGenerator{
+class Ulx3sSmpAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric(withOutOfOrderDecoder = true)
 
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l).mapCtrlAt(0x100000)
@@ -158,7 +158,7 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
 
 
 
-class Ulx3sSmp extends Generator{
+class Ulx3sSmp(cpuCount : Int) extends Generator{
   // Define the clock domains used by the SoC
   val globalCd = ClockDomainResetGenerator()
   globalCd.holdDuration.load(255)
@@ -178,7 +178,7 @@ class Ulx3sSmp extends Generator{
 
 
   // ...
-  val system = new Ulx3sSmpAbstract(){
+  val system = new Ulx3sSmpAbstract(cpuCount){
     val phyA = Ecp5Sdrx2PhyGenerator().connect(sdramA)
     val hdmiPhy = vga.withHdmiEcp5(hdmiCd.outputClockDomain)
   }
@@ -250,22 +250,20 @@ object Ulx3sSmpAbstract{
     //cpuCount.load(1)
 
     // Configure the CPUs
-    cores.produce{
-      for((cpu, coreId) <- cores.cpu.zipWithIndex) {
-        cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
-          hartId = coreId,
-          ioRange = _ (31 downto 28) === 0x1,
-          resetVector = 0x10A00000l,
-          iBusWidth = 32,
-          dBusWidth = 32,
-          iCacheSize = 8192,
-          dCacheSize = 8192,
-          iCacheWays = 2,
-          dCacheWays = 2,
-          iBusRelax = true,
-          earlyBranch = false
-        ))
-      }
+    for((cpu, coreId) <- cores.zipWithIndex) {
+      cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
+        hartId = coreId,
+        ioRange = _ (31 downto 28) === 0x1,
+        resetVector = 0x10A00000l,
+        iBusWidth = 32,
+        dBusWidth = 32,
+        iCacheSize = 8192,
+        dCacheSize = 8192,
+        iCacheWays = 2,
+        dCacheWays = 2,
+        iBusRelax = true,
+        earlyBranch = false
+      ))
     }
 
     // Configure the peripherals
@@ -357,7 +355,7 @@ object Ulx3sSmpAbstract{
 
 
     // Add some interconnect pipelining to improve FMax
-    interconnect.dependencies += cores.produce{for(cpu <- cores.cpu) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)}
+    for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
     interconnect.setPipelining(fabric.dBus.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
@@ -374,7 +372,7 @@ object Ulx3sSmpAbstract{
 
 object Ulx3sSmp {
   //Function used to configure the SoC
-  def default(g : Ulx3sSmp, sdramSize : Int, cpuCount : Int) = g{
+  def default(g : Ulx3sSmp, sdramSize : Int) = g{
     import g._
 
     if (sdramSize == 32) {
@@ -383,7 +381,6 @@ object Ulx3sSmp {
       system.phyA.sdramLayout.load(AS4C32M16SB.layout)
     }
 
-    system.cpuCount.load(cpuCount)
 
     Ulx3sSmpAbstract.default(system)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
@@ -399,8 +396,8 @@ object Ulx3sSmp {
     val cpuCount = sys.env.getOrElse("CPU_COUNT", "1").toInt
     println("CPU_COUNT is " + cpuCount)
 
-    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp, sdramSize, cpuCount).toComponent()))
-    BspGenerator("radiona/ulx3s/smp", report.toplevel.generator, report.toplevel.generator.system.cores.cpu.get(0).dBus)
+    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount), sdramSize).toComponent()))
+    BspGenerator("radiona/ulx3s/smp", report.toplevel.generator, report.toplevel.generator.system.cores(0).dBus)
   }
 }
 
@@ -417,7 +414,7 @@ object Ulx3sSmpSystemSim {
 //    simConfig.withFstWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-    simConfig.compile(new Ulx3sSmpAbstract(){
+    simConfig.compile(new Ulx3sSmpAbstract(1){
       val globalCd = ClockDomainResetGenerator()
       globalCd.holdDuration.load(255)
       globalCd.enablePowerOnReset()
@@ -427,8 +424,6 @@ object Ulx3sSmpSystemSim {
       systemCd.holdDuration.load(63)
 
       this.onClockDomain(systemCd.outputClockDomain)
-
-      cpuCount.load(1)
 
       mac.txCd.merge(systemCd.outputClockDomain)
       mac.rxCd.merge(systemCd.outputClockDomain)

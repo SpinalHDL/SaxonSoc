@@ -33,7 +33,7 @@ import vexriscv.demo.smp.VexRiscvSmpClusterGen
 
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
-class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
+class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric()
 
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l)
@@ -134,7 +134,7 @@ class ArtyA7SmpLinuxAbstract() extends VexRiscvClusterGenerator{
 //  }
 }
 
-class ArtyA7SmpLinux extends Generator{
+class ArtyA7SmpLinux(cpuCount : Int) extends Generator{
   // Define the clock domains used by the SoC
   val debugCd = ClockDomainResetGenerator()
   debugCd.holdDuration.load(4095)
@@ -158,7 +158,7 @@ class ArtyA7SmpLinux extends Generator{
   )
 
   // ...
-  val system = new ArtyA7SmpLinuxAbstract(){
+  val system = new ArtyA7SmpLinuxAbstract(cpuCount){
     val vgaPhy = vga.withRegisterPhy(withColorEn = false)
   }
   system.onClockDomain(systemCd.outputClockDomain)
@@ -261,19 +261,17 @@ object ArtyA7SmpLinuxAbstract{
   def default(g : ArtyA7SmpLinuxAbstract) = g {
     import g._
 
-    cpuCount.load(2)
+
 
     // Configure the CPUs
-    cores.produce{
-      for((cpu, coreId) <- cores.cpu.zipWithIndex) {
-        cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
-          hartId = coreId,
-          ioRange = _ (31 downto 28) === 0x1,
-          resetVector = 0x10A00000l,
-          iBusWidth = 64,
-          dBusWidth = 64
-        ))
-      }
+    for((cpu, coreId) <- cores.zipWithIndex) {
+      cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
+        hartId = coreId,
+        ioRange = _ (31 downto 28) === 0x1,
+        resetVector = 0x10A00000l,
+        iBusWidth = 64,
+        dBusWidth = 64
+      ))
     }
 
     // Configure the peripherals
@@ -352,7 +350,7 @@ object ArtyA7SmpLinuxAbstract{
     )
 
     // Add some interconnect pipelining to improve FMax
-    interconnect.dependencies += cores.produce{for(cpu <- cores.cpu) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)}
+    for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
@@ -384,8 +382,8 @@ object ArtyA7SmpLinux {
         defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC),
         inlineRom = true
       ).addStandardMemBlackboxing(blackboxByteEnables)
-       .generateVerilog(InOutWrapper(default(new ArtyA7SmpLinux()).toComponent()))
-    BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores.cpu.get(0).dBus)
+       .generateVerilog(InOutWrapper(default(new ArtyA7SmpLinux(2)).toComponent()))
+    BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores(0).dBus)
   }
 }
 
@@ -469,7 +467,7 @@ object ArtyA7SmpLinuxSystemSim {
     if(config.trace) simConfig.withFstWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-    simConfig.compile(new ArtyA7SmpLinuxAbstract(){
+    simConfig.compile(new ArtyA7SmpLinuxAbstract(cpuCount = 2){
       val debugCd = ClockDomainResetGenerator()
       debugCd.enablePowerOnReset()
       debugCd.holdDuration.load(63)

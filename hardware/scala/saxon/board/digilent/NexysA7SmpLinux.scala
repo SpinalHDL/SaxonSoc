@@ -27,7 +27,7 @@ import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
 
 
-class NexysA7SmpLinuxAbtract() extends VexRiscvClusterGenerator{
+class NexysA7SmpLinuxAbtract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric()
 
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l)
@@ -119,7 +119,7 @@ class NexysA7SmpLinux extends Generator{
     omitReset = true
   )
 
-  val system = new NexysA7SmpLinuxAbtract(){
+  val system = new NexysA7SmpLinuxAbtract(2){
     val vgaPhy = vga.withRegisterPhy(withColorEn = false)
   }
   system.onClockDomain(systemCd.outputClockDomain)
@@ -236,19 +236,15 @@ object NexysA7SmpLinuxAbstract{
   def default(g : NexysA7SmpLinuxAbtract) = g {
     import g._
 
-    cpuCount.load(2)
-
     // Configure the CPUs
-    cores.produce{
-      for((cpu, coreId) <- cores.cpu.zipWithIndex) {
-        cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
-          hartId = coreId,
-          ioRange = _ (31 downto 28) === 0x1,
-          resetVector = 0x10A00000l,
-          iBusWidth = 64,
-          dBusWidth = 64
-        ))
-      }
+    for((cpu, coreId) <- cores.zipWithIndex) {
+      cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
+        hartId = coreId,
+        ioRange = _ (31 downto 28) === 0x1,
+        resetVector = 0x10A00000l,
+        iBusWidth = 64,
+        dBusWidth = 64
+      ))
     }
 
     ramA.size.load(8 KiB)
@@ -326,7 +322,7 @@ object NexysA7SmpLinuxAbstract{
     )
 
     // Add some interconnect pipelining to improve FMax
-    interconnect.dependencies += cores.produce{for(cpu <- cores.cpu) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)}
+    for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
@@ -355,7 +351,7 @@ object NexysA7SmpLinux {
         inlineRom = true
       ).addStandardMemBlackboxing(blackboxByteEnables)
        .generateVerilog(InOutWrapper(default(new NexysA7SmpLinux()).toComponent()))
-    BspGenerator("digilent/NexysA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores.cpu.get(0).dBus)
+    BspGenerator("digilent/NexysA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores(0).dBus)
   }
 }
 
@@ -376,7 +372,7 @@ object NexysA7SmpLinuxSystemSim {
 //    simConfig.withConfig(SpinalConfig(anonymSignalPrefix = "zz_"))
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-    simConfig.compile(new NexysA7SmpLinuxAbtract(){
+    simConfig.compile(new NexysA7SmpLinuxAbtract(2){
       val debugCd = ClockDomainResetGenerator()
       debugCd.enablePowerOnReset()
       debugCd.holdDuration.load(63)
