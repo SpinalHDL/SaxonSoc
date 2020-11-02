@@ -30,6 +30,7 @@ import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
 import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
+import vexriscv.plugin.AesPlugin
 
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
@@ -272,6 +273,7 @@ object ArtyA7SmpLinuxAbstract{
         iBusWidth = 64,
         dBusWidth = 64
       ))
+      cpu.config.plugins += AesPlugin()
     }
 
     // Configure the peripherals
@@ -517,7 +519,7 @@ object ArtyA7SmpLinuxSystemSim {
 
       fork{
         val at = 0
-        val duration = 100
+        val duration = 1
         while(simTime() < at*1000000000l) {
           disableSimWave()
           sleep(100000 * 10000)
@@ -568,6 +570,7 @@ object ArtyA7SmpLinuxSystemSim {
 //      dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
 
 
+        dut.phy.logic.loadBin(0x00F80000, "software/standalone/test/aes/build/aes.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/audioOut/build/audioOut.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")

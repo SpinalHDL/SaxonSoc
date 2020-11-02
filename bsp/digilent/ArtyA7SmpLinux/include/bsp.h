@@ -19,6 +19,7 @@
 #define bsp_putChar(c) uart_write(BSP_UART_TERMINAL, c);
 #define bsp_uDelay(usec) clint_uDelay(usec, SYSTEM_CLINT_HZ, SYSTEM_CLINT_CTRL);
 #define bsp_putString(s) uart_writeStr(BSP_UART_TERMINAL, s);
+#define bsp_putU32(v) uart_writeHex(BSP_UART_TERMINAL, v);
 
 // Freertos specifics
 #define configMTIME_BASE_ADDRESS        (BSP_CLINT + 0xBFF8)
