@@ -1,7 +1,6 @@
 #!/bin/sh
 
-[ -z "SAXON_SOC" ] && export SAXON_SOC=$SAXON_ROOT/SaxonSoc
-
+SAXON_SOC="${SAXON_SOC:-$SAXON_ROOT/SaxonSoc}"
 
 saxon_source(){
   cd $SAXON_ROOT

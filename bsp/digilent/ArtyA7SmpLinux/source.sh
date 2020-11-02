@@ -4,7 +4,7 @@
 SAXON_SOURCED_SH=$(realpath ${BASH_SOURCE})
 SAXON_BSP_PATH=$(dirname $SAXON_SOURCED_SH)
 SAXON_ROOT=$SAXON_BSP_PATH/"../../../.."
-SAXON_BSP_COMMON_SCRIPTS=$SAXON_SOC/bsp/common/scripts
+SAXON_BSP_COMMON_SCRIPTS=$SAXON_ROOT/SaxonSoc/bsp/common/scripts
 
 # Configurations
 SAXON_OPENSBI_PLATEFORM=spinal/saxon/digilent/artyA7Smp
