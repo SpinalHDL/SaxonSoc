@@ -4,7 +4,7 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.bmb._
 import spinal.lib.bus.misc.SizeMapping
-import spinal.lib.com.jtag.JtagTapDebuggerGenerator
+import spinal.lib.com.jtag.{JtagInstructionDebuggerGenerator, JtagTapDebuggerGenerator}
 import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
 import spinal.lib.generator.{ClockDomainResetGenerator, Generator, Handle}
 import spinal.lib.misc.plic.PlicMapping
@@ -81,11 +81,24 @@ class VexRiscvClusterGenerator(cpuCount : Int) extends Generator {
       tap
     }
 
+
+    def withJtagInstruction() = {
+      val tap = JtagInstructionDebuggerGenerator() onClockDomain(debugCd.outputClockDomain)
+      interconnect.addConnection(tap.bmb, ctrl.bmb)
+      tap
+    }
+
     // For Xilinx series 7 FPGA
     def withBscane2(userId : Int) = {
       val tap = Bscane2BmbMasterGenerator(userId) onClockDomain(debugCd.outputClockDomain)
       interconnect.addConnection(tap.bmb, ctrl.bmb)
       tap
+    }
+  }
+
+  def withoutDebug(): Unit ={
+    for ((cpu,i) <- cores.zipWithIndex) {
+      cores(i).disableDebug()
     }
   }
 }
