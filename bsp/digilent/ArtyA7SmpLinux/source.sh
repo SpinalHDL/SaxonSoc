@@ -4,7 +4,7 @@
 SAXON_SOURCED_SH=$(realpath ${BASH_SOURCE})
 SAXON_BSP_PATH=$(dirname $SAXON_SOURCED_SH)
 SAXON_ROOT=$SAXON_BSP_PATH/"../../../.."
-SAXON_BSP_COMMON_SCRIPTS=$SAXON_ROOT/SaxonSoc/bsp/common/scripts
+SAXON_BSP_COMMON_SCRIPTS=$SAXON_SOC/bsp/common/scripts
 
 # Configurations
 SAXON_OPENSBI_PLATEFORM=spinal/saxon/digilent/artyA7Smp
@@ -20,12 +20,12 @@ source $SAXON_BSP_COMMON_SCRIPTS/uboot.sh
 source $SAXON_BSP_COMMON_SCRIPTS/buildroot.sh
 
 saxon_netlist(){
-  cd $SAXON_ROOT/SaxonSoc
+  cd $SAXON_SOC
   sbt "runMain saxon.board.digilent.ArtyA7SmpLinux"
 }
 
 saxon_bitstream(){
-  cd $SAXON_ROOT/SaxonSoc/hardware/synthesis/digilent/ArtyA7SmpLinux
+  cd $SAXON_SOC/hardware/synthesis/digilent/ArtyA7SmpLinux
   make all
 }
 
@@ -53,5 +53,5 @@ saxon_ftp_load(){
 
 saxon_sim(){
   echo "runMain saxon.board.digilent.ArtyA7SmpLinuxSystemSim $@"
-  (cd $SAXON_ROOT/SaxonSoc && sbt "runMain saxon.board.digilent.ArtyA7SmpLinuxSystemSim $@")
+  (cd $SAXON_SOC && sbt "runMain saxon.board.digilent.ArtyA7SmpLinuxSystemSim $@")
 }

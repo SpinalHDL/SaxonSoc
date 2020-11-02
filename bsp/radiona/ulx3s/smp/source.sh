@@ -4,7 +4,7 @@
 SAXON_SOURCED_SH=$(realpath ${BASH_SOURCE})
 SAXON_BSP_PATH=$(dirname $SAXON_SOURCED_SH)
 SAXON_ROOT=$SAXON_BSP_PATH/"../../../../.."
-SAXON_BSP_COMMON_SCRIPTS=$SAXON_ROOT/SaxonSoc/bsp/common/scripts
+SAXON_BSP_COMMON_SCRIPTS=$SAXON_SOC/bsp/common/scripts
 
 # Configurations
 SAXON_OPENSBI_PLATEFORM=spinal/saxon/radiona/ulx3s
@@ -20,12 +20,12 @@ source $SAXON_BSP_COMMON_SCRIPTS/uboot.sh
 source $SAXON_BSP_COMMON_SCRIPTS/buildroot.sh
 
 saxon_netlist(){
-  cd $SAXON_ROOT/SaxonSoc
+  cd $SAXON_SOC
   sbt "runMain saxon.board.radiona.ulx3s.Ulx3sSmp $SDRAM_SIZE"
 }
 
 saxon_bitstream(){
-  cd $SAXON_ROOT/SaxonSoc/hardware/synthesis/radiona/ulx3s/smp
+  cd $SAXON_SOC/hardware/synthesis/radiona/ulx3s/smp
   make clean
   make
 }

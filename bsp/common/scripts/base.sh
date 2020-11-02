@@ -1,5 +1,7 @@
 #!/bin/sh
 
+[ -z "SAXON_SOC" ] && export SAXON_SOC=$SAXON_ROOT/SaxonSoc
+
 
 saxon_source(){
   cd $SAXON_ROOT
@@ -18,12 +20,22 @@ saxon_clone() {
   saxon_clone_single "opensbi" "https://github.com/SpinalHDL/opensbi.git --branch spinal"
   saxon_clone_single "openocd_riscv" "https://github.com/SpinalHDL/openocd_riscv.git"
   saxon_clone_single "SaxonSoc" "https://github.com/SpinalHDL/SaxonSoc.git"
+  saxon_rsync
+  saxon_patch
 }
 saxon_update() {
     saxon_clone
 }
 
 saxon_standalone_compile(){
-  cd $SAXON_ROOT/SaxonSoc/software/standalone/$1
+  cd $SAXON_SOC/software/standalone/$1
   make clean all BSP_PATH=$SAXON_BSP_PATH "${@:2}"
+}
+
+saxon_rsync(){
+  rsync -v -r -a $SAXON_BSP_PATH/rsync/* $SAXON_ROOT
+}
+
+saxon_patch(){
+  echo
 }

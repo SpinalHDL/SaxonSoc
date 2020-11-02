@@ -182,5 +182,5 @@ source SaxonSoc/bsp/digilent/ArtyA7SmpLinux/source.sh
 saxon_standalone_compile freertosDemo SPINAL_SIM=yes
 saxon_standalone_compile bootloader SPINAL_SIM=yes
 
-saxon_sim --bin=$SAXON_ROOT/SaxonSoc/software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin
+saxon_sim --bin=$SAXON_SOC/software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin
 ```
