@@ -1,8 +1,8 @@
-ifneq (, $(shell which riscv64-unknown-elf-gcc))
-RISCV_BIN ?= riscv64-unknown-elf-
-else
 ifneq (, $(shell which riscv-none-embed-gcc))
-RISCV_BIN ?= riscv-none-embed-
+  RISCV_BIN ?= riscv-none-embed-
+else
+ifneq (, $(shell which riscv64-unknown-elf-gcc))
+  RISCV_BIN ?= riscv64-unknown-elf-
 else
 $(warning No RISC-V toolchain detected, please install riscv-none-embed- from xpack)
 endif
@@ -31,6 +31,7 @@ ifeq ($(RV_C),yes)
 	MARCH := $(MARCH)ac
 endif
 
+#MARCH := $(MARCH)xcustom
 
 ifeq ($(DEBUG),yes)
 ifneq ($(DEBUG_Og),yes)
