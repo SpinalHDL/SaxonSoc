@@ -1,6 +1,6 @@
 #!/bin/sh
 
-[ -z "LINUX_ADDRESS" ] && export LINUX_ADDRESS=0x80000000
+LINUX_ADDRESS="${LINUX_ADDRESS:-0x80000000}"
 
 saxon_buildroot(){
   saxon_buildroot_clean
