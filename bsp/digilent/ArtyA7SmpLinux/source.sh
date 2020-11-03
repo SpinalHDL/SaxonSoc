@@ -7,10 +7,10 @@ SAXON_ROOT=$SAXON_BSP_PATH/"../../../.."
 SAXON_BSP_COMMON_SCRIPTS=$SAXON_ROOT/SaxonSoc/bsp/common/scripts
 
 # Configurations
-SAXON_OPENSBI_PLATEFORM=spinal/saxon/digilent/artyA7Smp
-SAXON_UBOOT_DEFCONFIG=saxon_arty_a7_smp_defconfig
-SAXON_BUILDROOT_DEFCONFIG=spinal_saxon_arty_a7_smp_defconfig
-SAXON_BUILDROOT_DTS=board/spinal/saxon_arty_a7_smp/dts
+SAXON_OPENSBI_PLATEFORM=spinal/saxon/bsp
+SAXON_UBOOT_DEFCONFIG=saxon_bsp_defconfig
+SAXON_BUILDROOT_DEFCONFIG=spinal_saxon_bsp_defconfig
+SAXON_BUILDROOT_DTS=board/spinal/saxon_bsp/dts
 
 # Functionalities
 source $SAXON_BSP_COMMON_SCRIPTS/base.sh

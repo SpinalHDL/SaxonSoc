@@ -19,7 +19,6 @@ saxon_clone() {
   saxon_clone_single "opensbi" "https://github.com/SpinalHDL/opensbi.git --branch spinal"
   saxon_clone_single "openocd_riscv" "https://github.com/SpinalHDL/openocd_riscv.git"
   saxon_clone_single "SaxonSoc" "https://github.com/SpinalHDL/SaxonSoc.git"
-  saxon_rsync
   saxon_patch
 }
 saxon_update() {
@@ -31,10 +30,21 @@ saxon_standalone_compile(){
   make clean all BSP_PATH=$SAXON_BSP_PATH "${@:2}"
 }
 
-saxon_rsync(){
-  rsync -v -r -a $SAXON_BSP_PATH/rsync/* $SAXON_ROOT
-}
+
 
 saxon_patch(){
-  echo
+  saxon_patch_from $SAXON_BSP_PATH
+  for patch in $SAXON_PATCHES; do
+    saxon_patch_from $patch
+  done
 }
+
+saxon_patch_from(){
+  echo "*** apply patches from $1 ***"
+  cd $SAXON_ROOT
+  rsync -v -r -a $1/rsync/* $SAXON_ROOT
+  for patch in $1/patch/*; do
+    patch -p0 -f < $patch
+  done
+}
+

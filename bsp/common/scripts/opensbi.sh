@@ -2,7 +2,7 @@
 
 
 saxon_opensbi(){
-  saxon_rsync
+  saxon_patch
   cd $SAXON_ROOT/opensbi
   export CROSS_COMPILE=riscv-none-embed-
   export PLATFORM_RISCV_XLEN=32
