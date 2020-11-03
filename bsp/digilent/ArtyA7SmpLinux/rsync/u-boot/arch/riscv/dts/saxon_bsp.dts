@@ -1,0 +1,111 @@
+/dts-v1/;
+
+#include <config.h>
+
+/ {
+  #address-cells = <1>;
+  #size-cells = <1>;
+  compatible = "spinal,vexriscv";
+  model = "spinal,vexriscv_saxon";
+
+  aliases {
+    serial0 = &serial0;
+  };
+
+  chosen {
+    bootargs = "console=ttyS0,115200n8";
+    stdout-path = "serial0:115200n8";
+  };
+
+  cpus {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    timebase-frequency = <100000000>;
+
+    cpu0: cpu@0{
+      device_type = "cpu";
+      compatible = "riscv";
+      riscv,isa = "rv32ima";
+      clock-frequency = <100000000>;
+      mmu-type = "riscv,sv32";
+      reg = <0>;
+      status = "okay";
+      intc0: interrupt-controller {
+          #interrupt-cells = <1>;
+          interrupt-controller;
+          compatible = "riscv,cpu-intc";
+      };
+    };
+
+    cpu1: cpu@1{
+      device_type = "cpu";
+      compatible = "riscv";
+      riscv,isa = "rv32ima";
+      clock-frequency = <100000000>;
+      mmu-type = "riscv,sv32";
+      reg = <1>;
+      status = "okay";
+      intc1: interrupt-controller {
+          #interrupt-cells = <1>;
+          interrupt-controller;
+          compatible = "riscv,cpu-intc";
+      };
+    };
+
+   /* cpu2: cpu@2{
+      device_type = "cpu";
+      compatible = "riscv";
+      riscv,isa = "rv32ima";
+      clock-frequency = <100000000>;
+      mmu-type = "riscv,sv32";
+      reg = <2>;
+      status = "okay";
+      intc2: interrupt-controller {
+          #interrupt-cells = <1>;
+          interrupt-controller;
+          compatible = "riscv,cpu-intc";
+      };
+    };
+
+    cpu3: cpu@3{
+      device_type = "cpu";
+      compatible = "riscv";
+      riscv,isa = "rv32ima";
+      clock-frequency = <100000000>;
+      mmu-type = "riscv,sv32";
+      reg = <3>;
+      status = "okay";
+      intc3: interrupt-controller {
+          #interrupt-cells = <1>;
+          interrupt-controller;
+          compatible = "riscv,cpu-intc";
+      };
+    };*/
+  };
+
+  memory {
+    device_type = "memory";
+    reg = <0x80000000 0x10000000>;
+  };
+
+  serial0: serial@10010000 {
+    device_type = "serial";
+    compatible = "riscv_sbi,uart";
+  };
+
+  spi0: spi@10020000 {
+    compatible = "vexriscv,spi";
+    #address-cells = <1>;
+    #size-cells = <0>;
+    reg = <0x10020000 0x1000>;
+    cmd_fifo_depth = <256>;
+    rsp_fifo_depth = <256>;
+    num-cs = <2>;
+    clock-frequency = <100000000>;
+    mmc0: mmc@1 {
+      compatible = "mmc-spi-slot";
+      reg = <1>;
+      spi-max-frequency = <25000000>;
+    };
+  };
+};

@@ -1,0 +1,343 @@
+
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+    #address-cells = <0x1>;
+    #size-cells = <0x1>;
+    compatible = "spinal,vexriscv";
+    model = "spinal,vexriscv_sim";
+
+    chosen {
+        bootargs = "rootwait console=hvc0  earlycon=sbi root=/dev/mmcblk0p2 init=/sbin/init mmc_core.use_spi_crc=0 loglevel=7";  //ignore_loglevel rng_core.default_quality=1000 random.trust_cpu=on
+
+        //bootargs = "rootwait console=hvc0 earlycon=sbi root=/dev/ram0 init=/sbin/init mmc_core.use_spi_crc=0"; 
+        //not necessary if uboot is used
+        //linux,initrd-start = <0x81000000>;
+        //linux,initrd-end =   <0x82000000>; 
+    };
+
+    cpus {
+        #address-cells = <0x1>;
+        #size-cells = <0x0>;
+        timebase-frequency = <100000000>;
+        cpu@0 {
+            device_type = "cpu";
+            compatible = "riscv";
+            riscv,isa = "rv32ima";
+            mmu-type = "riscv,sv32";
+            reg = <0>;
+            status = "okay";
+            L0: interrupt-controller {
+                #interrupt-cells = <0x00000001>;
+                interrupt-controller;
+                compatible = "riscv,cpu-intc";
+            };
+        };
+        cpu@1 {
+            device_type = "cpu";
+            compatible = "riscv";
+            riscv,isa = "rv32ima";
+            mmu-type = "riscv,sv32";
+            reg = <1>;
+            status = "okay";
+            L1: interrupt-controller {
+                #interrupt-cells = <0x00000001>;
+                interrupt-controller;
+                compatible = "riscv,cpu-intc";
+            };
+        };
+
+        /*cpu@2 {
+            device_type = "cpu";
+            compatible = "riscv";
+            riscv,isa = "rv32ima";
+            mmu-type = "riscv,sv32";
+            reg = <2>;
+            status = "okay";
+            L2: interrupt-controller {
+                #interrupt-cells = <0x00000001>;
+                interrupt-controller;
+                compatible = "riscv,cpu-intc";
+            };
+        };
+
+        cpu@3 {
+            device_type = "cpu";
+            compatible = "riscv";
+            riscv,isa = "rv32ima";
+            mmu-type = "riscv,sv32";
+            reg = <3>;
+            status = "okay";
+            L3: interrupt-controller {
+                #interrupt-cells = <0x00000001>;
+                interrupt-controller;
+                compatible = "riscv,cpu-intc";
+            };
+        };*/
+    };
+
+
+
+    memory@80000000 {
+        device_type = "memory";
+        reg = <0x80000000 0x10000000>;
+    };
+
+
+
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        opensbi: sbi@80F80000 {
+            reg = <0x80F80000 0x80000>;
+        };
+        framebuffer: sbi@8F000000 {
+            reg = <0x8F000000 0x1000000>;
+        };
+    };
+
+    clocks {
+        compatible = "simple-bus";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        apbA_clock: clock@1 {
+            compatible = "fixed-clock";
+            reg = <1 0>;
+            #clock-cells = <0>;
+            clock-frequency = <100000000>;
+        };
+    };
+
+    framebuffer0: framebuffer@8f000000 {
+        compatible = "simple-framebuffer";
+        reg = <0x8F000000 (640 * 480 * 2)>;
+        width = <640>;
+        height = <480>;
+        stride = <(640 * 2)>;
+        format = "r5g6b5";
+    };
+
+    apbA@10000000 {
+        compatible = "simple-bus";
+        #address-cells = <0x1>;
+        #size-cells = <0x1>;
+        ranges = <0x0 0x10000000 0x01000000>;
+
+        plic: interrupt-controller@c00000 {
+            compatible = "sifive,plic-1.0.0", "sifive,fu540-c000-plic";
+            #interrupt-cells = <1>;
+            interrupt-controller;
+            interrupts-extended = <
+                &L0 11 &L0 9
+                &L1 11 &L1 9
+                /*&L2 11 &L2 9
+                &L3 11 &L3 9*/>;
+            reg = <0x00C00000 0x400000>;
+            riscv,ndev = <32>;
+        };
+
+
+        gpioA: gpio@0 {
+            compatible = "spinal-lib,gpio-1.0";
+            interrupt-parent = <&plic>;
+            ngpio = <32>;
+            interrupts = <0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 5 6 7>;
+            reg = <0x000000 0x1000>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+        };
+
+        dmaA: dma@80000 {
+            compatible = "spinal,lib-dmasg";
+            reg = <0x80000 0x10000>;
+            interrupt-parent = <&plic>;
+            interrupts = <12>;
+
+			#dma-cells = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;   
+            dma-channel@0 {
+	            reg = <0>;
+			    interrupt-parent = <&plic>;
+			    interrupts = <12>;
+            };
+            dma-channel@1 {
+	            reg = <1>;
+			    interrupt-parent = <&plic>;
+			    interrupts = <13>;
+            };
+        };
+
+        audio_out0: audio_out@94000 {
+            compatible = "spinal,lib-audio-out";
+            reg = <0x94000 0x1000>;
+
+            dmas = <&dmaA 0>, <&dmaA 1>;
+            dma-names = "rx", "tx";
+
+            clocks = <&apbA_clock 0>;
+        };
+
+
+        mac0: mac@40000 {
+            compatible = "spinal,lib_mac";
+            reg = <0x40000 0x1000>;
+            interrupt-parent = <&plic>;
+            interrupts = <3>;
+            mac-address = [00 01 23 34 56 78];
+        };
+
+        spiA: spi@20000 {
+            compatible = "spinal-lib,spi-1.0";
+            #address-cells = <1>;
+            #size-cells = <0>;   
+            reg = <0x020000 0x1000>;
+            cmd_fifo_depth = <256>;
+            rsp_fifo_depth = <256>;
+            clocks = <&apbA_clock 0>;
+            cs-gpios = <0>, <0>, <&gpioA 28 0>, <&gpioA 29 0>;
+                   
+            flash: flash@0 {
+                #address-cells = <1>;
+                #size-cells = <1>;
+                compatible = "spi-nor";
+                reg = <0>;
+                spi-max-frequency = <25000000>;
+
+                partition@0 {
+                    label = "fpga_bitstream";
+                    reg = <0x000000 0x400000>;
+                };
+                partition@1 {
+                    label = "opensbi";
+                    reg = <0x400000 0x080000>;
+                };
+                partition@2 {
+                    label = "uboot";
+                    reg = <0x480000 0x080000>;
+                };
+                partition@3 {
+                    label = "user";
+                    reg = <0x500000 0xB00000>;
+                };
+            };
+
+            mmc-slot@1 {
+                compatible = "mmc-spi-slot";
+                reg = <1>;
+                voltage-ranges = <3300 3300>;
+                spi-max-frequency = <25000000>;
+            };
+
+        };
+    };
+
+    leds: leds {
+        compatible = "gpio-leds";
+
+
+        led0_b {
+            label = "led0_b";
+            gpios = <&gpioA 12 0>;
+            linux,default-trigger = "none";
+        };
+        led0_g {
+            label = "led0_g";
+            gpios = <&gpioA 13 0>;
+            linux,default-trigger = "none";
+        };
+        led0_r {
+            label = "led0_r";
+            gpios = <&gpioA 14 0>;
+            linux,default-trigger = "none";
+        };
+        led1_b {
+            label = "led1_b";
+            gpios = <&gpioA 15 0>;
+            linux,default-trigger = "none";
+        };
+        led1_g {
+            label = "led1_g";
+            gpios = <&gpioA 16 0>;
+            linux,default-trigger = "none";
+        };
+        led1_r {
+            label = "led1_r";
+            gpios = <&gpioA 17 0>;
+            linux,default-trigger = "none";
+        };
+        led2_b {
+            label = "led2_b";
+            gpios = <&gpioA 18 0>;
+            linux,default-trigger = "none";
+        };
+        led2_g {
+            label = "led2_g";
+            gpios = <&gpioA 19 0>;
+            linux,default-trigger = "none";
+        };
+        led2_r {
+            label = "led2_r";
+            gpios = <&gpioA 20 0>;
+            linux,default-trigger = "none";
+        };
+        led3_b {
+            label = "led3_b";
+            gpios = <&gpioA 21 0>;
+            linux,default-trigger = "none";
+        };
+        led3_g {
+            label = "led3_g";
+            gpios = <&gpioA 22 0>;
+            linux,default-trigger = "none";
+        };
+        led3_r {
+            label = "led3_r";
+            gpios = <&gpioA 23 0>;
+            linux,default-trigger = "none";
+        };
+
+
+        led4 {
+            label = "led4";
+            gpios = <&gpioA 8 0>;
+            linux,default-trigger = "none";
+        };
+        led5 {
+            label = "led5";
+            gpios = <&gpioA 9 0>;
+            linux,default-trigger = "none";
+        };
+        led6 {
+            label = "led6";
+            gpios = <&gpioA 10 0>;
+            linux,default-trigger = "none";
+        };
+        led7 {
+            label = "led7";
+            gpios = <&gpioA 11 0>;
+            linux,default-trigger = "mmc0";
+        };
+    };
+
+/*
+    i2cA: i2cA {
+        compatible = "i2c-gpio";
+        sda-gpios = <&gpioA 24 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+        scl-gpios = <&gpioA 25 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+        i2c-gpio,delay-us = <3>;	
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };*/
+};
+
+
