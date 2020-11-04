@@ -7,7 +7,7 @@ saxon_uboot_clean(){
 }
 
 saxon_uboot_compile(){
-  saxon_patch
+  saxon_fix
   cd $SAXON_ROOT/u-boot
   CROSS_COMPILE=riscv-none-embed- make $SAXON_UBOOT_DEFCONFIG
   CROSS_COMPILE=riscv-none-embed- make -j$(nproc)

@@ -19,7 +19,7 @@ saxon_clone() {
   saxon_clone_single "opensbi" "https://github.com/SpinalHDL/opensbi.git --branch spinal"
   saxon_clone_single "openocd_riscv" "https://github.com/SpinalHDL/openocd_riscv.git"
   saxon_clone_single "SaxonSoc" "https://github.com/SpinalHDL/SaxonSoc.git"
-  saxon_patch
+  saxon_fix
 }
 saxon_update() {
     saxon_clone
@@ -30,21 +30,28 @@ saxon_standalone_compile(){
   make clean all BSP_PATH=$SAXON_BSP_PATH "${@:2}"
 }
 
-
-
-saxon_patch(){
-  saxon_patch_from $SAXON_BSP_PATH
-  for patch in $SAXON_PATCHES; do
-    saxon_patch_from $patch
+saxon_fix(){
+  saxon_fix_from $SAXON_BSP_PATH
+  for fix in $SAXON_FIXES; do
+    saxon_fix_from $fix
   done
 }
 
-saxon_patch_from(){
-  echo "*** apply patches from $1 ***"
+saxon_fix_from(){
+  echo "***"
+  echo "*** Apply patches from $1"
+  echo "***"
   cd $SAXON_ROOT
-  rsync -v -r -a $1/rsync/* $SAXON_ROOT
-  for patch in $1/patch/*; do
-    patch -p0 -f < $patch
-  done
+  if [ -d "$1/rsync" ]; then
+    rsync -v -r -a $1/rsync/* $SAXON_ROOT
+  fi
+
+  if [ -d "$1/patch" ]; then
+    for patch in $1/patch/*; do
+      if ! patch -R -p0 -s -f --dry-run < $patch >/dev/null; then
+        patch -p0 < $patch
+      fi
+    done
+  fi
 }
 

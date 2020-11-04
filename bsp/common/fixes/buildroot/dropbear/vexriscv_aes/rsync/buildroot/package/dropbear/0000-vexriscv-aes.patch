@@ -1,0 +1,571 @@
+diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes.c dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes.c
+--- dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes.c	2019-03-27 15:15:23.000000000 +0100
++++ dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes.c	2020-11-03 19:14:24.815062174 +0100
+@@ -30,6 +30,12 @@
+ 
+ #include "tomcrypt.h"
+ 
++#define VEXRISCV_AES
++
++#ifdef VEXRISCV_AES
++#include "aes_custom.h"
++#endif
++
+ #ifdef LTC_RIJNDAEL
+ 
+ #ifndef ENCRYPT_ONLY 
+@@ -111,6 +117,12 @@
+ #endif
+ #endif
+ 
++int encCount = 0;
++int decCount = 0;
++Profiler encryptProfiler = {.acc = 0};
++Profiler decryptProfiler = {.acc = 0};
++
++
+  /**
+     Initialize the AES (Rijndael) block cipher
+     @param key The symmetric key you wish to pass
+@@ -126,9 +138,10 @@
+ #ifndef ENCRYPT_ONLY
+     ulong32 *rrk;
+ #endif    
++
+     LTC_ARGCHK(key  != NULL);
+     LTC_ARGCHK(skey != NULL);
+-  
++
+     if (keylen != 16 && keylen != 24 && keylen != 32) {
+        return CRYPT_INVALID_KEYSIZE;
+     }
+@@ -275,6 +288,7 @@
+     return CRYPT_OK;   
+ }
+ 
++
+ /**
+   Encrypts a block of text with AES
+   @param pt The input plaintext (16 bytes)
+@@ -282,6 +296,7 @@
+   @param skey The key as scheduled
+   @return CRYPT_OK if successful
+ */
++
+ #ifdef LTC_CLEAN_STACK
+ static int _rijndael_ecb_encrypt(const unsigned char *pt, unsigned char *ct, symmetric_key *skey) 
+ #else
+@@ -290,7 +305,9 @@
+ {
+     ulong32 s0, s1, s2, s3, t0, t1, t2, t3, *rk;
+     int Nr, r;
+-   
++
++    profilerStart(&encryptProfiler);
++
+     LTC_ARGCHK(pt != NULL);
+     LTC_ARGCHK(ct != NULL);
+     LTC_ARGCHK(skey != NULL);
+@@ -307,6 +324,107 @@
+     LOAD32H(s2, pt  +  8); s2 ^= rk[2];
+     LOAD32H(s3, pt  + 12); s3 ^= rk[3];
+ 
++#ifdef VEXRISCV_AES
++/*
++    for (r = 0; ; r++) {
++        rk += 4;
++
++        //Volatile ensure that those load are not reordered against aes_enc_round
++        t0 = ((volatile ulong32*)rk)[0];
++        t1 = ((volatile ulong32*)rk)[1];
++        t2 = ((volatile ulong32*)rk)[2];
++        t3 = ((volatile ulong32*)rk)[3];
++
++
++        t0 = aes_enc_round(t0, s0, 3);
++        t1 = aes_enc_round(t1, s1, 3);
++        t2 = aes_enc_round(t2, s2, 3);
++        t3 = aes_enc_round(t3, s3, 3);
++
++        t0 = aes_enc_round(t0, s1, 2); 
++        t1 = aes_enc_round(t1, s2, 2);
++        t2 = aes_enc_round(t2, s3, 2);
++        t3 = aes_enc_round(t3, s0, 2);
++
++        t0 = aes_enc_round(t0, s2, 1);
++        t1 = aes_enc_round(t1, s3, 1);
++        t2 = aes_enc_round(t2, s0, 1);
++        t3 = aes_enc_round(t3, s1, 1);
++
++        t0 = aes_enc_round(t0, s3, 0);
++        t1 = aes_enc_round(t1, s0, 0);
++        t2 = aes_enc_round(t2, s1, 0);
++        t3 = aes_enc_round(t3, s2, 0);
++
++        if (r == Nr-2) { 
++           break;
++        }
++        s0 = t0; s1 = t1; s2 = t2; s3 = t3;
++    }
++    rk += 4;*/
++
++
++    r = Nr >> 1;
++    for (;;) {
++        //Volatile ensure that those load are not reordered against aes_enc_round
++        t0 = ((volatile ulong32*)rk)[4];
++        t1 = ((volatile ulong32*)rk)[5];
++        t2 = ((volatile ulong32*)rk)[6];
++        t3 = ((volatile ulong32*)rk)[7];
++
++
++        t0 = aes_enc_round(t0, s0, 3);
++        t1 = aes_enc_round(t1, s1, 3);
++        t2 = aes_enc_round(t2, s2, 3);
++        t3 = aes_enc_round(t3, s3, 3);
++
++        t0 = aes_enc_round(t0, s1, 2);
++        t1 = aes_enc_round(t1, s2, 2);
++        t2 = aes_enc_round(t2, s3, 2);
++        t3 = aes_enc_round(t3, s0, 2);
++
++        t0 = aes_enc_round(t0, s2, 1);
++        t1 = aes_enc_round(t1, s3, 1);
++        t2 = aes_enc_round(t2, s0, 1);
++        t3 = aes_enc_round(t3, s1, 1);
++
++        t0 = aes_enc_round(t0, s3, 0);
++        t1 = aes_enc_round(t1, s0, 0);
++        t2 = aes_enc_round(t2, s1, 0);
++        t3 = aes_enc_round(t3, s2, 0);
++
++        rk += 8;
++        if (--r == 0) {
++            break;
++        }
++
++        s0 = ((volatile ulong32*)rk)[0];
++        s1 = ((volatile ulong32*)rk)[1];
++        s2 = ((volatile ulong32*)rk)[2];
++        s3 = ((volatile ulong32*)rk)[3];
++
++        s0 = aes_enc_round(s0, t0, 3);
++        s1 = aes_enc_round(s1, t1, 3);
++        s2 = aes_enc_round(s2, t2, 3);
++        s3 = aes_enc_round(s3, t3, 3);
++
++        s0 = aes_enc_round(s0, t1, 2);
++        s1 = aes_enc_round(s1, t2, 2);
++        s2 = aes_enc_round(s2, t3, 2);
++        s3 = aes_enc_round(s3, t0, 2);
++
++        s0 = aes_enc_round(s0, t2, 1);
++        s1 = aes_enc_round(s1, t3, 1);
++        s2 = aes_enc_round(s2, t0, 1);
++        s3 = aes_enc_round(s3, t1, 1);
++
++        s0 = aes_enc_round(s0, t3, 0);
++        s1 = aes_enc_round(s1, t0, 0);
++        s2 = aes_enc_round(s2, t1, 0);
++        s3 = aes_enc_round(s3, t2, 0);
++    }
++
++#else
+ #ifdef LTC_SMALL_CODE
+ 
+     for (r = 0; ; r++) {
+@@ -406,12 +524,46 @@
+     }
+ 
+ #endif
++#endif
+ 
+     /*
+      * apply last round and
+      * map cipher state to byte array block:
+      */
+-    s0 =
++
++    
++    #ifdef VEXRISCV_AES
++        s0 = ((volatile ulong32*)rk)[0];
++        s1 = ((volatile ulong32*)rk)[1];
++        s2 = ((volatile ulong32*)rk)[2];
++        s3 = ((volatile ulong32*)rk)[3]; 
++
++        s0 = aes_enc_round_last(s0, t0, 3);
++        s1 = aes_enc_round_last(s1, t1, 3);
++        s2 = aes_enc_round_last(s2, t2, 3);
++        s3 = aes_enc_round_last(s3, t3, 3);
++
++        s0 = aes_enc_round_last(s0, t1, 2); 
++        s1 = aes_enc_round_last(s1, t2, 2);
++        s2 = aes_enc_round_last(s2, t3, 2);
++        s3 = aes_enc_round_last(s3, t0, 2);
++
++        s0 = aes_enc_round_last(s0, t2, 1);
++        s1 = aes_enc_round_last(s1, t3, 1);
++        s2 = aes_enc_round_last(s2, t0, 1);
++        s3 = aes_enc_round_last(s3, t1, 1);
++
++        s0 = aes_enc_round_last(s0, t3, 0);
++        s1 = aes_enc_round_last(s1, t0, 0);
++        s2 = aes_enc_round_last(s2, t1, 0);
++        s3 = aes_enc_round_last(s3, t2, 0);
++
++        STORE32H(s0, ct);
++        STORE32H(s1, ct+4);
++        STORE32H(s2, ct+8);
++        STORE32H(s3, ct+12);
++    #else
++    s0 = 
+         (Te4_3[byte(t0, 3)]) ^
+         (Te4_2[byte(t1, 2)]) ^
+         (Te4_1[byte(t2, 1)]) ^
+@@ -439,7 +591,10 @@
+         (Te4_0[byte(t2, 0)]) ^ 
+         rk[3];
+     STORE32H(s3, ct+12);
++    #endif
+ 
++    profilerStop(&encryptProfiler);
++    encCount += 1;
+     return CRYPT_OK;
+ }
+ 
+@@ -469,6 +624,7 @@
+ {
+     ulong32 s0, s1, s2, s3, t0, t1, t2, t3, *rk;
+     int Nr, r;
++    profilerStart(&decryptProfiler);
+ 
+     LTC_ARGCHK(pt != NULL);
+     LTC_ARGCHK(ct != NULL);
+@@ -486,6 +642,108 @@
+     LOAD32H(s2, ct  +  8); s2 ^= rk[2];
+     LOAD32H(s3, ct  + 12); s3 ^= rk[3];
+ 
++#ifdef VEXRISCV_AES
++/*
++    for (r = 0; ; r++) {
++        rk += 4;
++
++        //Volatile ensure that those load are not reordered against aes_enc_round
++        t0 = ((volatile ulong32*)rk)[0];
++        t1 = ((volatile ulong32*)rk)[1];
++        t2 = ((volatile ulong32*)rk)[2];
++        t3 = ((volatile ulong32*)rk)[3];
++
++
++        t0 = aes_enc_round(t0, s0, 3);
++        t1 = aes_enc_round(t1, s1, 3);
++        t2 = aes_enc_round(t2, s2, 3);
++        t3 = aes_enc_round(t3, s3, 3);
++
++        t0 = aes_enc_round(t0, s1, 2); 
++        t1 = aes_enc_round(t1, s2, 2);
++        t2 = aes_enc_round(t2, s3, 2);
++        t3 = aes_enc_round(t3, s0, 2);
++
++        t0 = aes_enc_round(t0, s2, 1);
++        t1 = aes_enc_round(t1, s3, 1);
++        t2 = aes_enc_round(t2, s0, 1);
++        t3 = aes_enc_round(t3, s1, 1);
++
++        t0 = aes_enc_round(t0, s3, 0);
++        t1 = aes_enc_round(t1, s0, 0);
++        t2 = aes_enc_round(t2, s1, 0);
++        t3 = aes_enc_round(t3, s2, 0);
++
++        if (r == Nr-2) { 
++           break;
++        }
++        s0 = t0; s1 = t1; s2 = t2; s3 = t3;
++    }
++    rk += 4;*/
++
++
++    r = Nr >> 1;
++    for (;;) {
++        //Volatile ensure that those load are not reordered against aes_enc_round
++        t0 = ((volatile ulong32*)rk)[4];
++        t1 = ((volatile ulong32*)rk)[5];
++        t2 = ((volatile ulong32*)rk)[6];
++        t3 = ((volatile ulong32*)rk)[7];
++
++
++        t0 = aes_dec_round(t0, s0, 3);
++        t1 = aes_dec_round(t1, s1, 3);
++        t2 = aes_dec_round(t2, s2, 3);
++        t3 = aes_dec_round(t3, s3, 3);
++
++        t0 = aes_dec_round(t0, s3, 2);
++        t1 = aes_dec_round(t1, s0, 2);
++        t2 = aes_dec_round(t2, s1, 2);
++        t3 = aes_dec_round(t3, s2, 2);
++
++        t0 = aes_dec_round(t0, s2, 1);
++        t1 = aes_dec_round(t1, s3, 1);
++        t2 = aes_dec_round(t2, s0, 1);
++        t3 = aes_dec_round(t3, s1, 1);
++
++        t0 = aes_dec_round(t0, s1, 0);
++        t1 = aes_dec_round(t1, s2, 0);
++        t2 = aes_dec_round(t2, s3, 0);
++        t3 = aes_dec_round(t3, s0, 0);
++
++
++        rk += 8;
++        if (--r == 0) {
++            break;
++        }
++
++        s0 = ((volatile ulong32*)rk)[0];
++        s1 = ((volatile ulong32*)rk)[1];
++        s2 = ((volatile ulong32*)rk)[2];
++        s3 = ((volatile ulong32*)rk)[3];
++
++        s0 = aes_dec_round(s0, t0, 3);
++        s1 = aes_dec_round(s1, t1, 3);
++        s2 = aes_dec_round(s2, t2, 3);
++        s3 = aes_dec_round(s3, t3, 3);
++
++        s0 = aes_dec_round(s0, t3, 2);
++        s1 = aes_dec_round(s1, t0, 2);
++        s2 = aes_dec_round(s2, t1, 2);
++        s3 = aes_dec_round(s3, t2, 2);
++
++        s0 = aes_dec_round(s0, t2, 1);
++        s1 = aes_dec_round(s1, t3, 1);
++        s2 = aes_dec_round(s2, t0, 1);
++        s3 = aes_dec_round(s3, t1, 1);
++
++        s0 = aes_dec_round(s0, t1, 0);
++        s1 = aes_dec_round(s1, t2, 0);
++        s2 = aes_dec_round(s2, t3, 0);
++        s3 = aes_dec_round(s3, t0, 0);
++    }
++
++#else
+ #ifdef LTC_SMALL_CODE
+     for (r = 0; ; r++) {
+         rk += 4;
+@@ -585,11 +843,44 @@
+             rk[3];
+     }
+ #endif
++#endif
+ 
+     /*
+      * apply last round and
+      * map cipher state to byte array block:
+      */
++
++#ifdef VEXRISCV_AES
++    s0 = ((volatile ulong32*)rk)[0];
++    s1 = ((volatile ulong32*)rk)[1];
++    s2 = ((volatile ulong32*)rk)[2];
++    s3 = ((volatile ulong32*)rk)[3]; 
++
++    s0 = aes_dec_round_last(s0, t0, 3);
++    s1 = aes_dec_round_last(s1, t1, 3);
++    s2 = aes_dec_round_last(s2, t2, 3);
++    s3 = aes_dec_round_last(s3, t3, 3);
++
++    s0 = aes_dec_round_last(s0, t3, 2); 
++    s1 = aes_dec_round_last(s1, t0, 2);
++    s2 = aes_dec_round_last(s2, t1, 2);
++    s3 = aes_dec_round_last(s3, t2, 2);
++
++    s0 = aes_dec_round_last(s0, t2, 1);
++    s1 = aes_dec_round_last(s1, t3, 1);
++    s2 = aes_dec_round_last(s2, t0, 1);
++    s3 = aes_dec_round_last(s3, t1, 1);
++
++    s0 = aes_dec_round_last(s0, t1, 0);
++    s1 = aes_dec_round_last(s1, t2, 0);
++    s2 = aes_dec_round_last(s2, t3, 0);
++    s3 = aes_dec_round_last(s3, t0, 0);
++
++    STORE32H(s0, pt);
++    STORE32H(s1, pt+4);
++    STORE32H(s2, pt+8);
++    STORE32H(s3, pt+12);
++#else    
+     s0 =
+         (Td4[byte(t0, 3)] & 0xff000000) ^
+         (Td4[byte(t3, 2)] & 0x00ff0000) ^
+@@ -618,6 +909,10 @@
+         (Td4[byte(t0, 0)] & 0x000000ff) ^
+         rk[3];
+     STORE32H(s3, pt+12);
++#endif
++
++    profilerStop(&decryptProfiler);
++    decCount += 1;
+ 
+     return CRYPT_OK;
+ }
+diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes_custom.h dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes_custom.h
+--- dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes_custom.h	1970-01-01 01:00:00.000000000 +0100
++++ dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes_custom.h	2020-11-03 18:25:07.122619807 +0100
+@@ -0,0 +1,9 @@
++#pragma once
++
++#include "riscv.h"
++
++#define aes_enc_round(rs1, rs2, sel) opcode_R(CUSTOM1, 0x00, (sel << 3), rs1, rs2)
++#define aes_enc_round_last(rs1, rs2, sel) opcode_R(CUSTOM1, 0x00, (sel << 3) | 2, rs1, rs2)
++
++#define aes_dec_round(rs1, rs2, sel) opcode_R(CUSTOM1, 0x00, (sel << 3) | 1, rs1, rs2)
++#define aes_dec_round_last(rs1, rs2, sel) opcode_R(CUSTOM1, 0x00, (sel << 3) | 2 | 1, rs1, rs2)
+diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/riscv.h dropbear-2019.78/libtomcrypt/src/ciphers/aes/riscv.h
+--- dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/riscv.h	1970-01-01 01:00:00.000000000 +0100
++++ dropbear-2019.78/libtomcrypt/src/ciphers/aes/riscv.h	2020-10-31 18:54:35.458536000 +0100
+@@ -0,0 +1,83 @@
++#pragma once
++
++asm(".set regnum_x0  ,  0");
++asm(".set regnum_x1  ,  1");
++asm(".set regnum_x2  ,  2");
++asm(".set regnum_x3  ,  3");
++asm(".set regnum_x4  ,  4");
++asm(".set regnum_x5  ,  5");
++asm(".set regnum_x6  ,  6");
++asm(".set regnum_x7  ,  7");
++asm(".set regnum_x8  ,  8");
++asm(".set regnum_x9  ,  9");
++asm(".set regnum_x10 , 10");
++asm(".set regnum_x11 , 11");
++asm(".set regnum_x12 , 12");
++asm(".set regnum_x13 , 13");
++asm(".set regnum_x14 , 14");
++asm(".set regnum_x15 , 15");
++asm(".set regnum_x16 , 16");
++asm(".set regnum_x17 , 17");
++asm(".set regnum_x18 , 18");
++asm(".set regnum_x19 , 19");
++asm(".set regnum_x20 , 20");
++asm(".set regnum_x21 , 21");
++asm(".set regnum_x22 , 22");
++asm(".set regnum_x23 , 23");
++asm(".set regnum_x24 , 24");
++asm(".set regnum_x25 , 25");
++asm(".set regnum_x26 , 26");
++asm(".set regnum_x27 , 27");
++asm(".set regnum_x28 , 28");
++asm(".set regnum_x29 , 29");
++asm(".set regnum_x30 , 30");
++asm(".set regnum_x31 , 31");
++
++asm(".set regnum_zero,  0");
++asm(".set regnum_ra  ,  1");
++asm(".set regnum_sp  ,  2");
++asm(".set regnum_gp  ,  3");
++asm(".set regnum_tp  ,  4");
++asm(".set regnum_t0  ,  5");
++asm(".set regnum_t1  ,  6");
++asm(".set regnum_t2  ,  7");
++asm(".set regnum_s0  ,  8");
++asm(".set regnum_s1  ,  9");
++asm(".set regnum_a0  , 10");
++asm(".set regnum_a1  , 11");
++asm(".set regnum_a2  , 12");
++asm(".set regnum_a3  , 13");
++asm(".set regnum_a4  , 14");
++asm(".set regnum_a5  , 15");
++asm(".set regnum_a6  , 16");
++asm(".set regnum_a7  , 17");
++asm(".set regnum_s2  , 18");
++asm(".set regnum_s3  , 19");
++asm(".set regnum_s4  , 20");
++asm(".set regnum_s5  , 21");
++asm(".set regnum_s6  , 22");
++asm(".set regnum_s7  , 23");
++asm(".set regnum_s8  , 24");
++asm(".set regnum_s9  , 25");
++asm(".set regnum_s10 , 26");
++asm(".set regnum_s11 , 27");
++asm(".set regnum_t3  , 28");
++asm(".set regnum_t4  , 29");
++asm(".set regnum_t5  , 30");
++asm(".set regnum_t6  , 31");
++
++asm(".set CUSTOM0  , 0x0B");
++asm(".set CUSTOM1  , 0x2B");
++
++#define opcode_R(opcode, func3, func7, rs1, rs2)   \
++({                                             \
++    register unsigned long __v;                \
++    asm volatile(                              \
++     ".word ((" #opcode ") | (regnum_%0 << 7) | (regnum_%1 << 15) | (regnum_%2 << 20) | ((" #func3 ") << 12) | ((" #func7 ") << 25));"   \
++     : [rd] "=r" (__v)                          \
++     : "r" (rs1), "r" (rs2)        \
++    );                                         \
++    __v;                                       \
++})
++
++
+diff -ruN dropbear-2019.78_ori/libtomcrypt/src/headers/tomcrypt.h dropbear-2019.78/libtomcrypt/src/headers/tomcrypt.h
+--- dropbear-2019.78_ori/libtomcrypt/src/headers/tomcrypt.h	2019-03-27 15:15:23.000000000 +0100
++++ dropbear-2019.78/libtomcrypt/src/headers/tomcrypt.h	2020-10-26 19:02:09.902716000 +0100
+@@ -21,6 +21,59 @@
+ /* use configuration data */
+ #include <tomcrypt_custom.h>
+ 
++#pragma GCC diagnostic ignored "-Wunused-function"
++typedef struct{
++    int acc;
++    int startedAt;
++} Profiler;
++
++static int getCycle(){
++    int n;
++
++    __asm__ __volatile__("rdtime %0" : "=r"(n));
++    return n;
++}
++
++
++static void profilerInit(Profiler *p){
++    p->acc = 0;
++}
++
++static void profilerStart(Profiler *p){
++    p->startedAt = getCycle();
++}
++
++static void profilerStop(Profiler *p){
++    p->acc += getCycle() - p->startedAt;
++}
++
++#include <stdio.h>
++static void profilerReport(Profiler *p, char* msg){
++    fprintf(stderr,"%s %d\n", msg, p->acc);
++}
++
++
++#define profile(msg, that) {\
++Profiler p; \
++profilerInit(&p); \
++profilerStart(&p); \
++that \
++profilerStop(&p); \
++profilerReport(&p, msg); \
++} \
++
++
++
++#define profile2(msg, that) {\
++static Profiler p; \
++profilerStop(&p); \
++profilerReport(&p, msg); \
++that \
++profilerInit(&p); \
++profilerStart(&p); \
++} \
++
++
+ #ifdef __cplusplus
+ extern "C" {
+ #endif

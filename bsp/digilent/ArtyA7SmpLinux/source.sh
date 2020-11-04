@@ -12,6 +12,10 @@ SAXON_UBOOT_DEFCONFIG=saxon_bsp_defconfig
 SAXON_BUILDROOT_DEFCONFIG=spinal_saxon_bsp_defconfig
 SAXON_BUILDROOT_DTS=board/spinal/saxon_bsp/dts
 
+# Fixes
+SAXON_FIXES=$SAXON_ROOT/SaxonSoc/bsp/common/fixes/buildroot/dropbear/vexriscv_aes
+SAXON_FIXES=$SAXON_ROOT/SaxonSoc/bsp/common/fixes/buildroot/dropbear/no_swap
+
 # Functionalities
 source $SAXON_BSP_COMMON_SCRIPTS/base.sh
 source $SAXON_BSP_COMMON_SCRIPTS/openocd.sh

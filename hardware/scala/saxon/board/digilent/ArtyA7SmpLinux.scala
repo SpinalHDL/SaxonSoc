@@ -323,9 +323,9 @@ object ArtyA7SmpLinuxAbstract{
         rxDataWidth = 4
       ),
       rxDataWidth = 32,
-      rxBufferByteSize = 4096,
+      rxBufferByteSize = 8*1024,
       txDataWidth = 32,
-      txBufferByteSize = 4096
+      txBufferByteSize = 4*1024
     )
 
     dma.parameter.layout load DmaMemoryLayout(
