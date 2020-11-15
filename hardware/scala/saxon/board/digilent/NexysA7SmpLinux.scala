@@ -25,6 +25,7 @@ import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
 import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
+import vexriscv.plugin.AesPlugin
 
 
 class NexysA7SmpLinuxAbtract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount){
@@ -97,7 +98,7 @@ class NexysA7SmpLinuxAbtract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
   )
 }
 
-class NexysA7SmpLinux extends Generator{
+class NexysA7SmpLinux(cpuCount : Int) extends Generator{
   val debugCd = ClockDomainResetGenerator()
   debugCd.holdDuration.load(4095)
   debugCd.enablePowerOnReset()
@@ -119,7 +120,7 @@ class NexysA7SmpLinux extends Generator{
     omitReset = true
   )
 
-  val system = new NexysA7SmpLinuxAbtract(2){
+  val system = new NexysA7SmpLinuxAbtract(cpuCount){
     val vgaPhy = vga.withRegisterPhy(withColorEn = false)
   }
   system.onClockDomain(systemCd.outputClockDomain)
@@ -223,8 +224,7 @@ class NexysA7SmpLinux extends Generator{
   }
 
   val audioOut = add task new Area{
-    val sd = out Bool()
-    sd := Bool(true)
+    val sd = out(True)
   }
 
   val startupe2 = system.spiA.flash.produce(
@@ -245,6 +245,7 @@ object NexysA7SmpLinuxAbstract{
         iBusWidth = 64,
         dBusWidth = 64
       ))
+      cpu.config.plugins += AesPlugin()
     }
 
     ramA.size.load(8 KiB)
@@ -268,8 +269,8 @@ object NexysA7SmpLinuxAbstract{
     )
 
     gpioA.parameter load Gpio.Parameter(
-      width = 16,
-      interrupt = List(0, 1, 2, 3)
+      width = 32,
+      interrupt = List(24, 25, 26, 27)
     )
     gpioA.connectInterrupts(plic, 4)
 
@@ -347,10 +348,10 @@ object NexysA7SmpLinux {
   def main(args: Array[String]): Unit = {
     val report = SpinalRtlConfig
       .copy(
-        defaultConfigForClockDomains = ClockDomainConfig(resetKind = spinal.core.SYNC),
+        defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC),
         inlineRom = true
       ).addStandardMemBlackboxing(blackboxByteEnables)
-       .generateVerilog(InOutWrapper(default(new NexysA7SmpLinux()).toComponent()))
+       .generateVerilog(InOutWrapper(default(new NexysA7SmpLinux(2)).toComponent()))
     BspGenerator("digilent/NexysA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores(0).dBus)
   }
 }
@@ -372,7 +373,7 @@ object NexysA7SmpLinuxSystemSim {
 //    simConfig.withConfig(SpinalConfig(anonymSignalPrefix = "zz_"))
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-    simConfig.compile(new NexysA7SmpLinuxAbtract(2){
+    simConfig.compile(new NexysA7SmpLinuxAbtract(cpuCount = 2){
       val debugCd = ClockDomainResetGenerator()
       debugCd.enablePowerOnReset()
       debugCd.holdDuration.load(63)
