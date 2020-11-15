@@ -671,6 +671,20 @@ ping 10.0.0.1
 };
 ```
 
+### Audio
+
+```sh
+tftp -g -r sample3.mp3 10.0.0.1
+mpg123 -m sample3.mp3 
+```
+
+### Video
+
+```sh
+tftp -g -r sample.mp4 10.0.0.1
+ffmpeg -i sample.mp4 -pix_fmt rgb565le -f fbdev /dev/fb0
+```
+
 ## Simulation
 
 ### Ethernet
