@@ -32,7 +32,7 @@ saxon_standalone_compile(){
 
 saxon_fix(){
   saxon_fix_from $SAXON_BSP_PATH
-  for fix in $SAXON_FIXES; do
+  for fix in "${SAXON_FIXES[@]}"; do
     saxon_fix_from $fix
   done
 }

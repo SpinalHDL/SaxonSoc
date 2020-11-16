@@ -29,6 +29,9 @@ saxon_buildroot_setup(){
 saxon_buildroot_compile(){
   saxon_fix
   cd $SAXON_ROOT/buildroot
+  if [ ! -z "$SAXON_BUILDROOT_OVERLAY"  -a  ! -z "$SAXON_KEY" ]; then
+    rsync -v -p  -A -r  $SAXON_KEY/* $SAXON_BUILDROOT_OVERLAY/etc/ssh
+  fi
   make linux-rebuild all -j$(nproc)
   sleep 2
   riscv-none-embed-objcopy  -O binary output/images/vmlinux output/images/Image
