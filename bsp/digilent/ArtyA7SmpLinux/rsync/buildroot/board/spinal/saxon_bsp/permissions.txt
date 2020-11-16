@@ -1,0 +1,10 @@
+/etc/ssh/ssh_host_dsa_key	        f	600	0	0	-	-	-	-	-
+/etc/ssh/ssh_host_dsa_key.pub	    f	600	0	0	-	-	-	-	-
+/etc/ssh/ssh_host_ecdsa_key	        f	600	0	0	-	-	-	-	-
+/etc/ssh/ssh_host_ecdsa_key.pub	    f	600	0	0	-	-	-	-	-
+/etc/ssh/ssh_host_ed25519_key	    f	600	0	0	-	-	-	-	-
+/etc/ssh/ssh_host_ed25519_key.pub	f	600	0	0	-	-	-	-	-
+/etc/ssh/ssh_host_rsa_key	        f	600	0	0	-	-	-	-	-
+/etc/ssh/ssh_host_rsa_key.pub	    f	600	0	0	-	-	-	-	-
+
+

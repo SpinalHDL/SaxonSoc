@@ -156,6 +156,17 @@
             #interrupt-cells = <2>;
         };
 
+       /* uartA: ttySpinal@10000 {
+                compatible = "spinal-lib,uart-1.0";
+                reg = <0x10000 0x1000>;
+                clocks = <&apbA_clock 0>;
+        };*/
+
+       /* rngA: rng@b10000 {
+            compatible = "spinal-lib,rng";
+            reg = <0xB10000 0x1000>;
+        };*/
+
         dmaA: dma@80000 {
             compatible = "spinal,lib-dmasg";
             reg = <0x80000 0x10000>;

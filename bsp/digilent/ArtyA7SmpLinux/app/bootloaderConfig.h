@@ -62,8 +62,9 @@ void bspMain() {
     spiFlash_f2m(SPI, SPI_CS, OPENSBI_FLASH, OPENSBI_MEMORY, OPENSBI_SIZE);
     bsp_putString("U-Boot copy\n");
     spiFlash_f2m(SPI, SPI_CS, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
-#endif
+
     vgaInit();
+#endif
 
     bsp_putString("Payload boot\n");
     void (*userMain)(u32, u32, u32) = (void (*)(u32, u32, u32))OPENSBI_MEMORY;
