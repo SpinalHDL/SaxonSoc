@@ -1,92 +1,132 @@
-diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes.c dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes.c
---- dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes.c	2019-03-27 15:15:23.000000000 +0100
-+++ dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes.c	2020-11-11 13:05:59.212216000 +0100
-@@ -30,6 +30,12 @@
- 
- #include "tomcrypt.h"
+diff -ruN libopenssl-1.1.1f_ori/crypto/aes/aes_core.c libopenssl-1.1.1f/crypto/aes/aes_core.c
+--- libopenssl-1.1.1f_ori/crypto/aes/aes_core.c	2020-03-31 14:17:45.000000000 +0200
++++ libopenssl-1.1.1f/crypto/aes/aes_core.c	2020-11-11 13:16:21.010169000 +0100
+@@ -43,6 +43,13 @@
+ #include <openssl/aes.h>
+ #include "aes_local.h"
  
 +#define VEXRISCV_AES
 +
 +#ifdef VEXRISCV_AES
++#include <byteswap.h>
 +#include "aes_custom.h"
 +#endif
 +
- #ifdef LTC_RIJNDAEL
+ #ifndef AES_ASM
+ /*-
+ Te0[x] = S [x].[02, 01, 01, 03];
+@@ -668,6 +675,9 @@
+             rk[6] = rk[2] ^ rk[5];
+             rk[7] = rk[3] ^ rk[6];
+             if (++i == 10) {
++                #ifdef VEXRISCV_AES
++                vexriscv_aes_swap_key(key->rd_key);
++                #endif
+                 return 0;
+             }
+             rk += 4;
+@@ -688,6 +698,9 @@
+             rk[ 8] = rk[ 2] ^ rk[ 7];
+             rk[ 9] = rk[ 3] ^ rk[ 8];
+             if (++i == 8) {
++                #ifdef VEXRISCV_AES
++                vexriscv_aes_swap_key(key->rd_key);
++                #endif
+                 return 0;
+             }
+             rk[10] = rk[ 4] ^ rk[ 9];
+@@ -710,6 +723,9 @@
+             rk[10] = rk[ 2] ^ rk[ 9];
+             rk[11] = rk[ 3] ^ rk[10];
+             if (++i == 7) {
++                #ifdef VEXRISCV_AES
++                vexriscv_aes_swap_key(key->rd_key);
++                #endif
+                 return 0;
+             }
+             temp = rk[11];
+@@ -744,6 +760,9 @@
+     if (status < 0)
+         return status;
  
- #ifndef ENCRYPT_ONLY 
-@@ -272,6 +278,13 @@
-     *rk   = *rrk;
- #endif /* ENCRYPT_ONLY */
++    #ifdef VEXRISCV_AES
++    vexriscv_aes_swap_key(key->rd_key);
++    #endif
+     rk = key->rd_key;
  
-+#ifdef VEXRISCV_AES
-+    vexriscv_aes_swap_key(skey->rijndael.eK);
-+#ifndef ENCRYPT_ONLY   
-+    vexriscv_aes_swap_key(skey->rijndael.dK);
-+#endif
-+#endif
-+
-     return CRYPT_OK;   
+     /* invert the order of the round keys: */
+@@ -777,6 +796,9 @@
+             Td2[Te1[(rk[3] >>  8) & 0xff] & 0xff] ^
+             Td3[Te1[(rk[3]      ) & 0xff] & 0xff];
+     }
++    #ifdef VEXRISCV_AES
++    vexriscv_aes_swap_key(key->rd_key);
++    #endif
+     return 0;
  }
  
-@@ -288,13 +301,19 @@
- int ECB_ENC(const unsigned char *pt, unsigned char *ct, symmetric_key *skey)
- #endif
- {
+@@ -788,7 +810,11 @@
+                  const AES_KEY *key) {
+ 
+     const u32 *rk;
 +#ifndef VEXRISCV_AES
-     ulong32 s0, s1, s2, s3, t0, t1, t2, t3, *rk;
-     int Nr, r;
--   
+     u32 s0, s1, s2, s3, t0, t1, t2, t3;
 +#endif
 +
-     LTC_ARGCHK(pt != NULL);
-     LTC_ARGCHK(ct != NULL);
-     LTC_ARGCHK(skey != NULL);
-     
-+#ifdef VEXRISCV_AES
-+    vexriscv_aes_encrypt(pt, ct, skey->rijndael.eK, skey->rijndael.Nr);
-+#else
 +
-     Nr = skey->rijndael.Nr;
-     rk = skey->rijndael.eK;
-     
-@@ -439,6 +458,7 @@
-         (Te4_0[byte(t2, 0)]) ^ 
-         rk[3];
-     STORE32H(s3, ct+12);
-+#endif
+ #ifndef FULL_UNROLL
+     int r;
+ #endif /* ?FULL_UNROLL */
+@@ -796,6 +822,10 @@
+     assert(in && out && key);
+     rk = key->rd_key;
  
-     return CRYPT_OK;
++
++#ifdef VEXRISCV_AES
++    vexriscv_aes_encrypt(in, out, rk, key->rounds);
++#else
+     /*
+      * map byte array block to cipher state
+      * and add initial round key:
+@@ -969,6 +999,7 @@
+         (Te1[(t2      ) & 0xff] & 0x000000ff) ^
+         rk[3];
+     PUTU32(out + 12, s3);
++#endif
  }
-@@ -467,13 +487,18 @@
- int ECB_DEC(const unsigned char *ct, unsigned char *pt, symmetric_key *skey)
- #endif
+ 
+ /*
+@@ -980,7 +1011,9 @@
  {
+ 
+     const u32 *rk;
 +#ifndef VEXRISCV_AES
-     ulong32 s0, s1, s2, s3, t0, t1, t2, t3, *rk;
-     int Nr, r;
+     u32 s0, s1, s2, s3, t0, t1, t2, t3;
 +#endif
+ #ifndef FULL_UNROLL
+     int r;
+ #endif /* ?FULL_UNROLL */
+@@ -988,6 +1021,9 @@
+     assert(in && out && key);
+     rk = key->rd_key;
  
-     LTC_ARGCHK(pt != NULL);
-     LTC_ARGCHK(ct != NULL);
-     LTC_ARGCHK(skey != NULL);
-     
 +#ifdef VEXRISCV_AES
-+    vexriscv_aes_decrypt(pt, ct, skey->rijndael.dK, skey->rijndael.Nr);
++    vexriscv_aes_decrypt(in, out, rk, key->rounds);
 +#else
-     Nr = skey->rijndael.Nr;
-     rk = skey->rijndael.dK;
- 
-@@ -618,6 +643,7 @@
-         (Td4[byte(t0, 0)] & 0x000000ff) ^
+     /*
+      * map byte array block to cipher state
+      * and add initial round key:
+@@ -1161,6 +1197,7 @@
+         ((u32)Td4[(t0      ) & 0xff])       ^
          rk[3];
-     STORE32H(s3, pt+12);
+     PUTU32(out + 12, s3);
 +#endif
- 
-     return CRYPT_OK;
  }
-diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes_custom.h dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes_custom.h
---- dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes_custom.h	1970-01-01 01:00:00.000000000 +0100
-+++ dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes_custom.h	2020-11-12 12:35:49.039497000 +0100
+ 
+ #else /* AES_ASM */
+diff -ruN libopenssl-1.1.1f_ori/crypto/aes/aes_custom.h libopenssl-1.1.1f/crypto/aes/aes_custom.h
+--- libopenssl-1.1.1f_ori/crypto/aes/aes_custom.h	1970-01-01 01:00:00.000000000 +0100
++++ libopenssl-1.1.1f/crypto/aes/aes_custom.h	2020-11-12 12:35:49.039497000 +0100
 @@ -0,0 +1,279 @@
 +#pragma once
 +
@@ -367,9 +407,9 @@ diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes_custom.h dropbear
 +}
 +
 +
-diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/riscv.h dropbear-2019.78/libtomcrypt/src/ciphers/aes/riscv.h
---- dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/riscv.h	1970-01-01 01:00:00.000000000 +0100
-+++ dropbear-2019.78/libtomcrypt/src/ciphers/aes/riscv.h	2020-10-31 18:54:35.458536000 +0100
+diff -ruN libopenssl-1.1.1f_ori/crypto/aes/riscv.h libopenssl-1.1.1f/crypto/aes/riscv.h
+--- libopenssl-1.1.1f_ori/crypto/aes/riscv.h	1970-01-01 01:00:00.000000000 +0100
++++ libopenssl-1.1.1f/crypto/aes/riscv.h	2020-10-31 18:54:35.458536000 +0100
 @@ -0,0 +1,83 @@
 +#pragma once
 +

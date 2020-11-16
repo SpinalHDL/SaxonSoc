@@ -1,6 +1,6 @@
-diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes.c dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes.c
---- dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes.c	2019-03-27 15:15:23.000000000 +0100
-+++ dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes.c	2020-11-11 13:05:59.212216000 +0100
+diff -ruN libtomcrypt-1.18.2_ori/src/ciphers/aes/aes.c libtomcrypt-1.18.2/src/ciphers/aes/aes.c
+--- libtomcrypt-1.18.2_ori/src/ciphers/aes/aes.c	2018-07-01 22:49:01.000000000 +0200
++++ libtomcrypt-1.18.2/src/ciphers/aes/aes.c	2020-11-11 17:20:47.794702310 +0100
 @@ -30,6 +30,12 @@
  
  #include "tomcrypt.h"
@@ -13,11 +13,12 @@ diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes.c dropbear-2019.7
 +
  #ifdef LTC_RIJNDAEL
  
- #ifndef ENCRYPT_ONLY 
-@@ -272,6 +278,13 @@
+ #ifndef ENCRYPT_ONLY
+@@ -270,7 +276,14 @@
      *rk   = *rrk;
  #endif /* ENCRYPT_ONLY */
  
+-    return CRYPT_OK;
 +#ifdef VEXRISCV_AES
 +    vexriscv_aes_swap_key(skey->rijndael.eK);
 +#ifndef ENCRYPT_ONLY   
@@ -25,39 +26,38 @@ diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes.c dropbear-2019.7
 +#endif
 +#endif
 +
-     return CRYPT_OK;   
++    return CRYPT_OK;   
  }
  
-@@ -288,13 +301,19 @@
+ /**
+@@ -286,12 +299,18 @@
  int ECB_ENC(const unsigned char *pt, unsigned char *ct, symmetric_key *skey)
  #endif
  {
 +#ifndef VEXRISCV_AES
      ulong32 s0, s1, s2, s3, t0, t1, t2, t3, *rk;
      int Nr, r;
--   
 +#endif
-+
+ 
      LTC_ARGCHK(pt != NULL);
      LTC_ARGCHK(ct != NULL);
      LTC_ARGCHK(skey != NULL);
-     
++    
 +#ifdef VEXRISCV_AES
 +    vexriscv_aes_encrypt(pt, ct, skey->rijndael.eK, skey->rijndael.Nr);
 +#else
-+
+ 
      Nr = skey->rijndael.Nr;
      rk = skey->rijndael.eK;
-     
-@@ -439,6 +458,7 @@
-         (Te4_0[byte(t2, 0)]) ^ 
+@@ -437,6 +456,7 @@
+         (Te4_0[byte(t2, 0)]) ^
          rk[3];
      STORE32H(s3, ct+12);
 +#endif
  
      return CRYPT_OK;
  }
-@@ -467,13 +487,18 @@
+@@ -465,13 +485,18 @@
  int ECB_DEC(const unsigned char *ct, unsigned char *pt, symmetric_key *skey)
  #endif
  {
@@ -69,14 +69,15 @@ diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes.c dropbear-2019.7
      LTC_ARGCHK(pt != NULL);
      LTC_ARGCHK(ct != NULL);
      LTC_ARGCHK(skey != NULL);
-     
+-
++    
 +#ifdef VEXRISCV_AES
 +    vexriscv_aes_decrypt(pt, ct, skey->rijndael.dK, skey->rijndael.Nr);
 +#else
      Nr = skey->rijndael.Nr;
      rk = skey->rijndael.dK;
  
-@@ -618,6 +643,7 @@
+@@ -616,6 +641,7 @@
          (Td4[byte(t0, 0)] & 0x000000ff) ^
          rk[3];
      STORE32H(s3, pt+12);
@@ -84,9 +85,9 @@ diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes.c dropbear-2019.7
  
      return CRYPT_OK;
  }
-diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes_custom.h dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes_custom.h
---- dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes_custom.h	1970-01-01 01:00:00.000000000 +0100
-+++ dropbear-2019.78/libtomcrypt/src/ciphers/aes/aes_custom.h	2020-11-12 12:35:49.039497000 +0100
+diff -ruN libtomcrypt-1.18.2_ori/src/ciphers/aes/aes_custom.h libtomcrypt-1.18.2/src/ciphers/aes/aes_custom.h
+--- libtomcrypt-1.18.2_ori/src/ciphers/aes/aes_custom.h	1970-01-01 01:00:00.000000000 +0100
++++ libtomcrypt-1.18.2/src/ciphers/aes/aes_custom.h	2020-11-12 12:35:49.039497117 +0100
 @@ -0,0 +1,279 @@
 +#pragma once
 +
@@ -367,9 +368,9 @@ diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/aes_custom.h dropbear
 +}
 +
 +
-diff -ruN dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/riscv.h dropbear-2019.78/libtomcrypt/src/ciphers/aes/riscv.h
---- dropbear-2019.78_ori/libtomcrypt/src/ciphers/aes/riscv.h	1970-01-01 01:00:00.000000000 +0100
-+++ dropbear-2019.78/libtomcrypt/src/ciphers/aes/riscv.h	2020-10-31 18:54:35.458536000 +0100
+diff -ruN libtomcrypt-1.18.2_ori/src/ciphers/aes/riscv.h libtomcrypt-1.18.2/src/ciphers/aes/riscv.h
+--- libtomcrypt-1.18.2_ori/src/ciphers/aes/riscv.h	1970-01-01 01:00:00.000000000 +0100
++++ libtomcrypt-1.18.2/src/ciphers/aes/riscv.h	2020-10-31 18:54:35.458536000 +0100
 @@ -0,0 +1,83 @@
 +#pragma once
 +
