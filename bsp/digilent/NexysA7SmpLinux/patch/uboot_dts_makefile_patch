@@ -1,0 +1,10 @@
+--- u-boot/arch/riscv/dts/Makefile	2020-11-03 12:34:31.781760488 +0100
++++ u-boot/arch/riscv/dts/Makefile_patched	2020-11-03 12:32:55.106030806 +0100
+@@ -7,6 +7,7 @@
+ dtb-$(CONFIG_TARGET_VEXRISCV_SAXON) += saxon_nexys_a7.dtb
+ dtb-$(CONFIG_TARGET_VEXRISCV_SAXON) += saxon_ulx3s.dtb
+ dtb-$(CONFIG_TARGET_VEXRISCV_SAXON) += saxon_tang.dtb
++dtb-$(CONFIG_TARGET_VEXRISCV_SAXON) += saxon_bsp.dtb
+ 
+ targets += $(dtb-y)
+ 

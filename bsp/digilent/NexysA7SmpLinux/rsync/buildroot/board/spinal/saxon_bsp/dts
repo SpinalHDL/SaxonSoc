@@ -1,0 +1,205 @@
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+    #address-cells = <1>;
+    #size-cells = <1>;
+    compatible = "spinal,vexriscv";
+    model = "spinal,vexriscv_sim";
+
+    chosen {
+        bootargs = "rootwait console=hvc0 earlycon=sbi root=/dev/ram0 init=/sbin/init loglevel=7";
+        linux,initrd-start = <0x81000000>;
+        linux,initrd-end =   <0x84000000>;
+    };
+
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        timebase-frequency = <100000000>;
+        cpu@0 {
+            device_type = "cpu";
+            compatible = "riscv";
+            riscv,isa = "rv32ima";
+            mmu-type = "riscv,sv32";
+            reg = <0>;
+            status = "okay";
+            L0: interrupt-controller {
+                #interrupt-cells = <0x00000001>;
+                interrupt-controller;
+                compatible = "riscv,cpu-intc";
+            };
+        };
+        cpu@1 {
+            device_type = "cpu";
+            compatible = "riscv";
+            riscv,isa = "rv32ima";
+            mmu-type = "riscv,sv32";
+            reg = <1>;
+            status = "okay";
+            L1: interrupt-controller {
+                #interrupt-cells = <0x00000001>;
+                interrupt-controller;
+                compatible = "riscv,cpu-intc";
+            };
+        };
+    };
+
+    memory@80000000 {
+        device_type = "memory";
+        reg = <0x80000000 0x08000000>;
+    };
+
+
+
+    reserved-memory {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        opensbi: sbi@80F80000 {
+            reg = <0x80F80000 0x00080000>;
+        };
+        framebuffer: sbi@87000000 {
+            reg = <0x87000000 0x01000000>;
+        };
+    };
+
+    clocks {
+        compatible = "simple-bus";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        apbA_clock: clock@1 {
+            compatible = "fixed-clock";
+            reg = <1 0>;
+            #clock-cells = <0>;
+            clock-frequency = <100000000>;
+        };
+    };
+
+    framebuffer0: framebuffer@87000000 {
+        compatible = "simple-framebuffer";
+        reg = <0x87000000 (800 * 600 * 2)>;
+        width = <800>;
+        height = <600>;
+        stride = <(800 * 2)>;
+        format = "r5g6b5";
+    };
+
+    apbA@10000000 {
+        compatible = "simple-bus";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0x00000000 0x10000000 0x01000000>;
+
+        plic: interrupt-controller@c00000 {
+            compatible = "sifive,plic-1.0.0", "sifive,fu540-c000-plic";
+            #interrupt-cells = <1>;
+            interrupt-controller;
+            interrupts-extended = <
+                &L0 11 &L0 9
+                &L1 11 &L1 9>;
+            reg = <0x00C00000 0x00400000>;
+            riscv,ndev = <32>;
+        };
+
+
+        gpioA: gpio@0 {
+            compatible = "spinal-lib,gpio-1.0";
+            interrupt-parent = <&plic>;
+            ngpio = <32>;
+            interrupts = <4 5 6 7>;
+            reg = <0x000000 0x1000>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+        };
+
+        dmaA: dma@80000 {
+            compatible = "spinal,lib-dmasg";
+            reg = <0x80000 0x10000>;
+            interrupt-parent = <&plic>;
+            interrupts = <12>;
+
+			#dma-cells = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;   
+            dma-channel@0 {
+	            reg = <0>;
+			    interrupt-parent = <&plic>;
+			    interrupts = <12>;
+            };
+            dma-channel@1 {
+	            reg = <1>;
+			    interrupt-parent = <&plic>;
+			    interrupts = <13>;
+            };
+        };
+
+        audio_out0: audio_out@94000 {
+            compatible = "spinal,lib-audio-out";
+            reg = <0x94000 0x1000>;
+
+            dmas = <&dmaA 0>, <&dmaA 1>;
+            dma-names = "rx", "tx";
+
+            clocks = <&apbA_clock 0>;
+        };
+
+
+        mac0: mac@40000 {
+            compatible = "spinal,lib_mac";
+            reg = <0x40000 0x1000>;
+            interrupt-parent = <&plic>;
+            interrupts = <3>;
+            mac-address = [00 01 23 34 56 78];
+        };
+
+        spiA: spi@20000 {
+            compatible = "spinal-lib,spi-1.0";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0x00020000 0x00001000>;
+            cmd_fifo_depth = <256>;
+            rsp_fifo_depth = <256>;
+            clocks = <&apbA_clock 0>;
+            cs-gpios = <0>, <0>;
+                   
+            flash: flash@0 {
+                #address-cells = <1>;
+                #size-cells = <1>;
+                compatible = "spi-nor";
+                reg = <0>;
+                spi-max-frequency = <25000000>;
+
+                partition@0 {
+                    label = "fpga_bitstream";
+                    reg = <0x000000 0x400000>;
+                };
+                partition@1 {
+                    label = "opensbi";
+                    reg = <0x400000 0x080000>;
+                };
+                partition@2 {
+                    label = "uboot";
+                    reg = <0x480000 0x080000>;
+                };
+                partition@3 {
+                    label = "user";
+                    reg = <0x500000 0xB00000>;
+                };
+            };
+
+            mmc-slot@1 {
+                compatible = "mmc-spi-slot";
+                reg = <1>;
+                voltage-ranges = <3300 3300>;
+                spi-max-frequency = <25000000>;
+            };
+        };
+    };
+};
