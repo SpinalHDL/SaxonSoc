@@ -55,7 +55,7 @@
 
   memory {
     device_type = "memory";
-    reg = <0x80000000 0x10000000>;
+    reg = <0x80000000 0x08000000>;
   };
 
   serial0: serial@10010000 {
