@@ -9,13 +9,6 @@ SAXON_BSP_COMMON_SCRIPTS=$SAXON_ROOT/SaxonSoc/bsp/common/scripts
 # Configurations
 SAXON_BUILDROOT_DEFCONFIG=saxon_arty_a7_35_defconfig
 
-# Fixes
-SAXON_FIXES=()
-SAXON_FIXES+=($SAXON_ROOT/SaxonSoc/bsp/common/fixes/buildroot/libopenssl/vexriscv_aes)
-SAXON_FIXES+=($SAXON_ROOT/SaxonSoc/bsp/common/fixes/buildroot/dropbear/vexriscv_aes)
-SAXON_FIXES+=($SAXON_ROOT/SaxonSoc/bsp/common/fixes/buildroot/dropbear/no_swap)
-SAXON_FIXES+=($SAXON_ROOT/SaxonSoc/bsp/common/fixes/buildroot/rng-tools/use_urandom)
-
 # Functionalities
 source $SAXON_BSP_COMMON_SCRIPTS/base.sh
 source $SAXON_BSP_COMMON_SCRIPTS/openocd.sh
@@ -33,10 +26,6 @@ saxon_bitstream(){
 
 saxon_serial(){
   picocom -b 115200 /dev/ttyUSB1 --imap lfcrlf
-}
-
-saxon_ssh(){
-  ssh root@192.168.0.157
 }
 
 saxon_ftp_load(){

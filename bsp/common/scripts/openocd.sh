@@ -20,7 +20,7 @@ saxon_openocd_connect(){
 
 saxon_buildroot_load(){
   cd $SAXON_SOC
-  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s $SAXON_BSP_PATH/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f soc_init.cfg -f linux_boot.cfg -c 'exit'
+  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s $SAXON_BSP_PATH/openocd -c 'set CPU0_YAML cpu0.yaml'  -c "set SAXON_BUILDROOT_IMAGE_PATH $SAXON_BUILDROOT_IMAGE_PATH" -f usb_connect.cfg -f soc_init.cfg -f linux_boot.cfg -c 'exit'
 }
 
 saxon_baremetal_load(){
