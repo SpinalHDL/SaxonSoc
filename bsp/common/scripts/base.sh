@@ -15,7 +15,7 @@ saxon_clone_single() {
 saxon_clone() {
   #saxon_clone_single "u-boot" "https://github.com/SpinalHDL/u-boot.git --branch smp"
   saxon_clone_single "buildroot" "https://github.com/buildroot/buildroot.git --branch master"
-  saxon_clone_single "buildroot-spinal-saxon" "https://github.com/svancau/buildroot-spinal-saxon.git --branch main"
+  saxon_clone_single "buildroot-spinal-saxon" "https://github.com/SpinalHDL/buildroot-spinal-saxon.git --branch main"
   #saxon_clone_single "linux" "https://github.com/SpinalHDL/linux.git --branch vexriscv"
   #saxon_clone_single "opensbi" "https://github.com/SpinalHDL/opensbi.git --branch spinal"
   saxon_clone_single "openocd_riscv" "https://github.com/SpinalHDL/openocd_riscv.git"
