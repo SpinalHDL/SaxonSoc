@@ -110,8 +110,6 @@ saxon_netlist
 saxon_bitstream
 
 # Build the firmware
-saxon_opensbi
-saxon_uboot
 saxon_buildroot
 
 # Build the programming tools
