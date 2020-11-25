@@ -96,7 +96,7 @@ It will take quite a while to build, good luck and have fun <3
 # Getting this repository
 mkdir ArtyA7SmpLinux 
 cd ArtyA7SmpLinux
-git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev-0.1 --recursive SaxonSoc
+git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev-0.2 --recursive SaxonSoc
 
 # Sourcing the build script
 source SaxonSoc/bsp/digilent/ArtyA7SmpLinux/source.sh
