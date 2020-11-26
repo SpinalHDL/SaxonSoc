@@ -100,6 +100,7 @@ git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev-0.2 --recursive Saxon
 
 # Sourcing the build script
 source SaxonSoc/bsp/digilent/ArtyA7SmpLinux/source.sh
+export SAXON_CPU_COUNT=2
 
 # Clone opensbi, u-boot, linux, buildroot, openocd
 saxon_clone

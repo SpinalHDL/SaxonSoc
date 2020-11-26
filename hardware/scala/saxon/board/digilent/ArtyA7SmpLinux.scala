@@ -379,12 +379,14 @@ object ArtyA7SmpLinux {
 
   //Generate the SoC
   def main(args: Array[String]): Unit = {
+    val cpuCount = sys.env.apply("SAXON_CPU_COUNT").toInt
+
     val report = SpinalRtlConfig
       .copy(
         defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC),
         inlineRom = true
       ).addStandardMemBlackboxing(blackboxByteEnables)
-       .generateVerilog(InOutWrapper(default(new ArtyA7SmpLinux(2)).toComponent()))
+       .generateVerilog(InOutWrapper(default(new ArtyA7SmpLinux(cpuCount)).toComponent()))
     BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores(0).dBus)
   }
 }
