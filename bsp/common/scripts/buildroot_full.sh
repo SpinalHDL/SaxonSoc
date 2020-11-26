@@ -37,7 +37,7 @@ saxon_buildroot_setup(){
 
 saxon_buildroot_compile(){
   cd $SAXON_BUILDROOT_BUILD_PATH
-  make linux-rebuild all -j$(nproc)
+  make -j$(nproc)
 }
 
 saxon_buildroot_config(){
@@ -47,5 +47,5 @@ saxon_buildroot_config(){
 
 saxon_buildroot_linux_config(){
   cd $SAXON_BUILDROOT_BUILD_PATH
-  make $SAXON_BUILDROOT_DEFCONFIG linux-xconfig linux-update-defconfig
+  make $SAXON_BUILDROOT_DEFCONFIG; make linux-xconfig linux-update-defconfig
 }
