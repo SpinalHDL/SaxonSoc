@@ -31,14 +31,14 @@ saxon_serial(){
 saxon_ftp_load(){
   cd $SAXON_ROOT
   mkdir -p /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
-  cp SaxonSoc/hardware/synthesis/digilent/ArtyA7SmpLinux/build/vivado_project/fpga.runs/impl_1/ArtyA7SmpLinux.bit /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux/bitstream
-  cp buildroot/output/images/dtb /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
-  cp buildroot/output/images/uImage /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
-  cp buildroot/output/images/rootfs.tar /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
-  cp buildroot/output/images/rootfs.cpio.uboot /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
-  cp opensbi/build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
-  cp u-boot/u-boot.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
-  cp SaxonSoc/bsp/common/scripts/linux_tools.sh /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp $SAXON_SOC/bsp/common/scripts/linux_tools.sh /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp $SAXON_SOC/hardware/synthesis/digilent/ArtyA7SmpLinux/build/vivado_project/fpga.runs/impl_1/ArtyA7SmpLinux.bit /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux/bitstream
+  cp $SAXON_BUILDROOT_IMAGE_PATH/linux.dtb /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp $SAXON_BUILDROOT_IMAGE_PATH/uImage /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp $SAXON_BUILDROOT_IMAGE_PATH/rootfs.tar /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp $SAXON_BUILDROOT_IMAGE_PATH/rootfs.cpio.uboot /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp $SAXON_BUILDROOT_IMAGE_PATH/fw_jump.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
+  cp $SAXON_BUILDROOT_IMAGE_PATH/u-boot.bin /var/ftp/pub/saxon/digilent/ArtyA7SmpLinux
 }
 
 

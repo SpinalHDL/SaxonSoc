@@ -42,7 +42,7 @@ saxon_buildroot_compile(){
 
 saxon_buildroot_config(){
   cd $SAXON_BUILDROOT_BUILD_PATH
-  make $SAXON_BUILDROOT_DEFCONFIG xconfig; make savedefconfig update-defconfig
+  make $SAXON_BUILDROOT_DEFCONFIG; make xconfig; make savedefconfig update-defconfig
 }
 
 saxon_buildroot_linux_config(){

@@ -48,7 +48,7 @@ saxon_sdcard_p1(){
   mkdosfs /dev/mmcblk0p1
   mkdir -p sdcard
   mount /dev/mmcblk0p1 sdcard
-  wget $FTP_PATH/dtb -O sdcard/dtb
+  wget $FTP_PATH/linux.dtb -O sdcard/dtb
   wget $FTP_PATH/rootfs.cpio.uboot -O sdcard/rootfs.cpio.uboot
   wget $FTP_PATH/uImage -O sdcard/uImage
   umount sdcard
