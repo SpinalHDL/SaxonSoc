@@ -30,3 +30,14 @@ saxon_standalone_compile(){
   make clean all BSP_PATH=$SAXON_BSP_PATH "${@:2}"
 }
 
+# Requires py3tftp server installed (install via pip3)
+# requires sudo to operate on port 69
+
+# create file /etc/exports.d/saxon-soc.exports and add line
+# /srv/saxon-soc 192.168.1.0/24(rw,nohide,insecure,no_subtree_check,async,no_root_squash)
+saxon_serve(){
+  sudo mkdir -p /srv/saxon-soc
+  sudo mount --bind $SAXON_ROOT/buildroot-build/images /srv/saxon-soc
+  cd /srv/saxon-soc
+  sudo py3tftp -p 69 
+}
