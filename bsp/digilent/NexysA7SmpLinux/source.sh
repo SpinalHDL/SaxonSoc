@@ -2,6 +2,7 @@
 
 # Project
 SAXON_BSP_NAME=$(basename $(dirname $BASH_SOURCE))
+export SAXON_CPU_COUNT=2
 
 # Locations
 SAXON_SOURCED_SH=$(realpath $BASH_SOURCE)
@@ -10,21 +11,12 @@ SAXON_ROOT=$SAXON_BSP_PATH/"../../../.."
 SAXON_BSP_COMMON_SCRIPTS=$SAXON_ROOT/SaxonSoc/bsp/common/scripts
 
 # Configurations
-SAXON_OPENSBI_PLATEFORM=spinal/saxon/bsp
-SAXON_UBOOT_DEFCONFIG=saxon_bsp_defconfig
-SAXON_BUILDROOT_DEFCONFIG=spinal_saxon_bsp_defconfig
-SAXON_BUILDROOT_DTS=board/spinal/saxon_bsp/dts
-
-# Fixes
-SAXON_FIXES=$SAXON_ROOT/SaxonSoc/bsp/common/fixes/buildroot/dropbear/vexriscv_aes
-SAXON_FIXES=$SAXON_ROOT/SaxonSoc/bsp/common/fixes/buildroot/dropbear/no_swap
+SAXON_BUILDROOT_DEFCONFIG=saxon_nexys_a7_100_defconfig
 
 # Functionalities
 source $SAXON_BSP_COMMON_SCRIPTS/base.sh
 source $SAXON_BSP_COMMON_SCRIPTS/openocd.sh
-source $SAXON_BSP_COMMON_SCRIPTS/opensbi.sh
-source $SAXON_BSP_COMMON_SCRIPTS/uboot.sh
-source $SAXON_BSP_COMMON_SCRIPTS/buildroot.sh
+source $SAXON_BSP_COMMON_SCRIPTS/buildroot_full.sh
 
 saxon_netlist(){
   cd $SAXON_SOC
@@ -40,21 +32,17 @@ saxon_serial(){
   picocom -b 115200 /dev/ttyUSB1 --imap lfcrlf
 }
 
-saxon_ssh(){
-  ssh root@192.168.0.157
-}
-
 saxon_ftp_load(){
   cd $SAXON_ROOT
   mkdir -p /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
-  cp SaxonSoc/hardware/synthesis/digilent/$SAXON_BSP_NAME/build/vivado_project/fpga.runs/impl_1/$SAXON_BSP_NAME.bit /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME/bitstream
-  cp buildroot/output/images/dtb /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
-  cp buildroot/output/images/uImage /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
-  cp buildroot/output/images/rootfs.tar /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
-  cp buildroot/output/images/rootfs.cpio.uboot /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
-  cp opensbi/build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
-  cp u-boot/u-boot.bin /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
-  cp SaxonSoc/bsp/common/scripts/linux_tools.sh /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
+  cp $SAXON_SOC/bsp/common/scripts/linux_tools.sh /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
+  cp $SAXON_SOC/hardware/synthesis/digilent/$SAXON_BSP_NAME/build/vivado_project/fpga.runs/impl_1/$SAXON_BSP_NAME.bit /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME/bitstream
+  cp $SAXON_BUILDROOT_IMAGE_PATH/linux.dtb /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
+  cp $SAXON_BUILDROOT_IMAGE_PATH/uImage /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
+  cp $SAXON_BUILDROOT_IMAGE_PATH/rootfs.tar /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
+  cp $SAXON_BUILDROOT_IMAGE_PATH/rootfs.cpio.uboot /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
+  cp $SAXON_BUILDROOT_IMAGE_PATH/fw_jump.bin /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
+  cp $SAXON_BUILDROOT_IMAGE_PATH/u-boot.bin /var/ftp/pub/saxon/digilent/$SAXON_BSP_NAME
 }
 
 
