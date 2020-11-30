@@ -13,6 +13,11 @@ saxon_fpga_load(){
   $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s $SAXON_BSP_PATH/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f fpga_load.cfg
 }
 
+saxon_fpga_flash(){
+  cd $SAXON_SOC
+  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s $SAXON_BSP_PATH/openocd -c "set CPU0_YAML cpu0.yaml" -f usb_connect.cfg -f fpga_flash.cfg
+}
+
 saxon_openocd_connect(){
   cd $SAXON_SOC
   $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s $SAXON_BSP_PATH/openocd -c 'set CPU0_YAML cpu0.yaml' -f usb_connect.cfg -f soc_init.cfg

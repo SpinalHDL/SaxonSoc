@@ -1,9 +1,6 @@
 SUBDIRS := 	dhrystone \
 			blinkAndEcho \
-			machineModeSbi \
-			bootHex \
-			timerAndGpioInterruptDemo \
-			arty7Sdram \
+			sdramInit \
 
 
 all:
