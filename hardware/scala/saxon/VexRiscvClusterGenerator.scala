@@ -34,7 +34,7 @@ class VexRiscvClusterGenerator(cpuCount : Int) extends Generator {
     plic.addTarget(vex.externalSupervisorInterrupt)
     List(clint.logic, vex.logic).produce{
       for (plugin <- vex.config.plugins) plugin match {
-        case plugin : CsrPlugin if plugin.utime != null => plugin.utime := clint.logic.io.time
+        case plugin : CsrPlugin if plugin.utime != null => plugin.utime := RegNext(clint.logic.io.time)
         case _ =>
       }
     }
