@@ -21,14 +21,13 @@ ifeq ($(RV_M),yes)
 	MARCH := $(MARCH)m
 endif
 
-#ifeq ($(RV_A),yes)
-#	MARCH := $(MARCH)a
-#else ifeq ($(RV_C),yes)
-#	MARCH := $(MARCH)ac
-#endif
 
 ifeq ($(RV_C),yes)
 	MARCH := $(MARCH)ac
+else
+ifeq ($(RV_A),yes)
+	MARCH := $(MARCH)a
+endif
 endif
 
 #MARCH := $(MARCH)xcustom
