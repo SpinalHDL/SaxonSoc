@@ -16,6 +16,7 @@ saxon_clone_single() {
 
 saxon_clone() {
   saxon_clone_single "buildroot" "https://github.com/buildroot/buildroot.git --branch master"
+  cd buildroot; git checkout 9ef54b7d; cd ..
   saxon_clone_single "buildroot-spinal-saxon" $SAXON_BUILDROOT_FULL_OOT_GIT
   saxon_clone_single "openocd_riscv" "https://github.com/SpinalHDL/openocd_riscv.git"
   saxon_clone_single "SaxonSoc" "https://github.com/SpinalHDL/SaxonSoc.git"
