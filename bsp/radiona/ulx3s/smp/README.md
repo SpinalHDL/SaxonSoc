@@ -5,10 +5,11 @@ Clone and build
 # Getting this repository
 mkdir Ulx3sSmp 
 cd Ulx3sSmp
-git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev-0.1 --recursive SaxonSoc
+git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev-0.2 --recursive SaxonSoc
 
 # Sourcing the build script
 source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
+export SAXON_CPU_COUNT=2  # SAXON_CPU_COUNT is the number of VexRiscv CPU, used for the hardware and DTS generation 
 
 # Clone opensbi, u-boot, linux, buildroot, openocd
 saxon_clone
@@ -19,9 +20,7 @@ saxon_netlist
 saxon_bitstream
 
 # Build the firmware
-saxon_opensbi
-saxon_uboot
-CPU_COUNT=4 saxon_buildroot # CPU_COUNT is the number of VexRiscv CPU, used for the DTS generation
+saxon_buildroot
 
 # Build the programming tools
 saxon_standalone_compile sdramInit CFLAGS_ARGS="-DSDRAM_TIMING=MT48LC16M16A2_6A_ps"
@@ -34,19 +33,19 @@ If you want once to update the repo, you can do a :
 saxon_update
 ```
 
-Customize SDRAM_SIZE, FPGA_SIZE and CPU_COUNT for blue ULX3S board with 85F and 64Mb SDRAM
+Customize SDRAM_SIZE, FPGA_SIZE and SAXON_CPU_COUNT for blue ULX3S board with 85F and 64Mb SDRAM
 
 ```sh
 saxon_standalone_compile bootloader CFLAGS_ARGS="-DSDRAM_TIMING=AS4C32M16SB_7TCN_ps"
-SDRAM_SIZE=64 CPU_COUNT=4 saxon_netlist
+SDRAM_SIZE=64 SAXON_CPU_COUNT=4 saxon_netlist
 FPGA_SIZE=85 saxon_bitstream
 ```
 
 When you change the number of CPU, you need to update the linux DTB. 
-It is automatically done via the `CPU_COUNT=??? saxon_buildroot` command, but a much faster way is :  
+It is automatically done via the `SAXON_CPU_COUNT=??? saxon_buildroot` command, but a much faster way is :  
 
 ```sh
-CPU_COUNT=??? saxon_buildroot_dts
+SAXON_CPU_COUNT=??? saxon_buildroot_dts
 ```
 
 Flash SPI 

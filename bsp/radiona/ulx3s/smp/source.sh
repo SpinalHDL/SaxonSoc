@@ -7,17 +7,13 @@ SAXON_ROOT=$SAXON_BSP_PATH/"../../../../.."
 SAXON_BSP_COMMON_SCRIPTS=$SAXON_ROOT/SaxonSoc/bsp/common/scripts
 
 # Configurations
-SAXON_OPENSBI_PLATEFORM=spinal/saxon/radiona/ulx3s
-SAXON_UBOOT_DEFCONFIG=saxon_ulx3s_defconfig
-SAXON_BUILDROOT_DEFCONFIG=spinal_saxon_ulx3s_defconfig
-SAXON_BUILDROOT_DTS=board/spinal/saxon_ulx3s/dts
+SAXON_BUILDROOT_DEFCONFIG=saxon_ulx3s_defconfig
 
 # Functionalities
 source $SAXON_BSP_COMMON_SCRIPTS/base.sh
 source $SAXON_BSP_COMMON_SCRIPTS/openocd.sh
-source $SAXON_BSP_COMMON_SCRIPTS/opensbi.sh
-source $SAXON_BSP_COMMON_SCRIPTS/uboot.sh
-source $SAXON_BSP_COMMON_SCRIPTS/buildroot.sh
+source $SAXON_BSP_COMMON_SCRIPTS/buildroot_full.sh
+
 
 saxon_netlist(){
   cd $SAXON_SOC

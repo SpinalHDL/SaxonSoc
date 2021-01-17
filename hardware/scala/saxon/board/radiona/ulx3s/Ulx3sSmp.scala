@@ -393,7 +393,7 @@ object Ulx3sSmp {
         val sdramSize = if (sys.env.getOrElse("SDRAM_SIZE", "32") == "64")  64 else 32
     println("SDRAM_SIZE is " + sdramSize)
 
-    val cpuCount = sys.env.getOrElse("CPU_COUNT", "1").toInt
+    val cpuCount = sys.env.get("SAXON_CPU_COUNT").get.toInt
     println("CPU_COUNT is " + cpuCount)
 
     val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount), sdramSize).toComponent()))
@@ -490,15 +490,15 @@ object Ulx3sSmpSystemSim {
 
 //      dut.spiA.sdcard.data.read #= 3
 
-      val uboot = "../u-boot/"
-      val opensbi = "../opensbi/"
-      val linuxPath = "../buildroot/output/images/"
 
-      dut.phy.logic.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/radiona/ulx3s/firmware/fw_jump.bin")
-      dut.phy.logic.loadBin(0x00F00000, uboot + "u-boot.bin")
-//      dut.phy.logic.loadBin(0x00000000, linuxPath + "uImage")
-//      dut.phy.logic.loadBin(0x00FF0000, linuxPath + "dtb")
-//      dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
+      val images = "../buildroot-build/images/"
+
+      //      dut.phy.logic.loadBin(0x00F80000, config.bin)
+      dut.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
+      dut.phy.logic.loadBin(0x00F00000, images + "u-boot.bin")
+      dut.phy.logic.loadBin(0x00000000, images + "Image")
+      dut.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
+      //dut.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
 
 
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/ethernet/build/ethernet.bin")
