@@ -9,7 +9,7 @@ git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev-0.2 --recursive Saxon
 
 # Sourcing the build script
 source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
-export SAXON_CPU_COUNT=2  # SAXON_CPU_COUNT is the number of VexRiscv CPU, used for the hardware and DTS generation 
+export SAXON_CPU_COUNT=1  # SAXON_CPU_COUNT is the number of VexRiscv CPU, used for the hardware and DTS generation 
 
 # Clone opensbi, u-boot, linux, buildroot, openocd
 saxon_clone
