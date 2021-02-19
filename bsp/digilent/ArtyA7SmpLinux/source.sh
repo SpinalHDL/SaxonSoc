@@ -46,3 +46,10 @@ saxon_sim(){
   echo "runMain saxon.board.digilent.ArtyA7SmpLinuxSystemSim $@"
   (cd $SAXON_SOC && sbt "runMain saxon.board.digilent.ArtyA7SmpLinuxSystemSim $@")
 }
+
+
+saxon_tftp(){
+  cd $SAXON_ROOT
+  cd buildroot-build/images
+  py3tftp -p 69
+}

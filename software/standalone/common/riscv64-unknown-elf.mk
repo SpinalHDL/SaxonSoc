@@ -13,6 +13,7 @@ RISCV_OBJCOPY=${RISCV_BIN}objcopy
 RISCV_OBJDUMP=${RISCV_BIN}objdump
 
 MARCH := rv32i
+MABI := ilp32
 BENCH ?= no
 DEBUG?=no
 DEBUG_Og?=no
@@ -22,12 +23,29 @@ ifeq ($(RV_M),yes)
 endif
 
 
-ifeq ($(RV_C),yes)
-	MARCH := $(MARCH)ac
-else
 ifeq ($(RV_A),yes)
 	MARCH := $(MARCH)a
+else
+ifeq ($(RV_C),yes)
+	MARCH := $(MARCH)a
 endif
+endif
+
+ifeq ($(RV_F),yes)
+	MARCH := $(MARCH)f
+
+ifeq ($(RV_D),no)
+	MABI := $(MABI)f
+endif
+endif
+
+ifeq ($(RV_D),yes)
+	MARCH := $(MARCH)d
+	MABI := $(MABI)d
+endif
+
+ifeq ($(RV_C),yes)
+	MARCH := $(MARCH)c
 endif
 
 #MARCH := $(MARCH)xcustom
@@ -48,6 +66,6 @@ else
 endif
 endif
 
-CFLAGS += -march=$(MARCH) -mabi=ilp32 -DUSE_GP
-LDFLAGS += -march=$(MARCH) -mabi=ilp32
+CFLAGS += -march=$(MARCH) -mabi=$(MABI) -DUSE_GP
+LDFLAGS += -march=$(MARCH) -mabi=$(MABI)
 

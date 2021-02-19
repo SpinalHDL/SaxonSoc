@@ -2,6 +2,7 @@ package saxon.board.digilent
 
 import java.awt.image.BufferedImage
 import java.awt.{Color, Dimension, Graphics}
+import java.io.{ByteArrayOutputStream, FileInputStream, FileOutputStream}
 
 import javax.swing.{JFrame, JPanel, WindowConstants}
 import saxon.common.I2cModel
@@ -30,7 +31,8 @@ import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
 import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
-import vexriscv.plugin.AesPlugin
+import vexriscv.ip.fpu.{FpuCore, FpuParameter}
+import vexriscv.plugin.{AesPlugin, FpuPlugin}
 
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
@@ -102,6 +104,31 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
     fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
+
+
+  val fpuParameter = FpuParameter(
+    withDouble = true
+  )
+
+  val fpu = new Generator{
+    dependencies ++= cores.map(_.logic)
+    val logic = add task new FpuCore(
+      portCount = cpuCount,
+      p = fpuParameter
+    )
+
+    val connect = add task new Area{
+      for(i <- 0 until cpuCount;
+        vex = cores(i).logic.cpu;
+        port = logic.io.port(i)){
+        val plugin = vex.service(classOf[FpuPlugin])
+        plugin.port.cmd        >> port.cmd
+        plugin.port.commit     >> port.commit
+        plugin.port.completion := port.completion.stage()
+        plugin.port.rsp        << port.rsp
+      }
+    }
+  }
 
 
 //  def debug(that : Data) = that.addAttribute("""mark_debug = "true"""")
@@ -262,8 +289,6 @@ object ArtyA7SmpLinuxAbstract{
   def default(g : ArtyA7SmpLinuxAbstract) = g {
     import g._
 
-
-
     // Configure the CPUs
     for((cpu, coreId) <- cores.zipWithIndex) {
       cpu.config.load(VexRiscvSmpClusterGen.vexRiscvConfig(
@@ -271,7 +296,15 @@ object ArtyA7SmpLinuxAbstract{
         ioRange = _ (31 downto 28) === 0x1,
         resetVector = 0x10A00000l,
         iBusWidth = 64,
-        dBusWidth = 64
+        dBusWidth = 64,
+        loadStoreWidth = 64,
+        iCacheSize = 4096*2,
+        dCacheSize = 4096*2,
+        iCacheWays = 2,
+        dCacheWays = 2,
+        withFloat = true,
+        withDouble = true,
+        externalFpu = true
       ))
       cpu.config.plugins += AesPlugin()
     }
@@ -468,10 +501,10 @@ object ArtyA7SmpLinuxSystemSim {
 
     val simConfig = SimConfig
     simConfig.allOptimisation
-    if(config.trace) simConfig.withFstWave
+    simConfig.withFstWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-    simConfig.compile(new ArtyA7SmpLinuxAbstract(cpuCount = 2){
+    simConfig.compile(new ArtyA7SmpLinuxAbstract(cpuCount = 1){
       val debugCd = ClockDomainResetGenerator()
       debugCd.enablePowerOnReset()
       debugCd.holdDuration.load(63)
@@ -500,10 +533,11 @@ object ArtyA7SmpLinuxSystemSim {
       phy.connect(sdramA)
 
       sdramA.mapCtrlAt(0x100000)
-      interconnect.addConnection(bmbPeripheral.bmb, sdramA.ctrl)
+//      interconnect.addConnection(bmbPeripheral.bmb, sdramA.ctrl)
 
       val jtagTap = withDebugBus(debugCd, systemCd, address = 0x10B80000).withJtag()
 
+      sdramA0.bmb.derivate(_.cmd.simPublic())
       ArtyA7SmpLinuxAbstract.default(this)
       ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
     }.toComponent().setDefinitionName("miaou2")).doSimUntilVoid("test", 42){dut =>
@@ -520,11 +554,11 @@ object ArtyA7SmpLinuxSystemSim {
 
 
       fork{
-        val at = 0
-        val duration = 1
+        val at = 3140
+        val duration = 20
         while(simTime() < at*1000000000l) {
           disableSimWave()
-          sleep(100000 * 10000)
+          sleep(10000 * 10000)
           enableSimWave()
           sleep(  100 * 10000)
         }
@@ -557,27 +591,112 @@ object ArtyA7SmpLinuxSystemSim {
 //      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
       val vga = VgaDisplaySim(dut.vga.output, clockDomain)
 
+      dut.eth.mii.RX.DV #= false
+      dut.eth.mii.RX.ER #= false
+      dut.eth.mii.RX.CRS #= false
+      dut.eth.mii.RX.COL #= false
       dut.spiA.sdcard.data.read #= 3
 
-      val uboot = "../u-boot/"
-      val opensbi = "../opensbi/"
-      val linuxPath = "../buildroot/output/images/"
+//      val memoryTraceFile = new FileOutputStream("memoryTrace")
+//      clockDomain.onSamplings{
+//        val cmd = dut.sdramA0.bmb.cmd
+//        if(cmd.valid.toBoolean){
+//          val address = cmd.address.toLong
+//          val opcode = cmd.opcode.toInt
+//          val source = cmd.source.toInt
+//          val bytes = Array[Byte](opcode.toByte, source.toByte, (address >> 0).toByte, (address >> 8).toByte, (address >> 16).toByte, (address >> 24).toByte)
+//          memoryTraceFile.write(bytes)
+//        }
+//      }
+
+      val images = "../buildroot-build/images/"
+
+      dut.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
+      dut.phy.logic.loadBin(0x00F00000, images + "u-boot.bin")
+      dut.phy.logic.loadBin(0x00000000, images + "Image")
+      dut.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
+      dut.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
+
+      //Bypass uboot
+      dut.phy.logic.loadBytes(0x00F00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
 
 
-      dut.phy.logic.loadBin(0x00F80000, config.bin)
-//      dut.phy.logic.loadBin(0x00F80000, opensbi + "build/platform/spinal/saxon/digilent/artyA7Smp/firmware/fw_jump.bin")
-//      dut.phy.logic.loadBin(0x00F00000, uboot + "u-boot.bin")
-//      dut.phy.logic.loadBin(0x00000000, linuxPath + "uImage")
-//      dut.phy.logic.loadBin(0x00FF0000, linuxPath + "dtb")
-//      dut.phy.logic.loadBin(0x00FFFFC0, linuxPath + "rootfs.cpio.uboot")
-
-
-        dut.phy.logic.loadBin(0x00F80000, "software/standalone/test/aes/build/aes.bin")
+//        dut.phy.logic.loadBin(0x00F80000, "software/standalone/test/fpu/build/fpu.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/audioOut/build/audioOut.bin")
-//      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
+      //dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
       println("DRAM loading done")
     }
   }
+}
+
+
+object MemoryTraceAnalyse extends App{
+  val stream = new FileInputStream("memoryTrace")
+  val data = stream.readAllBytes()
+  val size = data.size
+  println(s"Size : ${size}")
+
+  for( cacheBytes <- List(32 KiB, 64 KiB, 128 KiB, 256 KiB).map(_.toInt);
+       wayCount <- List(1, 2, 4, 8);
+       bytePerLine <- List(64)) {
+    val wayBytes = cacheBytes / wayCount
+    val linesPerWay = wayBytes / bytePerLine
+    val lineAddressShift = log2Up(bytePerLine)
+    val lineAddressMask = linesPerWay - 1
+    val tagMask = -wayBytes
+
+    var wayAllocator = 0
+    val ways = for (wayId <- 0 until wayCount) yield new {
+      val lines = for (lineId <- 0 until linesPerWay) yield new {
+        var address = 0
+        var valid = false
+        var age = 0
+
+        def hit(target: Int) = valid && (target & tagMask) == address
+      }
+    }
+
+
+    var writeThrough = true
+    var readHits = 0
+    var readMiss = 0
+    var writeHits = 0
+    var writeMiss = 0
+    for (i <- 0 until size by 6) {
+      val opcode = data(i + 0)
+      val source = data(i + 1)
+      val address = (data(i + 2) << 0) | (data(i + 3) << 8) | (data(i + 4) << 16) | (data(i + 5) << 24)
+      val lineId = (address >> lineAddressShift) & lineAddressMask
+      val allocate = !writeThrough || opcode == 0
+      ways.exists(_.lines(lineId).hit(address)) match {
+        case false => {
+          if (opcode == 0) readMiss += 1
+          else writeMiss += 1
+          if (allocate) {
+            var line = ways(0).lines(lineId)
+            for(way <- ways){
+              val alternative = way.lines(lineId)
+              if(alternative.age < line.age) line = alternative
+            }
+
+           // val line = ways(wayAllocator).lines(lineId)
+            line.valid = true
+            line.address = address & tagMask
+            line.age = i
+
+            wayAllocator += 1
+            wayAllocator %= wayCount
+          }
+        }
+        case true => {
+          if (opcode == 0) readHits += 1
+          else if(!writeThrough) writeHits += 1
+        }
+      }
+    }
+    println(f"cacheBytes=${cacheBytes/1024} KB wayCount=$wayCount bytePerLine=${bytePerLine} => readMissRate=${readMiss.toFloat/(readMiss+readHits)}%1.3f writeMissRate=${writeMiss.toFloat/(writeMiss+writeHits)}%1.3f readMiss=$readMiss writeMiss=$writeMiss")
+  }
+
 }
