@@ -194,6 +194,8 @@ py3tftp -p 69
 ```
 
 ```sh
+cd $SAXON_ROOT
+sudo rm -rf /srv/saxon-soc/nfs_root
 sudo cp -rf buildroot-build/images/nfs_root /srv/saxon-soc/nfs_root
 ```
 
