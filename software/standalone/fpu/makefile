@@ -1,5 +1,5 @@
 PROJ_NAME=fpu
-STANDALONE = ../..
+STANDALONE = ..
 
 
 SRCS = 	$(wildcard src/*.c) \
@@ -7,7 +7,7 @@ SRCS = 	$(wildcard src/*.c) \
 		$(wildcard src/*.S) \
         ${STANDALONE}/common/start.S
 
-LDFLAGS += -lm
+# LDFLAGS += -lm
 
 include ${STANDALONE}/common/bsp.mk
 include ${STANDALONE}/common/riscv64-unknown-elf.mk
