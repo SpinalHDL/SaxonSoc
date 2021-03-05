@@ -3,6 +3,7 @@ package saxon
 import java.io.RandomAccessFile
 
 import spinal.core._
+import spinal.core.fiber._
 import spinal.lib._
 import spinal.lib.bus.wishbone._
 import spinal.lib.com.spi.SpiHalfDuplexMaster

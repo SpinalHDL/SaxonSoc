@@ -1,6 +1,7 @@
 package saxon
 
 import spinal.core._
+import spinal.core.fiber._
 import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbImplicitPeripheralDecoder, BmbInterconnectGenerator, BmbParameter, BmbSlaveFactory}
 import spinal.lib.bus.misc.{BusSlaveFactoryConfig, SizeMapping}
 import spinal.lib.com.eth._
@@ -8,7 +9,7 @@ import spinal.lib.com.i2c.{BmbI2cCtrl, I2cSlaveMemoryMappedGenerics}
 import spinal.lib.com.spi.ddr.SpiXdrMasterCtrl.XipBusParameters
 import spinal.lib.com.spi.ddr.{BmbSpiXdrMasterCtrl, SpiXdrMasterCtrl}
 import spinal.lib.com.uart.{BmbUartCtrl, UartCtrlMemoryMappedConfig}
-import spinal.lib.generator.{Dependable, Export, Generator, Handle, InterruptCtrlGeneratorI, Unset}
+import spinal.lib.generator.{Dependable, Export, Generator, InterruptCtrlGeneratorI}
 import spinal.lib.io.{BmbGpio2, Gpio}
 import spinal.lib.master
 import spinal.lib.memory.sdram.SdramLayout
@@ -97,30 +98,32 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
     this
   }
 
-  def addPort() = new Generator {
-    val requirements = createDependency[BmbAccessParameter]
-    val portId = portsParameter.length
-    val bmb = SdramXdrBmbGenerator.this.produce(logic.io.bmb(portId))
+  def addPort() = this {
+    new Generator {
+      val requirements = createDependency[BmbAccessParameter]
+      val portId = portsParameter.length
+      val bmb = SdramXdrBmbGenerator.this.produce(logic.io.bmb(portId))
 
-    portsParameter += SdramXdrBmbGenerator.this.createDependency[BmbPortParameter]
+      portsParameter += SdramXdrBmbGenerator.this.createDependency[BmbPortParameter]
 
-    interconnect.addSlave(
-      accessCapabilities = phyParameter.produce(CtrlWithPhy.bmbCapabilities(phyParameter)),
-      accessRequirements = requirements,
-      bus = bmb,
-      mapping = phyParameter.produce(SizeMapping(memoryAddress, phyParameter.sdram.capacity))
-    )
-
-    add task {
-      portsParameter(portId).load(
-        BmbPortParameter(
-          bmb = requirements.toBmbParameter(),
-          clockDomain = ClockDomain.current,
-          cmdBufferSize = 16,
-          dataBufferSize = 32,
-          rspBufferSize = 32
-        )
+      interconnect.addSlave(
+        accessCapabilities = phyParameter.produce(CtrlWithPhy.bmbCapabilities(phyParameter)),
+        accessRequirements = requirements,
+        bus = bmb,
+        mapping = phyParameter.produce(SizeMapping(memoryAddress, phyParameter.sdram.capacity))
       )
+
+      add task {
+        portsParameter(portId).load(
+          BmbPortParameter(
+            bmb = requirements.toBmbParameter(),
+            clockDomain = ClockDomain.current,
+            cmdBufferSize = 16,
+            dataBufferSize = 32,
+            rspBufferSize = 32
+          )
+        )
+      }
     }
   }
 

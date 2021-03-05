@@ -1,6 +1,7 @@
 package saxon
 
 import spinal.core._
+import spinal.core.fiber._
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3Config, Apb3Dummy, Apb3SlaveFactory}
 import spinal.lib.bus.bmb.{Bmb, BmbParameter}
 import spinal.lib.bus.misc.{AddressMapping, BusSlaveFactory, SizeMapping}

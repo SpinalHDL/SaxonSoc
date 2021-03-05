@@ -2,9 +2,10 @@ package saxon
 
 import org.apache.commons.io.FileUtils
 import spinal.core._
+import spinal.core.fiber._
 import spinal.lib._
 import spinal.core.internals.Misc
-import spinal.lib.generator.{Dependable, Dts, Export, Generator, Handle, MemoryConnection, SimpleBus, Tag}
+import spinal.lib.generator.{Dependable, Dts, Export, Generator, MemoryConnection, SimpleBus, Tag}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -22,7 +23,8 @@ object BspGenerator {
 
     val generators = ArrayBuffer[Generator]()
     generators += root
-    root.foreachGeneratorRec(generators += _)
+    ???
+//    root.foreachGeneratorRec(generators += _)
 
 
     val bsp = new File("bsp")

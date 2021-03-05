@@ -8,6 +8,7 @@ import javax.swing.{JFrame, JPanel, WindowConstants}
 import saxon.common.I2cModel
 import saxon._
 import spinal.core._
+import spinal.core.fiber._
 import spinal.core.sim._
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
 import spinal.lib.bus.bmb._
@@ -39,7 +40,8 @@ import vexriscv.plugin.{AesPlugin, FpuPlugin}
 class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric()
 
-  val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l)
+  val sdramA_cd = Handle[ClockDomain]
+  val sdramA = sdramA_cd on SdramXdrBmbGenerator(memoryAddress = 0x80000000l)
   val sdramA0 = sdramA.addPort()
 
   val gpioA = BmbGpioGenerator(0x00000)
@@ -162,12 +164,11 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
 //  }
 }
 
-class ArtyA7SmpLinux(cpuCount : Int) extends Generator{
+class ArtyA7SmpLinux(cpuCount : Int) extends Component{
   // Define the clock domains used by the SoC
   val debugCd = ClockDomainResetGenerator()
   debugCd.holdDuration.load(4095)
   debugCd.enablePowerOnReset()
-
 
   val vgaCd = ClockDomainResetGenerator()
   vgaCd.holdDuration.load(63)
@@ -186,20 +187,17 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Generator{
   )
 
   // ...
-  val system = new ArtyA7SmpLinuxAbstract(cpuCount){
+  val system = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount){
     val vgaPhy = vga.withRegisterPhy(withColorEn = false)
+    sdramA_cd.merge(sdramCd.outputClockDomain)
   }
-  system.onClockDomain(systemCd.outputClockDomain)
-  system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
   // Enable native JTAG debug
   val debug = system.withDebugBus(debugCd, sdramCd, 0x10B80000).withBscane2(userId = 2)
 
   // The DDR3 controller use its own clock domain and need peripheral bus access for configuration
-  val sdramDomain = new Generator{
+  val sdramDomain = sdramCd.outputClockDomain on new Generator{
     implicit val interconnect = system.interconnect
-
-    onClockDomain(sdramCd.outputClockDomain)
 
     val bmbCc = BmbBridgeGenerator(mapping = SizeMapping(0x100000l, 8 KiB))
     interconnect.addConnection(system.bmbPeripheral.bmb, bmbCc.bmb).ccByToggle()
@@ -213,7 +211,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Generator{
   }
 
   //Manage clocks and PLL
-  val clocking = add task new Area{
+  val clocking = new Area{
     val GCLK100 = in Bool()
 
     val pll = new BlackBox{
@@ -311,7 +309,7 @@ object ArtyA7SmpLinuxAbstract{
 
     // Configure the peripherals
     ramA.size.load(8 KiB)
-    ramA.hexInit.load(null)
+    ramA.hexInit.loadNothing()
 
     sdramA.coreParameter.load(CoreParameter(
       portTockenMin = 4,
@@ -400,17 +398,6 @@ object ArtyA7SmpLinuxAbstract{
 
 
 object ArtyA7SmpLinux {
-  //Function used to configure the SoC
-  def default(g : ArtyA7SmpLinux) = g{
-    import g._
-
-    sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
-    ArtyA7SmpLinuxAbstract.default(system)
-
-    system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
-    g
-  }
-
   //Generate the SoC
   def main(args: Array[String]): Unit = {
     val cpuCount = sys.env.apply("SAXON_CPU_COUNT").toInt
@@ -420,8 +407,14 @@ object ArtyA7SmpLinux {
         defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC),
         inlineRom = true
       ).addStandardMemBlackboxing(blackboxByteEnables)
-       .generateVerilog(InOutWrapper(default(new ArtyA7SmpLinux(cpuCount)).toComponent()))
-    BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores(0).dBus)
+       .generateVerilog(InOutWrapper(new ArtyA7SmpLinux(cpuCount){
+         sdramDomain.phyA.sdramLayout.load(MT41K128M16JT.layout)
+         ArtyA7SmpLinuxAbstract.default(system)
+
+         system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
+         setDefinitionName("ArtyA7SmpLinux")
+       }))
+//    BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores(0).dBus)
   }
 }
 
@@ -505,7 +498,7 @@ object ArtyA7SmpLinuxSystemSim {
 //    simConfig.withFstWave
     simConfig.addSimulatorFlag("-Wno-MULTIDRIVEN")
 
-    simConfig.compile(new ArtyA7SmpLinuxAbstract(cpuCount = 1){
+    simConfig.compile(new Component{
       val debugCd = ClockDomainResetGenerator()
       debugCd.enablePowerOnReset()
       debugCd.holdDuration.load(63)
@@ -517,31 +510,35 @@ object ArtyA7SmpLinuxSystemSim {
       systemCd.holdDuration.load(63)
       systemCd.setInput(debugCd)
 
-//      val vgaCd = ClockDomainResetGenerator()
-//      vgaCd.holdDuration.load(63)
-//      vgaCd.makeExternal(withResetPin = false)
-//      vgaCd.asyncReset(debugCd)
-//
-//      vga.vgaCd.merge(vgaCd.outputClockDomain)
-      vga.output.derivate(_.simPublic())
+      val top = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount = 1) {
 
-      vga.vgaCd.merge(vga.generatorClockDomain)
+        //      val vgaCd = ClockDomainResetGenerator()
+        //      vgaCd.holdDuration.load(63)
+        //      vgaCd.makeExternal(withResetPin = false)
+        //      vgaCd.asyncReset(debugCd)
+        //
+        //      vga.vgaCd.merge(vgaCd.outputClockDomain)
 
-      this.onClockDomain(systemCd.outputClockDomain)
+        vga.output.derivate(_.simPublic())
 
-      val phy = RtlPhyGenerator()
-      phy.layout.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))
-      phy.connect(sdramA)
+        vga.vgaCd.merge(vga.initialClockDomain)
 
-      sdramA.mapCtrlAt(0x100000)
-//      interconnect.addConnection(bmbPeripheral.bmb, sdramA.ctrl)
+        val phy = RtlPhyGenerator()
+        phy.layout.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))
+        phy.connect(sdramA)
 
-      val jtagTap = withDebugBus(debugCd, systemCd, address = 0x10B80000).withJtag()
+        sdramA.mapCtrlAt(0x100000)
 
-      sdramA0.bmb.derivate(_.cmd.simPublic())
-      ArtyA7SmpLinuxAbstract.default(this)
-      ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
-    }.toComponent().setDefinitionName("miaou2")).doSimUntilVoid("test", 42){dut =>
+        val jtagTap = withDebugBus(debugCd, systemCd, address = 0x10B80000).withJtag()
+//        withoutDebug
+
+        sdramA_cd.merge(systemCd.outputClockDomain)
+
+        sdramA0.bmb.derivate(_.cmd.simPublic())
+        ArtyA7SmpLinuxAbstract.default(this)
+        ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
+      }
+    }.setDefinitionName("miaou2")).doSimUntilVoid("test", 42){dut =>
       val debugClkPeriod = (1e12/dut.debugCd.inputClockDomain.frequency.getValue.toDouble).toLong
       val jtagClkPeriod = debugClkPeriod*4
       val uartBaudRate = 115200
@@ -575,28 +572,28 @@ object ArtyA7SmpLinuxSystemSim {
       }
 
       val tcpJtag = JtagTcp(
-        jtag = dut.jtagTap.jtag,
+        jtag = dut.top.jtagTap.jtag,
         jtagClkPeriod = jtagClkPeriod
       )
 
       val uartTx = UartDecoder(
-        uartPin =  dut.uartA.uart.txd,
+        uartPin =  dut.top.uartA.uart.txd,
         baudPeriod = uartBaudPeriod
       )
 
       val uartRx = UartEncoder(
-        uartPin = dut.uartA.uart.rxd,
+        uartPin = dut.top.uartA.uart.rxd,
         baudPeriod = uartBaudPeriod
       )
 
-//      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
-      val vga = VgaDisplaySim(dut.vga.output, clockDomain)
-
-      dut.eth.mii.RX.DV #= false
-      dut.eth.mii.RX.ER #= false
-      dut.eth.mii.RX.CRS #= false
-      dut.eth.mii.RX.COL #= false
-      dut.spiA.sdcard.data.read #= 3
+////      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
+//      val vga = VgaDisplaySim(dut.top.vga.output, clockDomain)
+//
+//      dut.top.eth.mii.RX.DV #= false
+//      dut.top.eth.mii.RX.ER #= false
+//      dut.top.eth.mii.RX.CRS #= false
+//      dut.top.eth.mii.RX.COL #= false
+//      dut.top.spiA.sdcard.data.read #= 3
 
 //      val memoryTraceFile = new FileOutputStream("memoryTrace")
 //      clockDomain.onSamplings{
@@ -612,8 +609,8 @@ object ArtyA7SmpLinuxSystemSim {
 
       val images = "../buildroot-build/images/"
 
-//      dut.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
-//      dut.phy.logic.loadBin(0x00F00000, images + "u-boot.bin")
+      dut.top.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
+      dut.top.phy.logic.loadBin(0x00F00000, images + "u-boot.bin")
 //      dut.phy.logic.loadBin(0x00000000, images + "Image")
 //      dut.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
 //      dut.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
@@ -622,7 +619,7 @@ object ArtyA7SmpLinuxSystemSim {
 //      dut.phy.logic.loadBytes(0x00F00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
 
 
-        dut.phy.logic.loadBin(0x00F80000, "software/standalone/fpu/build/fpu.bin")
+//        dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/fpu/build/fpu.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/audioOut/build/audioOut.bin")
       //dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")

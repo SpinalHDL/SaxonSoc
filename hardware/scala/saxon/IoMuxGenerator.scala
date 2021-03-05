@@ -2,6 +2,7 @@ package saxon
 
 
 import spinal.core._
+import spinal.core.fiber._
 import spinal.lib.generator._
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3SlaveFactory}
 import spinal.lib.bus.misc.BusSlaveFactory
@@ -158,35 +159,35 @@ case class IoGeneratorTest() extends Generator{
   pinMux.addInput(uartA.rxd, portB, uartEnable)
 }
 
-object IoGeneratorTester extends App{
-  import spinal.core.sim._
-
-  SimConfig.withConfig(SpinalConfig(defaultClockDomainFrequency = FixedFrequency(100 MHz))).withWave.compile(IoGeneratorTest().toComponent()).doSim {dut =>
-    dut.clockDomain.forkStimulus(10)
-    val driver = Apb3Driver(dut.apb, dut.clockDomain)
-
-    def stim(): Unit ={
-      for(i <- 0 until 4) {
-        driver.write(0x0004, 0)
-        driver.write(0x0004, 3)
-      }
-
-      driver.write(0x1000, 0xAA)
-      while(((driver.read(0x1004) >> 16) & 0xFF) != 1){}
-    }
-
-    driver.write(0x0008, 3)
-
-    driver.write(0x2000, 0)
-    stim()
-
-    driver.write(0x2000, 1)
-    stim()
-
-    driver.write(0x2000, 2)
-    stim()
-
-    driver.write(0x2000, 4)
-    stim()
-  }
-}
+//object IoGeneratorTester extends App{
+//  import spinal.core.sim._
+//
+//  SimConfig.withConfig(SpinalConfig(defaultClockDomainFrequency = FixedFrequency(100 MHz))).withWave.compile(IoGeneratorTest().toComponent()).doSim {dut =>
+//    dut.clockDomain.forkStimulus(10)
+//    val driver = Apb3Driver(dut.apb, dut.clockDomain)
+//
+//    def stim(): Unit ={
+//      for(i <- 0 until 4) {
+//        driver.write(0x0004, 0)
+//        driver.write(0x0004, 3)
+//      }
+//
+//      driver.write(0x1000, 0xAA)
+//      while(((driver.read(0x1004) >> 16) & 0xFF) != 1){}
+//    }
+//
+//    driver.write(0x0008, 3)
+//
+//    driver.write(0x2000, 0)
+//    stim()
+//
+//    driver.write(0x2000, 1)
+//    stim()
+//
+//    driver.write(0x2000, 2)
+//    stim()
+//
+//    driver.write(0x2000, 4)
+//    stim()
+//  }
+//}
