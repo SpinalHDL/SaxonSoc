@@ -22,28 +22,25 @@ import scala.collection.mutable.ArrayBuffer
 
 case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
                             (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
-  val parameter = createDependency[UartCtrlMemoryMappedConfig]
-  val interrupt = produce(logic.io.interrupt)
-  val uart = produceIo(logic.io.uart)
-  val ctrl = produce(logic.io.bus)
+  val parameter          = Handle[UartCtrlMemoryMappedConfig]
+  val accessSource       = Handle[BmbAccessCapabilities]
+  val accessRequirements = Handle[BmbAccessParameter]
 
-  val accessSource = Handle[BmbAccessCapabilities]
-  val accessRequirements = createDependency[BmbAccessParameter]
-  val logic = add task BmbUartCtrl(parameter, accessRequirements.toBmbParameter())
-
-  val txd = uart.produce(uart.txd)
-  val rxd = uart.produce(uart.rxd)
+  val logic     = Handle(BmbUartCtrl(parameter, accessRequirements.toBmbParameter()))
+  val ctrl      = Handle(logic.io.bus)
+  val uart      = Handle(logic.io.uart.toIo)
+  val interrupt = Handle(logic.io.interrupt)
 
   def connectInterrupt(ctrl : InterruptCtrlGeneratorI, id : Int): Unit = {
     ctrl.addInterrupt(interrupt, id)
   }
 
   interconnect.addSlave(
-    accessSource = accessSource,
-    accessCapabilities = accessSource.derivate(BmbUartCtrl.getBmbCapabilities),
+    accessSource       = accessSource,
+    accessCapabilities = Handle(BmbUartCtrl.getBmbCapabilities(accessSource)),
     accessRequirements = accessRequirements,
-    bus = ctrl,
-    mapping = apbOffset.derivate(SizeMapping(_, 1 << BmbUartCtrl.addressWidth))
+    bus                = ctrl,
+    mapping            = Handle(SizeMapping(apbOffset, 1 << BmbUartCtrl.addressWidth))
   )
   export(parameter)
   if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
