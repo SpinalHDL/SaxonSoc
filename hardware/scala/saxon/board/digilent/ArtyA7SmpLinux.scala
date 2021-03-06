@@ -630,71 +630,71 @@ object ArtyA7SmpLinuxSystemSim {
 }
 
 
-object MemoryTraceAnalyse extends App{
-  val stream = new FileInputStream("memoryTrace")
-  val data = stream.readAllBytes()
-  val size = data.size
-  println(s"Size : ${size}")
-
-  for( cacheBytes <- List(32 KiB, 64 KiB, 128 KiB, 256 KiB).map(_.toInt);
-       wayCount <- List(1, 2, 4, 8);
-       bytePerLine <- List(64)) {
-    val wayBytes = cacheBytes / wayCount
-    val linesPerWay = wayBytes / bytePerLine
-    val lineAddressShift = log2Up(bytePerLine)
-    val lineAddressMask = linesPerWay - 1
-    val tagMask = -wayBytes
-
-    var wayAllocator = 0
-    val ways = for (wayId <- 0 until wayCount) yield new {
-      val lines = for (lineId <- 0 until linesPerWay) yield new {
-        var address = 0
-        var valid = false
-        var age = 0
-
-        def hit(target: Int) = valid && (target & tagMask) == address
-      }
-    }
-
-
-    var writeThrough = true
-    var readHits = 0
-    var readMiss = 0
-    var writeHits = 0
-    var writeMiss = 0
-    for (i <- 0 until size by 6) {
-      val opcode = data(i + 0)
-      val source = data(i + 1)
-      val address = (data(i + 2) << 0) | (data(i + 3) << 8) | (data(i + 4) << 16) | (data(i + 5) << 24)
-      val lineId = (address >> lineAddressShift) & lineAddressMask
-      val allocate = !writeThrough || opcode == 0
-      ways.exists(_.lines(lineId).hit(address)) match {
-        case false => {
-          if (opcode == 0) readMiss += 1
-          else writeMiss += 1
-          if (allocate) {
-            var line = ways(0).lines(lineId)
-            for(way <- ways){
-              val alternative = way.lines(lineId)
-              if(alternative.age < line.age) line = alternative
-            }
-
-           // val line = ways(wayAllocator).lines(lineId)
-            line.valid = true
-            line.address = address & tagMask
-            line.age = i
-
-            wayAllocator += 1
-            wayAllocator %= wayCount
-          }
-        }
-        case true => {
-          if (opcode == 0) readHits += 1
-          else if(!writeThrough) writeHits += 1
-        }
-      }
-    }
-    println(f"cacheBytes=${cacheBytes/1024} KB wayCount=$wayCount bytePerLine=${bytePerLine} => readMissRate=${readMiss.toFloat/(readMiss+readHits)}%1.3f writeMissRate=${writeMiss.toFloat/(writeMiss+writeHits)}%1.3f readMiss=$readMiss writeMiss=$writeMiss")
-  }
-
-}
+//object MemoryTraceAnalyse extends App{
+//  val stream = new FileInputStream("memoryTrace")
+//  val data = stream.readAllBytes()
+//  val size = data.size
+//  println(s"Size : ${size}")
+//
+//  for( cacheBytes <- List(32 KiB, 64 KiB, 128 KiB, 256 KiB).map(_.toInt);
+//       wayCount <- List(1, 2, 4, 8);
+//       bytePerLine <- List(64)) {
+//    val wayBytes = cacheBytes / wayCount
+//    val linesPerWay = wayBytes / bytePerLine
+//    val lineAddressShift = log2Up(bytePerLine)
+//    val lineAddressMask = linesPerWay - 1
+//    val tagMask = -wayBytes
+//
+//    var wayAllocator = 0
+//    val ways = for (wayId <- 0 until wayCount) yield new {
+//      val lines = for (lineId <- 0 until linesPerWay) yield new {
+//        var address = 0
+//        var valid = false
+//        var age = 0
+//
+//        def hit(target: Int) = valid && (target & tagMask) == address
+//      }
+//    }
+//
+//
+//    var writeThrough = true
+//    var readHits = 0
+//    var readMiss = 0
+//    var writeHits = 0
+//    var writeMiss = 0
+//    for (i <- 0 until size by 6) {
+//      val opcode = data(i + 0)
+//      val source = data(i + 1)
+//      val address = (data(i + 2) << 0) | (data(i + 3) << 8) | (data(i + 4) << 16) | (data(i + 5) << 24)
+//      val lineId = (address >> lineAddressShift) & lineAddressMask
+//      val allocate = !writeThrough || opcode == 0
+//      ways.exists(_.lines(lineId).hit(address)) match {
+//        case false => {
+//          if (opcode == 0) readMiss += 1
+//          else writeMiss += 1
+//          if (allocate) {
+//            var line = ways(0).lines(lineId)
+//            for(way <- ways){
+//              val alternative = way.lines(lineId)
+//              if(alternative.age < line.age) line = alternative
+//            }
+//
+//           // val line = ways(wayAllocator).lines(lineId)
+//            line.valid = true
+//            line.address = address & tagMask
+//            line.age = i
+//
+//            wayAllocator += 1
+//            wayAllocator %= wayCount
+//          }
+//        }
+//        case true => {
+//          if (opcode == 0) readHits += 1
+//          else if(!writeThrough) writeHits += 1
+//        }
+//      }
+//    }
+//    println(f"cacheBytes=${cacheBytes/1024} KB wayCount=$wayCount bytePerLine=${bytePerLine} => readMissRate=${readMiss.toFloat/(readMiss+readHits)}%1.3f writeMissRate=${writeMiss.toFloat/(writeMiss+writeHits)}%1.3f readMiss=$readMiss writeMiss=$writeMiss")
+//  }
+//
+//}
