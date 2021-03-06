@@ -167,6 +167,12 @@ saxon_sdcard_p1
 saxon_sdcard_p2
 ```
 
+## Booting from the sdcard
+
+```
+load mmc 0:1 0x80000000 uImage;load mmc 0:1 0x80FF0000 dtb; bootm 0x80000000 - 0x80FF0000 
+```
+
 ## Booting with a ramfs with a preloaded sdcard in uboot
 
 ```
