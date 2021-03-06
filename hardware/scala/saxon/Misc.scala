@@ -5,7 +5,7 @@ import spinal.core._
 import spinal.core.fiber._
 import spinal.lib._
 import spinal.core.internals.Misc
-import spinal.lib.generator.{Dependable, Dts, Export, Generator, MemoryConnection, SimpleBus, Tag}
+import spinal.lib.generator.{Dependable, Dts, Export, Generator, MemoryConnection, SimpleBus}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -19,13 +19,10 @@ import spinal.lib.com.spi.ddr.{SpiXdrMaster, SpiXdrParameter}
 import spinal.lib.system.debugger.{JtagBridge, JtagBridgeNoTap, SystemDebugger, SystemDebuggerConfig}
 
 object BspGenerator {
-  def apply[T <: Nameable](name : String, root: Generator, memoryView : Handle[T]) {
+  def apply[T <: Nameable](name : String, root: Component, memoryView : Handle[T]) {
 
-    val generators = ArrayBuffer[Generator]()
-    generators += root
-    ???
-//    root.foreachGeneratorRec(generators += _)
-
+    val allTags = ArrayBuffer[SpinalTag]()
+//    root.walkComponents(tags ++= _.getTags())
 
     val bsp = new File("bsp")
     bsp.mkdir()
@@ -51,11 +48,10 @@ object BspGenerator {
 
     def camelToUpperCase(str : String) = str.split("(?=\\p{Upper})").map(_.toUpperCase).mkString("_")
 
-    val allTags = ArrayBuffer[Tag]()
     val connections = ArrayBuffer[MemoryConnection[_ <: Nameable, _ <: Nameable]]()
     val dtss = mutable.LinkedHashMap[Handle[_ <: Nameable], Dts[_]]()
-    for (g <- generators) {
-      val gName = camelToUpperCase(g.getName())
+    root.walkComponents{c =>
+//      val gName = camelToUpperCase(g.getName())
 
       def rec(prefix : String, value : Any): Unit = value match {
         case value : Int => headerWriter.println(s"#define ${prefix} $value")
@@ -67,13 +63,15 @@ object BspGenerator {
         })
         case _ =>
       }
-      g.tags.foreach {
-        case t : Export => rec(camelToUpperCase(t.name), t.value)
-        case t : Dts[_] => dtss(t.node) = t
-        case t : MemoryConnection[_,_] => connections += t
-        case _ =>
+      c.foreachTag{ t =>
+        t match {
+          case t: Export => rec(camelToUpperCase(t.name), t.value)
+          case t: Dts[_] => dtss(t.node) = t
+          case t: MemoryConnection[_, _] => connections += t
+          case _ =>
+        }
+        allTags += t
       }
-      allTags ++= g.tags
     }
 
 

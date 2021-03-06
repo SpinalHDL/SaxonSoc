@@ -414,7 +414,7 @@ object ArtyA7SmpLinux {
          system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
          setDefinitionName("ArtyA7SmpLinux")
        }))
-//    BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel.generator, report.toplevel.generator.system.cores(0).dBus)
+    BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel, report.toplevel.system.cores(0).dBus)
   }
 }
 
