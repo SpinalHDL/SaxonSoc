@@ -52,14 +52,13 @@ abstract case class BmbPeripheralGenerator(apbOffset : BigInt, addressWidth : In
 
 
   val accessSource = Handle[BmbAccessCapabilities]
-  val accessRequirements = createDependency[BmbAccessParameter]
+  val accessRequirements = Handle[BmbAccessParameter]
 
-  val ctrl = accessRequirements.produce(Bmb(accessRequirements.toBmbParameter()))
-  dependencies += ctrl
+  val ctrl = Handle(Bmb(accessRequirements.toBmbParameter()))
 
   interconnect.addSlave(
     accessSource = accessSource,
-    accessCapabilities = accessSource.produce(BmbSlaveFactory.getBmbCapabilities(
+    accessCapabilities = Handle(BmbSlaveFactory.getBmbCapabilities(
       accessSource,
       addressWidth = addressWidth,
       dataWidth = 32
@@ -74,19 +73,19 @@ abstract case class BmbPeripheralGenerator(apbOffset : BigInt, addressWidth : In
 case class SdramXdrBmbGenerator(memoryAddress: BigInt)
                                (implicit interconnect: BmbInterconnectGenerator) extends Generator {
 
-  val phyParameter = createDependency[PhyLayout]
-  val coreParameter = createDependency[CoreParameter]
+  val phyParameter = Handle[PhyLayout]
+  val coreParameter = Handle[CoreParameter]
   val portsParameter = ArrayBuffer[Handle[BmbPortParameter]]()
-  val phyPort = produce(logic.io.phy)
-  val ctrl = produce(logic.io.ctrl)
+  val phyPort = Handle(logic.io.phy)
+  val ctrl = Handle(logic.io.ctrl)
 
 
   val accessSource = Handle[BmbAccessCapabilities]
-  val accessRequirements = createDependency[BmbAccessParameter]
+  val accessRequirements = Handle[BmbAccessParameter]
   def mapCtrlAt(address : BigInt)(implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) : this.type = {
     interconnect.addSlave(
       accessSource = accessSource,
-      accessCapabilities = accessSource.derivate(CtrlWithoutPhyBmb.getBmbCapabilities),
+      accessCapabilities = accessSource.map(CtrlWithoutPhyBmb.getBmbCapabilities),
       accessRequirements = accessRequirements,
       bus = ctrl,
       mapping = SizeMapping(address, 1 << CtrlWithoutPhyBmb.addressWidth)
@@ -97,20 +96,20 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
 
   def addPort() = this {
     new Generator {
-      val requirements = createDependency[BmbAccessParameter]
+      val requirements = Handle[BmbAccessParameter]
       val portId = portsParameter.length
       val bmb = SdramXdrBmbGenerator.this.produce(logic.io.bmb(portId))
 
-      portsParameter += SdramXdrBmbGenerator.this.createDependency[BmbPortParameter]
+      portsParameter += Handle[BmbPortParameter]
 
       interconnect.addSlave(
-        accessCapabilities = phyParameter.produce(CtrlWithPhy.bmbCapabilities(phyParameter)),
+        accessCapabilities = phyParameter.map(CtrlWithPhy.bmbCapabilities),
         accessRequirements = requirements,
         bus = bmb,
-        mapping = phyParameter.produce(SizeMapping(memoryAddress, phyParameter.sdram.capacity))
+        mapping = Handle(SizeMapping(memoryAddress, phyParameter.sdram.capacity))
       )
 
-      add task {
+      Handle {
         portsParameter(portId).load(
           BmbPortParameter(
             bmb = requirements.toBmbParameter(),
@@ -124,37 +123,36 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
     }
   }
 
-  val logic = add task new CtrlWithoutPhyBmb(
+  val logic = Handle(new CtrlWithoutPhyBmb(
     p =  CtrlParameter(
       core = coreParameter,
       ports = portsParameter.map(_.get)
     ),
     pl = phyParameter,
     ctrlParameter = accessRequirements.toBmbParameter()
-  )
-//  if(decoder != null) interconnect.addConnection(decoder.bus, ctrlBus)
+  ))
 }
 
 case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator{
-  val sdramLayout = createDependency[SdramLayout]
-  val ctrl = produce(logic.ctrl)
-  val sdram = produceIo(logic.phy.io.sdram)
-  val clk90 = createDependency[ClockDomain]
-  val serdesClk0 = createDependency[ClockDomain]
-  val serdesClk90 = createDependency[ClockDomain]
+  val sdramLayout = Handle[SdramLayout]
+  val ctrl = Handle(logic.ctrl)
+  val sdram = Handle(logic.phy.io.sdram.toIo)
+  val clk90 = Handle[ClockDomain]
+  val serdesClk0 = Handle[ClockDomain]
+  val serdesClk90 = Handle[ClockDomain]
 
   val accessSource = Handle[BmbAccessCapabilities]
-  val accessRequirements = createDependency[BmbAccessParameter]
+  val accessRequirements = Handle[BmbAccessParameter]
 
   interconnect.addSlave(
     accessSource = accessSource,
-    accessCapabilities = accessSource.derivate(CtrlWithoutPhyBmb.getBmbCapabilities),
+    accessCapabilities = accessSource.map(CtrlWithoutPhyBmb.getBmbCapabilities),
     accessRequirements = accessRequirements,
     bus = ctrl,
     mapping = SizeMapping(configAddress, 1 << CtrlWithoutPhyBmb.addressWidth)
   )
 
-  val logic = add task new Area{
+  val logic = Handle(new Area{
     val phy = XilinxS7Phy(
       sl = sdramLayout,
       clkRatio = 2,
@@ -164,15 +162,12 @@ case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect
     )
     val ctrl = Bmb(accessRequirements)
     phy.driveFrom(BmbSlaveFactory(ctrl))
-  }
+  })
 
 
   def connect(ctrl : SdramXdrBmbGenerator): Unit = {
-    ctrl.phyParameter.derivatedFrom(sdramLayout)(XilinxS7Phy.phyLayout(_, 2))
-//    this.produce{
-//      ctrl.phyParameter.load(logic.phy.pl)
-//    }
-    List(ctrl.logic, logic).produce{
+    ctrl.phyParameter.loadAsync(XilinxS7Phy.phyLayout(sdramLayout, 2))
+    Handle{
       ctrl.logic.io.phy <> logic.phy.io.ctrl
     }
   }
@@ -180,13 +175,13 @@ case class XilinxS7PhyBmbGenerator(configAddress : BigInt)(implicit interconnect
 }
 
 case class Ecp5Sdrx2PhyGenerator() extends Generator{
-  val sdramLayout = createDependency[SdramLayout]
-  val sdram = produceIo(logic.io.sdram)
+  val sdramLayout = Handle[SdramLayout]
+  val sdram = Handle(logic.io.sdram.toIo)
   val logic = add task Ecp5Sdrx2Phy(sdramLayout)
 
   def connect(ctrl : SdramXdrBmbGenerator): this.type = {
-    ctrl.phyParameter.derivatedFrom(sdramLayout)(Ecp5Sdrx2Phy.phyLayout)
-    List(ctrl.logic, logic).produce{
+    ctrl.phyParameter.loadAsync(Ecp5Sdrx2Phy.phyLayout(sdramLayout))
+    Handle{
       ctrl.logic.io.phy <> logic.io.ctrl
     }
     this
@@ -197,12 +192,12 @@ case class Ecp5Sdrx2PhyGenerator() extends Generator{
 
 case class  BmbGpioGenerator(apbOffset : Handle[BigInt] = Unset)
                              (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator{
-  val parameter = createDependency[spinal.lib.io.Gpio.Parameter]
-  val gpio = produceIo(logic.io.gpio)
-  val ctrl = produce(logic.io.bus)
+  val parameter = Handle[spinal.lib.io.Gpio.Parameter]
+  val gpio = Handle(logic.io.gpio.toIo)
+  val ctrl = Handle(logic.io.bus)
 
   val accessSource = Handle[BmbAccessCapabilities]
-  val accessRequirements = createDependency[BmbAccessParameter]
+  val accessRequirements = Handle[BmbAccessParameter]
   //TODO not having to setCompositeName
   val interrupts : Handle[List[Handle[Bool]]] = parameter.produce(List.tabulate(parameter.width)(i => this.produce(logic.io.interrupt(i)).setCompositeName(interrupts, i.toString)))
   val logic = add task BmbGpio2(parameter, accessRequirements.toBmbParameter())
