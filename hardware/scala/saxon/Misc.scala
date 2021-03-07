@@ -131,7 +131,7 @@ object BspGenerator {
 object SpiPhyDecoderGenerator{
   def apply(phy : Handle[SpiXdrMaster]) : SpiPhyDecoderGenerator = {
     val g = SpiPhyDecoderGenerator()
-    g.phy.merge(phy)
+    g.phy.load(phy)
     g
   }
 }
@@ -157,6 +157,7 @@ case class SpiPhyDecoderGenerator() extends Generator{
       spi = product[SpiXdrMaster]
     )
     specs += spec
+    logic.soon(spec.spi)
     spec.spi
   }
 

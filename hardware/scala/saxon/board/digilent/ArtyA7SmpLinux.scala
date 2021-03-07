@@ -189,7 +189,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
   // ...
   val system = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount){
     val vgaPhy = vga.withRegisterPhy(withColorEn = false)
-    sdramA_cd.merge(sdramCd.outputClockDomain)
+    sdramA_cd.load(sdramCd.outputClockDomain)
   }
 
   // Enable native JTAG debug
@@ -270,7 +270,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
       )
     )
     vgaCd.setInput(ClockDomain(clk25))
-    system.vga.vgaCd.merge(vgaCd.outputClockDomain)
+    system.vga.vgaCd.load(vgaCd.outputClockDomain)
 
     sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
     sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
@@ -327,6 +327,8 @@ object ArtyA7SmpLinuxAbstract{
       txFifoDepth = 128,
       rxFifoDepth = 128
     )
+
+//    interconnect.lock.retain()
 
     gpioA.parameter load Gpio.Parameter(
       width = 32,
@@ -521,7 +523,7 @@ object ArtyA7SmpLinuxSystemSim {
 
         vga.output.derivate(_.simPublic())
 
-        vga.vgaCd.merge(vga.initialClockDomain)
+        vga.vgaCd.load(systemCd.outputClockDomain)
 
         val phy = RtlPhyGenerator()
         phy.layout.load(XilinxS7Phy.phyLayout(MT41K128M16JT.layout, 2))
@@ -532,7 +534,7 @@ object ArtyA7SmpLinuxSystemSim {
         val jtagTap = withDebugBus(debugCd, systemCd, address = 0x10B80000).withJtag()
 //        withoutDebug
 
-        sdramA_cd.merge(systemCd.outputClockDomain)
+        sdramA_cd.load(systemCd.outputClockDomain)
 
         sdramA0.bmb.derivate(_.cmd.simPublic())
         ArtyA7SmpLinuxAbstract.default(this)

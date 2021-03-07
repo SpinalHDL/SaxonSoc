@@ -88,8 +88,8 @@ class ArtyA7Linux extends Generator{
     val sdramApbBridge = Apb3CCGenerator() //TODO size optimisation
     sdramApbBridge.mapAt(0x100000l)(system.apbDecoder)
     sdramApbBridge.setOutput(apbDecoder.input)
-    sdramApbBridge.inputClockDomain.merge(systemCd.outputClockDomain)
-    sdramApbBridge.outputClockDomain.merge(sdramCd.outputClockDomain)
+    sdramApbBridge.inputClockDomain.load(systemCd.outputClockDomain)
+    sdramApbBridge.outputClockDomain.load(sdramCd.outputClockDomain)
   }
 
   val clocking = add task new Area{

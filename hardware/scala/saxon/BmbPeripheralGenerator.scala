@@ -99,8 +99,17 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
       val requirements = Handle[BmbAccessParameter]
       val portId = portsParameter.length
       val bmb = SdramXdrBmbGenerator.this.produce(logic.io.bmb(portId))
+      val parameter = Handle(
+        BmbPortParameter(
+          bmb = requirements.toBmbParameter(),
+          clockDomain = ClockDomain.current,
+          cmdBufferSize = 16,
+          dataBufferSize = 32,
+          rspBufferSize = 32
+        )
+      )
 
-      portsParameter += Handle[BmbPortParameter]
+      portsParameter += parameter
 
       interconnect.addSlave(
         accessCapabilities = phyParameter.map(CtrlWithPhy.bmbCapabilities),
@@ -108,18 +117,6 @@ case class SdramXdrBmbGenerator(memoryAddress: BigInt)
         bus = bmb,
         mapping = Handle(SizeMapping(memoryAddress, phyParameter.sdram.capacity))
       )
-
-      Handle {
-        portsParameter(portId).load(
-          BmbPortParameter(
-            bmb = requirements.toBmbParameter(),
-            clockDomain = ClockDomain.current,
-            cmdBufferSize = 16,
-            dataBufferSize = 32,
-            rspBufferSize = 32
-          )
-        )
-      }
     }
   }
 
