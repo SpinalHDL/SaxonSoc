@@ -109,20 +109,7 @@ Other features :
 
 - WriteOnly, readOnly support
 
-### Parameters and signal
-
-BMB can has the following parameters :
-
-| Name         | Type     | Description                                                 |
-| ------------ | -------- | ------------                                                |
-| addressWidth | Bitcount | Addresses are always in byte                                |
-| dataWidth    | Bitcount | Should be multiple of 8                                     |
-| lengthWidth  | Bitcount | Number of byte of a burst = length                          |
-| sourceWidth  | Bitcount | Used for out of order completion                            |
-| contextWidth | Bitcount | Used by masters/adapters to link informations to bursts     |
-| alignment    | Enum     | Smallest alignement used by the master (BYTE, WORD, POW2)   |
-| canRead      | Boolean  | Allow reads                                                 |
-| canWrite     | Boolean  | Allow writes                                                |
+### Signal
 
 BMB is composed of streams to carry transaction between a source and a sink. A stream is composed of :
 
@@ -134,9 +121,14 @@ BMB is composed of streams to carry transaction between a source and a sink. A s
 
 More details on https://spinalhdl.github.io/SpinalDoc-RTD/SpinalHDL/Libraries/stream.html
 
-BMB is composed of two streams :
-- cmd : to carry requests, (read, write + data)
-- rsp : to carry responses (read + data, write)
+BMB is composed of two mandatory streams :
+- cmd : M->S, to carry requests, (read, write + data)
+- rsp : M<-S, to carry responses (read + data, write)
+
+and three optional streams to handle memory coherency : 
+- inv  : M<-S, for the interconnect to ask a master to invalidate a portion of memory
+- ack  : M->S, for the master to notify the interconnect that an invalidation is now effective
+- sync : M<-S, for the interconnect to notify a master which issued a write that the given write is now observable by all other masters
 
 The cmd stream is consquantly composed of the following signals
 
@@ -147,14 +139,14 @@ The cmd stream is consquantly composed of the following signals
 | source  | sourceWidth  | Transaction source ID, allow out of order completion between different sources, similar to AXI ID   |
 | opcode  | 1            | 0 => READ, 1 => WRITE                                                                               |
 | address | addressWidth | Address of the first byte of the transaction, stay the same during a burst                          |
-| length  | lengthWidth  | Burst bytes count                                                                                   |
+| length  | lengthWidth  | Burst bytes count - 1                                                                               |
 | data    | dataWidth    | Data used for writes                                                                                |
 | mask    | dataWidth/8  | Data mask used for writes                                                                           |
 | context | contextWidth | Can be used by a master/adapter to link some informations to a burst (returned on rsp transactions) |
 
 During a write burst the source, opcode, address, length and context signal should remain stable.
 
-And the rsp stream is :
+The rsp stream is :
 
 | Name    | Bitcount     | Description                                |
 | ------- | ------------ | ------------                               |
@@ -166,4 +158,31 @@ And the rsp stream is :
 | context | contextWidth | Identical to the corresponding cmd context |
 
 During a read burst the source and context signal should remain stable.
+
+The inv stream is : 
+
+| Name    | Bitcount     | Description                                |
+| ------- | ------------ | ------------                               |
+| valid   | 1            | Stream valid                               |
+| ready   | 1            | Stream ready                               |
+| all     | 1            | 0 => all masters, 1 => all masters but the source one should be invalidated. |
+| address | addressWidth | Address of the first byte to invalidate    |
+| length  | lengthWidth  | How many bytes should be invalidated - 1   |
+| source  | sourceWidth  | See the all signal                         |
+
+The ack stream has no payload attached :
+
+| Name    | Bitcount     | Description                                |
+| ------- | ------------ | ------------                               |
+| valid   | 1            | Stream valid                               |
+| ready   | 1            | Stream ready                               |
+
+The sync stream is : 
+
+| Name    | Bitcount     | Description                                |
+| ------- | ------------ | ------------                               |
+| valid   | 1            | Stream valid                               |
+| ready   | 1            | Stream ready                               |
+| source  | sourceWidth  | Identify which master should be notified   |
+
 
