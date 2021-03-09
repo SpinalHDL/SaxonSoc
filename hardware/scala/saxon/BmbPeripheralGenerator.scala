@@ -24,6 +24,7 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
                             (implicit interconnect: BmbInterconnectGenerator, decoder : BmbImplicitPeripheralDecoder = null) extends Generator {
   val parameter          = Handle[UartCtrlMemoryMappedConfig]
   val accessSource       = Handle[BmbAccessCapabilities]
+  val accessCapabilities = Handle(BmbUartCtrl.getBmbCapabilities(accessSource))
   val accessRequirements = Handle[BmbAccessParameter]
 
   val logic     = Handle(BmbUartCtrl(parameter, accessRequirements.toBmbParameter()))
@@ -31,19 +32,19 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
   val uart      = Handle(logic.io.uart.toIo)
   val interrupt = Handle(logic.io.interrupt)
 
-  def connectInterrupt(ctrl : InterruptCtrlGeneratorI, id : Int): Unit = {
-    ctrl.addInterrupt(interrupt, id)
-  }
-
   interconnect.addSlave(
     accessSource       = accessSource,
-    accessCapabilities = Handle(BmbUartCtrl.getBmbCapabilities(accessSource)),
+    accessCapabilities = accessCapabilities,
     accessRequirements = accessRequirements,
     bus                = ctrl,
     mapping            = Handle(SizeMapping(apbOffset, 1 << BmbUartCtrl.addressWidth))
   )
   export(parameter)
   if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
+
+  def connectInterrupt(ctrl : InterruptCtrlGeneratorI, id : Int): Unit = {
+    ctrl.addInterrupt(interrupt, id)
+  }
 }
 
 abstract case class BmbPeripheralGenerator(apbOffset : BigInt, addressWidth : Int)

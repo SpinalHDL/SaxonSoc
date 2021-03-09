@@ -32,26 +32,26 @@ case class BmbOnChipRamGenerator(val address: Handle[BigInt] = Unset)
   val size      = Handle[BigInt]
   val dataWidth = Handle[Int]
   var hexOffset = BigInt(0)
-  val hexInit = createDependency[String]
-  val requirements = createDependency[BmbAccessParameter]
-  val ctrl = produce(logic.io.bus)
+  val hexInit = Handle[String]
+  val requirements = Handle[BmbAccessParameter]
+  val ctrl = Handle(logic.io.bus)
 
   dependencies += address
 
   interconnect.addSlave(
-    accessCapabilities = Dependable(size, dataWidth)(BmbOnChipRam.busCapabilities(size, dataWidth)),
+    accessCapabilities = Handle(BmbOnChipRam.busCapabilities(size, dataWidth)),
     accessRequirements = requirements,
     bus = ctrl,
-    mapping = Dependable(address, size)(SizeMapping(address, BigInt(1) << log2Up(size)))
+    mapping = Handle(SizeMapping(address, BigInt(1) << log2Up(size)))
   )
 
 
-  val logic = add task BmbOnChipRam(
+  val logic = Handle(BmbOnChipRam(
     p = requirements.toBmbParameter(),
     size = size,
     hexOffset = address.get + hexOffset,
     hexInit = hexInit
-  )
+  ))
 }
 
 
