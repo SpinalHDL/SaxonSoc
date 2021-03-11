@@ -135,8 +135,8 @@ object SpiPhyDecoderGenerator{
     g
   }
 }
-case class SpiPhyDecoderGenerator() extends Generator{
-  val phy = createDependency[SpiXdrMaster]
+case class SpiPhyDecoderGenerator() extends Area{
+  val phy = Handle[SpiXdrMaster]
 
   case class Spec(dataWidth : Int,
                   ssGen : Boolean,
@@ -154,7 +154,7 @@ case class SpiPhyDecoderGenerator() extends Generator{
       ssGen = ssGen,
       ssMask = ssMask,
       ssValue = ssValue,
-      spi = product[SpiXdrMaster]
+      spi = Handle[SpiXdrMaster]
     )
     specs += spec
     logic.soon(spec.spi)
@@ -170,7 +170,7 @@ case class SpiPhyDecoderGenerator() extends Generator{
   def spiMasterNone(dataWidth : Int = -1) = phyNone(dataWidth).derivate(phy => master(phy.toSpi()))
   def mdioMasterId(ssId : Int, dataWidth : Int = -1) = phyId(ssId, dataWidth).derivate(phy => master(phy.toMdio()))
 
-  val logic = add task new Area{
+  val logic = Handle(new Area{
     phy.data.foreach(_.read.assignDontCare())
     val ports = for(spec <- specs) yield new Area{
       spec.spi.load(SpiXdrMaster(SpiXdrParameter(
@@ -191,7 +191,7 @@ case class SpiPhyDecoderGenerator() extends Generator{
         }
       }
     }
-  }
+  })
 }
 
 

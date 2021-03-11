@@ -16,6 +16,8 @@
 * Audio out (stereo) via sigma delta pin, Alsa driver provided
 * GPIO access in linux
 
+![SoC](assets/diagram.svg?raw=true "")
+
 ## Boot sequence
 
 The boot sequence is done in 4 steps :

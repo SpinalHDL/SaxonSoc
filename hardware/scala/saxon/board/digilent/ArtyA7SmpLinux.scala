@@ -87,8 +87,8 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
     }
   }
  // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
-  interconnect.addConnection(dma.read,  fabric.dBus.bmb)
-  interconnect.addConnection(dma.readSg,  fabric.dBus.bmb)
+  interconnect.addConnection(dma.read,  sdramA0.bmb)
+  interconnect.addConnection(dma.readSg,  sdramA0.bmb)
   interconnect.addConnection(dma.writeSg,  fabric.dBusCoherent.bmb)
 
   val vga = BmbVgaCtrlGenerator(0x90000)
@@ -102,66 +102,37 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
   ramA.dataWidth.load(32)
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
 
+//  val mainBus = BmbBridgeGenerator()
+//  interconnect.addConnection(
+//    fabric.iBus.bmb -> List(mainBus.bmb),
+//    fabric.dBus.bmb -> List(mainBus.bmb),
+//    mainBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
+//  )
+
   interconnect.addConnection(
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
     fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
 
-
-  val fpuParameter = FpuParameter(
-    withDouble = true
-  )
-
-  val fpu = new Generator{
-    dependencies ++= cores.map(_.logic)
-    val logic = add task new FpuCore(
+  val fpu = new Area{
+    val logic = Handle(new FpuCore(
       portCount = cpuCount,
-      p = fpuParameter
-    )
+      p =  FpuParameter(
+        withDouble = true
+      )
+    ))
 
-    val connect = add task new Area{
-      for(i <- 0 until cpuCount;
-        vex = cores(i).logic.cpu;
-        port = logic.io.port(i)){
+    val connect = Handle(for(i <- 0 until cpuCount;
+                             vex = cores(i).logic.cpu;
+                             port = logic.io.port(i)){
         val plugin = vex.service(classOf[FpuPlugin])
         plugin.port.cmd        >> port.cmd
         plugin.port.commit     >> port.commit
         plugin.port.completion := port.completion.stage()
         plugin.port.rsp        << port.rsp
       }
-    }
+    )
   }
-
-
-//  def debug(that : Data) = that.addAttribute("""mark_debug = "true"""")
-//  audioOut.logic.derivate{c =>
-//    debug(c.core.io.input.valid)
-//    debug(c.core.io.input.ready)
-//    debug(c.core.io.run)
-//    debug(c.core.io.rate)
-//  }
-//  dma.logic.derivate{c =>
-//    debug(c.io.interrupts)
-//    debug(c.io.outputs(1).valid)
-//    debug(c.io.outputs(1).ready)
-//    debug(c.io.sgRead.cmd.valid)
-//    debug(c.io.sgRead.cmd.address)
-//    debug(c.io.sgRead.rsp.valid)
-//    debug(c.io.sgRead.rsp.data)
-//    debug(c.channels(1).channelValid)
-//    debug(c.channels(1).descriptorValid)
-//    debug(c.channels(1).interrupts.completion.enable)
-//    debug(c.channels(1).interrupts.completion.valid)
-//    debug(c.channels(1).push.memory)
-//    debug(c.channels(1).push.m2b.address)
-//    debug(c.channels(1).pop.memory)
-//    debug(c.channels(1).pop.b2s.portId)
-//    debug(c.channels(1).fifo.push.available)
-//    debug(c.channels(1).fifo.pop.empty)
-//    debug(c.io.read.cmd.valid)
-//    debug(c.io.read.cmd.address)
-//    debug(c.io.read.rsp.valid)
-//  }
 }
 
 class ArtyA7SmpLinux(cpuCount : Int) extends Component{
@@ -190,13 +161,16 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
   val system = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount){
     val vgaPhy = vga.withRegisterPhy(withColorEn = false)
     sdramA_cd.load(sdramCd.outputClockDomain)
+
+    // Enable native JTAG debug
+    val debugBus = this.withDebugBus(debugCd, sdramCd, 0x10B80000)
+    val nativeJtag = debugBus.withBscane2(userId = 2)
   }
 
-  // Enable native JTAG debug
-  val debug = system.withDebugBus(debugCd, sdramCd, 0x10B80000).withBscane2(userId = 2)
+
 
   // The DDR3 controller use its own clock domain and need peripheral bus access for configuration
-  val sdramDomain = sdramCd.outputClockDomain on new Generator{
+  val sdramDomain = sdramCd.outputClockDomain on new Area{
     implicit val interconnect = system.interconnect
 
     val bmbCc = BmbBridgeGenerator(mapping = SizeMapping(0x100000l, 8 KiB))
@@ -284,7 +258,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
 }
 
 object ArtyA7SmpLinuxAbstract{
-  def default(g : ArtyA7SmpLinuxAbstract) = g {
+  def default(g : ArtyA7SmpLinuxAbstract) = g.rework {
     import g._
 
     // Configure the CPUs

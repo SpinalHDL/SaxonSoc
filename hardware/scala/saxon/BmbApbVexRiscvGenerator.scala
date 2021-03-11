@@ -2,12 +2,13 @@ package saxon
 
 import spinal.lib.bus.bmb._
 import spinal.lib.generator._
+import spinal.core._
 import spinal.lib.io.Gpio
 import spinal.lib.memory.sdram.sdr.IS42x320D
 import spinal.lib.misc.plic.PlicMapping
 import vexriscv.VexRiscvBmbGenerator
 
-class BmbApbVexRiscvGenerator  extends Generator {
+class BmbApbVexRiscvGenerator  extends Area {
   implicit val interconnect = BmbInterconnectGenerator()
   implicit val apbDecoder = Apb3DecoderGenerator()
   implicit val peripheralBridge = BmbToApb3Decoder(address = 0x10000000)

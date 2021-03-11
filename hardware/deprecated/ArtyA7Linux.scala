@@ -76,7 +76,7 @@ class ArtyA7Linux extends Generator{
   system.onClockDomain(systemCd.outputClockDomain)
   system.sdramA.onClockDomain(sdramCd.outputClockDomain)
 
-  val sdramDomain = new Generator{
+  val sdramDomain = new Area{
     onClockDomain(sdramCd.outputClockDomain)
 
     val apbDecoder = Apb3DecoderGenerator()

@@ -12,7 +12,7 @@ import spinal.lib.misc.plic.PlicMapping
 import vexriscv.VexRiscvBmbGenerator
 import vexriscv.plugin.CsrPlugin
 
-class VexRiscvClusterGenerator(cpuCount : Int) extends Generator {
+class VexRiscvClusterGenerator(cpuCount : Int) extends Area {
   // Define the BMB interconnect utilities
   implicit val interconnect = BmbInterconnectGenerator()
   val bmbPeripheral = BmbBridgeGenerator(mapping = SizeMapping(0x10000000, 16 MiB)).peripheral(dataWidth = 32)
@@ -57,12 +57,12 @@ class VexRiscvClusterGenerator(cpuCount : Int) extends Generator {
       invalidationMonitor.output -> List(dBus.bmb)
     )
 
-   for(cpu <- cores) {
-      interconnect.addConnection(
-        cpu.iBus -> List(iBus.bmb),
-        cpu.dBus -> List(dBusCoherent.bmb)
-      )
-    }
+    for(cpu <- cores) {
+       interconnect.addConnection(
+         cpu.iBus -> List(iBus.bmb),
+         cpu.dBus -> List(dBusCoherent.bmb)
+       )
+     }
 
     if(withOutOfOrderDecoder) interconnect.masters(dBus.bmb).withOutOfOrderDecoder()
   }
