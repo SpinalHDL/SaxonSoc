@@ -87,8 +87,8 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
     }
   }
  // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
-  interconnect.addConnection(dma.read,  sdramA0.bmb)
-  interconnect.addConnection(dma.readSg,  sdramA0.bmb)
+  interconnect.addConnection(dma.read,     fabric.iBus.bmb)
+  interconnect.addConnection(dma.readSg,   fabric.iBus.bmb)
   interconnect.addConnection(dma.writeSg,  fabric.dBusCoherent.bmb)
 
   val vga = BmbVgaCtrlGenerator(0x90000)
