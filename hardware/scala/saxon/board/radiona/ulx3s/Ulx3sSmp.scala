@@ -177,7 +177,7 @@ class Ulx3sSmp(cpuCount : Int) extends Component{
   val flash_wpn   = out(True)
 
   // Enable native JTAG debug
-  val debug = system.withDebugBus(globalCd, systemCd, 0x10B80000).withJtag()
+  val debug = system.withDebugBus(globalCd.outputClockDomain, systemCd, 0x10B80000).withJtag()
 
   //Manage clocks and PLL
   val clocking = new Area{
@@ -419,7 +419,7 @@ object Ulx3sSmpSystemSim {
         Ulx3sSmpAbstract.default(this)
         ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
 
-        val jtagTap = withDebugBus(globalCd, systemCd, address = 0x10B80000).withJtag()
+        val jtagTap = withDebugBus(globalCd.outputClockDomain, systemCd, address = 0x10B80000).withJtag()
       }
     }.setDefinitionName("miaou2")).doSimUntilVoid("test", 42){dut =>
       val debugClkPeriod = (1e12/dut.globalCd.inputClockDomain.frequency.getValue.toDouble).toLong

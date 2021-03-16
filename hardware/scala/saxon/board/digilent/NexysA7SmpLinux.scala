@@ -127,7 +127,7 @@ class NexysA7SmpLinux(cpuCount : Int) extends Component{
     sdramA_cd.load(sdramCd.outputClockDomain)
 
     // Enable native JTAG debug
-    val debugBus = this.withDebugBus(debugCd, sdramCd, 0x10B80000)
+    val debugBus = this.withDebugBus(debugCd.outputClockDomain, sdramCd, 0x10B80000)
     val nativeJtag = debugBus.withBscane2(userId = 2)
   }
 
@@ -393,7 +393,7 @@ object NexysA7SmpLinuxSystemSim {
 
         sdramA.mapCtrlAt(0x100000)
 
-        val jtagTap = withDebugBus(debugCd, systemCd, address = 0x10B80000).withJtag()
+        val jtagTap = withDebugBus(debugCd.outputClockDomain, systemCd, address = 0x10B80000).withJtag()
 
         NexysA7SmpLinuxAbstract.default(this)
 
