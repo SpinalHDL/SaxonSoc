@@ -1,5 +1,5 @@
 
-Clone and build
+### Clone and build
 
 ```
 # Getting this repository
@@ -48,7 +48,7 @@ It is automatically done via the `SAXON_CPU_COUNT=??? saxon_buildroot` command, 
 SAXON_CPU_COUNT=??? saxon_buildroot_dts
 ```
 
-Flash SPI 
+### Flash SPI 
 
 ```sh
 source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
@@ -58,7 +58,16 @@ fujprog -j FLASH -f 0x340000 buildroot-build/images/fw_jump.bin
 fujprog -j FLASH -f 0x380000 buildroot-build/images/u-boot.bin
 ```
 
-Flash sdcard 
+### Flash sdcard the short way : 
+
+```
+#Format the sdcard with the buildroot image, don't forget to set the SDCARD variable to point to the /dev/xxx
+source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
+sudo dd if=$SAXON_ROOT/buildroot-build/images/sdcard.img of=$SDCARD bs=4M conv=sync status=progress
+```
+
+### Flash sdcard the long way : 
+
 ```sh
 export SDCARD=???
 export SDCARD_P1=???
