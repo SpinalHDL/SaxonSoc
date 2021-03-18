@@ -5,7 +5,7 @@ Clone and build
 # Getting this repository
 mkdir Ulx3sSmp 
 cd Ulx3sSmp
-git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev-0.2 --recursive SaxonSoc
+git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev-0.3 --recursive SaxonSoc
 
 # Sourcing the build script
 source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
