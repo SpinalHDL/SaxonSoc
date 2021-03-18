@@ -172,6 +172,11 @@ saxon_sdcard_p2
 ## Booting from the sdcard
 
 ```
+#Format the sdcard with the buildroot image, don't forget to set the SDCARD variable to point to the /dev/xxx
+sudo dd if=$SAXON_ROOT/buildroot-build/images/sdcard.img of=$SDCARD bs=4M conv=sync status=progress
+```
+
+```
 load mmc 0:1 0x80000000 uImage;load mmc 0:1 0x80FF0000 dtb; bootm 0x80000000 - 0x80FF0000 
 ```
 
