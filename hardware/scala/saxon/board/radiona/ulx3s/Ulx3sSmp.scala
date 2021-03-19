@@ -432,7 +432,7 @@ object Ulx3sSmp {
     val cpuCount = sys.env.get("SAXON_CPU_COUNT").get.toInt
     println("CPU_COUNT is " + cpuCount)
 
-    val includeFpu = sys.env.getOrElse("SAXON_FPU","n") == "y"
+    val includeFpu = sys.env.getOrElse("SAXON_FPU","0") == "1"
     if (includeFpu) println("FPU included")
     else println("FPU not included")
 
