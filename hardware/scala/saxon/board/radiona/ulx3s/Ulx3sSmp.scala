@@ -23,7 +23,7 @@ import spinal.lib.generator._
 import spinal.lib.graphic.RgbConfig
 import spinal.lib.graphic.vga.{BmbVgaCtrlGenerator, BmbVgaCtrlParameter}
 import spinal.lib.io.{Gpio, InOutWrapper, TriStateOutput}
-import spinal.lib.master
+import spinal.lib.{Delay, master}
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr.CoreParameter
 import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, XilinxS7Phy}
@@ -376,7 +376,20 @@ object Ulx3sSmp {
     val cpuCount = sys.env.get("SAXON_CPU_COUNT").get.toInt
     println("CPU_COUNT is " + cpuCount)
 
-    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount), sdramSize)))
+    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount){
+      setDefinitionName("Ulx3sSmp")
+      val probe = systemCd.outputClockDomain on Handle(new Area {
+        val pin = out(Bits(7 bits))
+
+        val toggle = Reg(Bool)
+        toggle := !toggle
+
+        pin := 0
+        pin(0) := toggle
+        pin(1) := Delay(system.mac.interrupt.get, 3)
+        pin(2, cpuCount bits) := Delay(B(system.cores.map(_.externalSupervisorInterrupt)), 3)
+      })
+    }, sdramSize)))
     BspGenerator("radiona/ulx3s/smp", report.toplevel, report.toplevel.system.cores(0).dBus)
   }
 }
