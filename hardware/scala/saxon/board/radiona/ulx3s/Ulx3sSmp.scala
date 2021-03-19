@@ -92,9 +92,12 @@ class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexR
     }
   }
 
+  val dBus32 = BmbBridgeGenerator()
+  dBus32.dataWidth(32)
+
   // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
-  interconnect.addConnection(dma.read,  fabric.dBus.bmb)
-  interconnect.addConnection(dma.readSg,  fabric.dBus.bmb)
+  interconnect.addConnection(dma.read,    dBus32.bmb)
+  interconnect.addConnection(dma.readSg,  dBus32.bmb)
   interconnect.addConnection(dma.writeSg,  fabric.dBusCoherent.bmb)
 
   val vga = BmbVgaCtrlGenerator(0x90000)
@@ -108,18 +111,23 @@ class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexR
   ramA.dataWidth.load(32)
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
 
+
+
   interconnect.addConnection(
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
-    fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
+    fabric.dBus.bmb -> List(dBus32.bmb),
+    dBus32.bmb      -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
 
   val fpu = includeFpu generate new Area{
+    val extraStage = cpuCount > 1
     val logic = Handle{
       new FpuCore(
         portCount = cpuCount,
         p =  FpuParameter(
           withDouble = true,
-          asyncRegFile = false
+          asyncRegFile = false,
+          schedulerM2sPipe = extraStage
         )
       )
     }
@@ -130,9 +138,9 @@ class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexR
           port = logic.io.port(i)) {
         val plugin = vex.service(classOf[FpuPlugin])
         plugin.port.cmd >> port.cmd
-        plugin.port.commit >> port.commit
+        plugin.port.commit.pipelined(m2s = extraStage, s2m = false) >> port.commit
         plugin.port.completion := port.completion.stage()
-        plugin.port.rsp << port.rsp
+        plugin.port.rsp << port.rsp.pipelined(m2s = false, s2m = extraStage)
 
         if (i == 0) {
           println("cpuDecode to fpuDispatch " + LatencyAnalysis(vex.decode.arbitration.isValid, logic.decode.input.valid))
@@ -144,6 +152,10 @@ class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexR
           println("mul                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
           println("fma                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.decode.add.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
           println("short                    " + LatencyAnalysis(logic.decode.shortPip.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
+
+
+          println("???                      " + LatencyAnalysis(vex.reflectBaseType("writeBack_FpuPlugin_commit_s2mPipe_rValid"), logic.io.port(0).rsp.ready))
+          println("???                      " + LatencyAnalysis(vex.reflectBaseType("writeBack_FpuPlugin_commit_s2mPipe_rValid"), logic.rf.scoreboards(0).targetWrite.valid))
 
         }
       }
@@ -274,7 +286,7 @@ object Ulx3sSmpAbstract{
         hartId = coreId,
         ioRange = _ (31 downto 28) === 0x1,
         resetVector = 0x10A00000l,
-        iBusWidth = if (includeFpu) 64 else 32,
+        iBusWidth = 32,
         dBusWidth = if (includeFpu) 64 else 32,
         loadStoreWidth = if (includeFpu) 64 else 32,
         iCacheSize = 8192,
@@ -380,7 +392,7 @@ object Ulx3sSmpAbstract{
 
     // Add some interconnect pipelining to improve FMax
     for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
-    interconnect.setPipelining(fabric.dBus.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(dBus32.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
