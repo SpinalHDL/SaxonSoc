@@ -4,6 +4,7 @@ import saxon._
 import spinal.core._
 import spinal.core.fiber._
 import spinal.core.sim._
+import spinal.lib.{Delay, LatencyAnalysis}
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
 import spinal.lib.bus.bmb._
 import spinal.lib.bus.bsb.BsbInterconnectGenerator
@@ -26,9 +27,11 @@ import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
 import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
-import vexriscv.plugin.AesPlugin
+import vexriscv.ip.fpu.{FpuCore, FpuParameter}
+import vexriscv.plugin.{AesPlugin, FpuPlugin}
 
 
+// Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
 class NexysA7SmpLinuxAbtract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric()
 
@@ -79,8 +82,8 @@ class NexysA7SmpLinuxAbtract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
     }
   }
  // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
-  interconnect.addConnection(dma.read,  fabric.dBus.bmb)
-  interconnect.addConnection(dma.readSg,  fabric.dBus.bmb)
+  interconnect.addConnection(dma.read,     fabric.iBus.bmb)
+  interconnect.addConnection(dma.readSg,   fabric.iBus.bmb)
   interconnect.addConnection(dma.writeSg,  fabric.dBusCoherent.bmb)
 
   val vga = BmbVgaCtrlGenerator(0x90000)
@@ -98,9 +101,47 @@ class NexysA7SmpLinuxAbtract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
     fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
+
+  val fpu = new Area{
+    val logic = Handle{
+      new FpuCore(
+        portCount = cpuCount,
+        p =  FpuParameter(
+          withDouble = true,
+          asyncRegFile = false
+        )
+      )
+    }
+
+    val connect = Handle{
+      for(i <- 0 until cpuCount;
+          vex = cores(i).logic.cpu;
+          port = logic.io.port(i)) {
+        val plugin = vex.service(classOf[FpuPlugin])
+        plugin.port.cmd >> port.cmd
+        plugin.port.commit >> port.commit
+        plugin.port.completion := port.completion.stage()
+        plugin.port.rsp << port.rsp
+
+        if (i == 0) {
+          println("cpuDecode to fpuDispatch " + LatencyAnalysis(vex.decode.arbitration.isValid, logic.decode.input.valid))
+          println("fpuDispatch to cpuRsp    " + LatencyAnalysis(logic.decode.input.valid, plugin.port.rsp.valid))
+
+          println("cpuWriteback to fpuAdd   " + LatencyAnalysis(vex.writeBack.input(plugin.FPU_COMMIT), logic.commitLogic(0).add.counter))
+
+          println("add                      " + LatencyAnalysis(logic.decode.add.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
+          println("mul                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
+          println("fma                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.decode.add.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
+          println("short                    " + LatencyAnalysis(logic.decode.shortPip.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
+
+        }
+      }
+    }
+  }
 }
 
 class NexysA7SmpLinux(cpuCount : Int) extends Component{
+  // Define the clock domains used by the SoC
   val debugCd = ClockDomainResetGenerator()
   debugCd.holdDuration.load(4095)
   debugCd.enablePowerOnReset()
@@ -131,6 +172,9 @@ class NexysA7SmpLinux(cpuCount : Int) extends Component{
     val nativeJtag = debugBus.withBscane2(userId = 2)
   }
 
+
+
+  // The DDR controller use its own clock domain and need peripheral bus access for configuration
   val sdramDomain = sdramCd.outputClockDomain on  new Area{
     implicit val interconnect = system.interconnect
 
@@ -145,6 +189,7 @@ class NexysA7SmpLinux(cpuCount : Int) extends Component{
     interconnect.addConnection(bmbCc.bmb, system.sdramA.ctrl)
   }
 
+  //Manage clocks and PLL
   val clocking = new Area{
     val GCLK100 = in Bool()
 
@@ -227,6 +272,7 @@ class NexysA7SmpLinux(cpuCount : Int) extends Component{
     val sd = out(True)
   }
 
+  // Allow to access the native SPI flash clock pin
   val startupe2 = system.spiA.flash.produce(
     STARTUPE2.driveSpiClk(system.spiA.flash.sclk.setAsDirectionLess())
   )
@@ -243,11 +289,22 @@ object NexysA7SmpLinuxAbstract{
         ioRange = _ (31 downto 28) === 0x1,
         resetVector = 0x10A00000l,
         iBusWidth = 64,
-        dBusWidth = 64
+        dBusWidth = 64,
+        loadStoreWidth = 64,
+        iCacheSize = 4096*2,
+        dCacheSize = 4096*2,
+        iCacheWays = 2,
+        dCacheWays = 2,
+        iBusRelax = true,
+        earlyBranch = true,
+        withFloat = true,
+        withDouble = true,
+        externalFpu = true
       ))
       cpu.config.plugins += AesPlugin()
     }
 
+    // Configure the peripherals
     ramA.size.load(8 KiB)
     ramA.hexInit.loadNothing()
 
@@ -326,6 +383,7 @@ object NexysA7SmpLinuxAbstract{
     for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(fabric.dBus.bmb)(cmdValid = true, cmdReady = true)
     interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
