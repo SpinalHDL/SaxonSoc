@@ -216,7 +216,7 @@ sudo cp -rf buildroot-build/images/nfs_root /srv/saxon-soc/nfs_root
 uboot config :
 
 ```
-env set boot_net "dhcp 0x80000000 192.168.0.24:uImage; tftp 0x80FF0000 {serverip}:linux.dtb; bootm 0x80000000 - 0x80FF0000"
+env set boot_net "dhcp 0x80000000 192.168.0.24:uImage; tftp 0x80FF0000 192.168.0.24:linux.dtb; bootm 0x80000000 - 0x80FF0000"
 env set bootargs "rootwait console=hvc0 earlycon=sbi root=/dev/nfs nfsroot=192.168.0.24:/srv/saxon-soc/nfs_root ip=dhcp init=/sbin/init mmc_core.use_spi_crc=0"
 env set bootcmd "run boot_net"
 boot
