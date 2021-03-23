@@ -49,3 +49,9 @@ saxon_buildroot_linux_config(){
   cd $SAXON_BUILDROOT_BUILD_PATH
   make $SAXON_BUILDROOT_DEFCONFIG; make linux-xconfig linux-update-defconfig
 }
+
+saxon_buildroot_tftp(){
+  cd $SAXON_ROOT
+  cd buildroot-build/images
+  py3tftp -p 69
+}

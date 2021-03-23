@@ -48,8 +48,3 @@ saxon_sim(){
 }
 
 
-saxon_tftp(){
-  cd $SAXON_ROOT
-  cd buildroot-build/images
-  py3tftp -p 69
-}
