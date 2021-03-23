@@ -467,19 +467,19 @@ object Ulx3sSmpSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
-//      dut.spiA.sdcard.data.read #= 3
+      dut.top.spiA.sdcard.miso #= true
 
 
       val images = "../buildroot-build/images/"
 
       dut.top.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
       dut.top.phy.logic.loadBin(0x00F00000, images + "u-boot.bin")
-      //      dut.phy.logic.loadBin(0x00000000, images + "Image")
-      //      dut.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
-      //      dut.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
-      //
-      //      //Bypass uboot
-      //      dut.phy.logic.loadBytes(0x00F00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
+      dut.top.phy.logic.loadBin(0x00000000, images + "Image")
+      dut.top.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
+      dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
+
+        //Bypass uboot
+        dut.top.phy.logic.loadBytes(0x00F00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
 
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/ethernet/build/ethernet.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
