@@ -197,14 +197,16 @@ saxon_standalone_compile bootloader SPINAL_SIM=yes
 saxon_sim --bin=$SAXON_SOC/software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin
 ```
 
-## tftp boot from uboot
+## tftp +nfs boot from uboot
 
-On host : 
+On host to setup the tftp: 
 
 ```sh
-cd buildroot-build/images
+cd $SAXON_ROOT/buildroot-build/images
 py3tftp -p 69
 ```
+
+On host to setup the nfs files (note the NFS server setup should be already in place and have /srv/saxon-soc/nfs_root in read/write mode) : 
 
 ```sh
 cd $SAXON_ROOT
