@@ -100,7 +100,6 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
 
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
-  ramA.dataWidth.load(32)
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
 
 //  val mainBus = BmbBridgeGenerator()

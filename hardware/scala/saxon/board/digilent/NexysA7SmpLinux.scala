@@ -94,7 +94,6 @@ class NexysA7SmpLinuxAbtract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
 
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
-  ramA.dataWidth.load(32)
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
 
   interconnect.addConnection(
