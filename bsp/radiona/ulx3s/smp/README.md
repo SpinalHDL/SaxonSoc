@@ -48,6 +48,51 @@ It is automatically done via the `SAXON_CPU_COUNT=??? saxon_buildroot` command, 
 SAXON_CPU_COUNT=??? saxon_buildroot_dts
 ```
 
+You can also set the SDRAM size to 64Mb in the DTS, so than Linux uses the full 64Mb of RAM on a Blue 85f by:
+
+```sh
+SDRAM_SIZE=64 SAXON_CPU_COUNT=??? saxon_buildroot
+```
+
+or 
+
+```sh
+SDRAM_SIZE=64 SAXON_CPU_COUNT=??? saxon_buildroot_dts
+```
+
+Omitting SDRAM_SIZE is equivalent to `SDRAM_SIZE=32`.
+
+There is now an option to include a Floating Point Unit (FPU) in the hardware. This is done by:
+
+```sh
+SDRAM_SIZE=xx SAXON_CPU_COUNT=? SAXON_FPU=1 saxon_netlist
+FPGA_SIZE=85 saxon_bitstream
+```
+
+Note that the FPU will not fit on a 12f, but should fit on a 45f.
+
+If you include the FPU in the bitstream, you must also include it in the Linux build. This is done by manually editing the following lines in $SAXON_ROOT/buildroot-spinal-saxon/configs/saxon_ulx3s_defconfig:
+
+```
+# Include the following two lines if an FPU is included in the bitstream
+#BR2_RISCV_ISA_CUSTOM_RVF=y
+#BR2_RISCV_ISA_CUSTOM_RVD=y
+```
+
+And changing them to:
+
+```
+# Include the following two lines if an FPU is included in the bitstream
+BR2_RISCV_ISA_CUSTOM_RVF=y
+BR2_RISCV_ISA_CUSTOM_RVD=y
+```
+
+You should then do:
+
+```sh
+SDRAM_SIZE=?? SAXON_CPU_COUNT=? SAXON_FPU=1 saxon_buildroot
+```
+
 ### Flash SPI 
 
 ```sh
