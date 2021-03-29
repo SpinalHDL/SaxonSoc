@@ -6,6 +6,7 @@ import spinal.core.fiber._
 import spinal.core
 import spinal.core.{Clock, _}
 import spinal.core.sim._
+import spinal.lib.{Delay, LatencyAnalysis}
 import spinal.lib.blackbox.lattice.ecp5.{IFS1P3BX, ODDRX1F, OFS1P3BX}
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
 import spinal.lib.bus.bmb._
@@ -30,10 +31,11 @@ import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, XilinxS7Phy}
 import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
 import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
-
+import vexriscv.ip.fpu.{FpuCore, FpuParameter}
+import vexriscv.plugin.{AesPlugin, FpuPlugin}
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
-class Ulx3sSmpAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount){
+class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric(withOutOfOrderDecoder = true)
 
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l).mapCtrlAt(0x100000)
@@ -90,9 +92,12 @@ class Ulx3sSmpAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount
     }
   }
 
+  val dBus32 = BmbBridgeGenerator()
+  dBus32.dataWidth(32)
+
   // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
-  interconnect.addConnection(dma.read,  fabric.dBus.bmb)
-  interconnect.addConnection(dma.readSg,  fabric.dBus.bmb)
+  interconnect.addConnection(dma.read,    dBus32.bmb)
+  interconnect.addConnection(dma.readSg,  dBus32.bmb)
   interconnect.addConnection(dma.writeSg,  fabric.dBusCoherent.bmb)
 
   val vga = BmbVgaCtrlGenerator(0x90000)
@@ -106,10 +111,56 @@ class Ulx3sSmpAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount
   ramA.dataWidth.load(32)
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
 
+
+
   interconnect.addConnection(
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
-    fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
+    fabric.dBus.bmb -> List(dBus32.bmb),
+    dBus32.bmb      -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
+
+  val fpu = includeFpu generate new Area{
+    val extraStage = cpuCount > 1
+    val logic = Handle{
+      new FpuCore(
+        portCount = cpuCount,
+        p =  FpuParameter(
+          withDouble = true,
+          asyncRegFile = false,
+          schedulerM2sPipe = extraStage
+        )
+      )
+    }
+
+    val connect = Handle{
+      for(i <- 0 until cpuCount;
+          vex = cores(i).logic.cpu;
+          port = logic.io.port(i)) {
+        val plugin = vex.service(classOf[FpuPlugin])
+        plugin.port.cmd >> port.cmd
+        plugin.port.commit.pipelined(m2s = extraStage, s2m = false) >> port.commit
+        plugin.port.completion := port.completion.stage()
+        plugin.port.rsp << port.rsp.pipelined(m2s = false, s2m = extraStage)
+
+        if (i == 0) {
+          println("cpuDecode to fpuDispatch " + LatencyAnalysis(vex.decode.arbitration.isValid, logic.decode.input.valid))
+          println("fpuDispatch to cpuRsp    " + LatencyAnalysis(logic.decode.input.valid, plugin.port.rsp.valid))
+
+          println("cpuWriteback to fpuAdd   " + LatencyAnalysis(vex.writeBack.input(plugin.FPU_COMMIT), logic.commitLogic(0).add.counter))
+
+          println("add                      " + LatencyAnalysis(logic.decode.add.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
+          println("mul                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
+          println("fma                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.decode.add.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
+          println("short                    " + LatencyAnalysis(logic.decode.shortPip.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
+
+
+          println("???                      " + LatencyAnalysis(vex.reflectBaseType("writeBack_FpuPlugin_commit_s2mPipe_rValid"), logic.io.port(0).rsp.ready))
+          println("???                      " + LatencyAnalysis(vex.reflectBaseType("writeBack_FpuPlugin_commit_s2mPipe_rValid"), logic.rf.scoreboards(0).targetWrite.valid))
+
+        }
+      }
+    }
+  }
 }
 
 class Ulx3sSystemCtrl(addressOffset : BigInt)
@@ -148,7 +199,7 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
 
 
 
-class Ulx3sSmp(cpuCount : Int) extends Component{
+class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean) extends Component{
   // Define the clock domains used by the SoC
   val globalCd = ClockDomainResetGenerator()
   globalCd.holdDuration.load(255)
@@ -168,7 +219,7 @@ class Ulx3sSmp(cpuCount : Int) extends Component{
 
 
   // ...
-  val system = systemCd.outputClockDomain on new Ulx3sSmpAbstract(cpuCount){
+  val system = systemCd.outputClockDomain on new Ulx3sSmpAbstract(cpuCount, includeFpu){
     val phyA = Ecp5Sdrx2PhyGenerator().connect(sdramA)
     val hdmiPhy = vga.withHdmiEcp5(hdmiCd.outputClockDomain)
   }
@@ -226,7 +277,7 @@ class Ulx3sSmp(cpuCount : Int) extends Component{
 }
 
 object Ulx3sSmpAbstract{
-  def default(g : Ulx3sSmpAbstract) = g.rework {
+  def default(g : Ulx3sSmpAbstract, includeFpu: Boolean = false) = g.rework {
     import g._
 
     // Configure the CPUs
@@ -236,14 +287,19 @@ object Ulx3sSmpAbstract{
         ioRange = _ (31 downto 28) === 0x1,
         resetVector = 0x10A00000l,
         iBusWidth = 32,
-        dBusWidth = 32,
+        dBusWidth = if (includeFpu) 64 else 32,
+        loadStoreWidth = if (includeFpu) 64 else 32,
         iCacheSize = 8192,
         dCacheSize = 8192,
         iCacheWays = 2,
         dCacheWays = 2,
         iBusRelax = true,
-        earlyBranch = false
+        earlyBranch = true,
+        withFloat = includeFpu,
+        withDouble = includeFpu,
+        externalFpu = includeFpu
       ))
+      cpu.config.plugins += AesPlugin()
     }
 
     // Configure the peripherals
@@ -336,7 +392,7 @@ object Ulx3sSmpAbstract{
 
     // Add some interconnect pipelining to improve FMax
     for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
-    interconnect.setPipelining(fabric.dBus.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(dBus32.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
@@ -352,7 +408,7 @@ object Ulx3sSmpAbstract{
 
 object Ulx3sSmp {
   //Function used to configure the SoC
-  def default(g : Ulx3sSmp, sdramSize : Int) = g.rework{
+  def default(g : Ulx3sSmp, sdramSize : Int, includeFpu: Boolean) = g.rework{
     import g._
 
     if (sdramSize == 32) {
@@ -362,7 +418,7 @@ object Ulx3sSmp {
     }
 
 
-    Ulx3sSmpAbstract.default(system)
+    Ulx3sSmpAbstract.default(system, includeFpu)
     system.ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 
     g
@@ -376,7 +432,11 @@ object Ulx3sSmp {
     val cpuCount = sys.env.get("SAXON_CPU_COUNT").get.toInt
     println("CPU_COUNT is " + cpuCount)
 
-    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount), sdramSize)))
+    val includeFpu = sys.env.getOrElse("SAXON_FPU","0") == "1"
+    if (includeFpu) println("FPU included")
+    else println("FPU not included")
+
+    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount, includeFpu), sdramSize, includeFpu)))
     BspGenerator("radiona/ulx3s/smp", report.toplevel, report.toplevel.system.cores(0).dBus)
   }
 }
