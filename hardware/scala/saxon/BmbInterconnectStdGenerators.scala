@@ -30,14 +30,15 @@ case class RtlPhyGenerator()extends Area{
 case class BmbOnChipRamGenerator(val address: Handle[BigInt] = Unset)
                                 (implicit interconnect: BmbInterconnectGenerator) extends Area {
   val size      = Handle[BigInt]
-  val dataWidth = Handle[Int]
   var hexOffset = BigInt(0)
   val hexInit = Handle[String]
+  val source = Handle[BmbAccessCapabilities]
   val requirements = Handle[BmbAccessParameter]
   val ctrl = Handle(logic.io.bus)
 
   interconnect.addSlave(
-    accessCapabilities = Handle(BmbOnChipRam.busCapabilities(size, dataWidth)),
+    accessSource       = source,
+    accessCapabilities = Handle(BmbOnChipRam.busCapabilities(size, source.dataWidth)),
     accessRequirements = requirements,
     bus = ctrl,
     mapping = Handle(SizeMapping(address, BigInt(1) << log2Up(size)))

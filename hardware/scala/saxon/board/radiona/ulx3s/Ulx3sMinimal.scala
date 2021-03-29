@@ -28,8 +28,6 @@ class Ulx3sMinimalAbstract extends Area{
   val gpioA = BmbGpioGenerator(0x00000)
   val uartA = BmbUartGenerator(0x10000)
 
-  ramA.dataWidth.load(32)
-
   //Interconnect specification
   interconnect.addConnection(
     cpu.iBus -> List(ramA.ctrl),

@@ -108,7 +108,6 @@ class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexR
 
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
-  ramA.dataWidth.load(32)
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
 
 
