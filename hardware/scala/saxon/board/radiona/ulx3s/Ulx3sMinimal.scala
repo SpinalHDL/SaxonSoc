@@ -43,7 +43,7 @@ class Ulx3sMinimal extends Component{
   val debugCdCtrl = ClockDomainResetGenerator()
   debugCdCtrl.holdDuration.load(4095)
   debugCdCtrl.enablePowerOnReset()
-  debugCdCtrl.makeExternal(FixedFrequency(25 MHz))
+  debugCdCtrl.makeExternal(FixedFrequency(25 MHz), resetActiveLevel = LOW)
 
   val systemCdCtrl = ClockDomainResetGenerator()
   systemCdCtrl.holdDuration.load(63)
