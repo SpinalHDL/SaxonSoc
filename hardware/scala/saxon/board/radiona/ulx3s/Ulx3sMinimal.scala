@@ -23,6 +23,9 @@ class Ulx3sMinimalAbstract extends Area{
   interconnect.setPriority(cpu.iBus, 1)
   interconnect.setPriority(cpu.dBus, 2)
 
+  val clint = BmbClintGenerator(0xB00000) //Used as a time reference only
+  clint.cpuCount.load(0)
+
   //Add components
   val ramA = BmbOnChipRamGenerator(0x80000000l)
   val gpioA = BmbGpioGenerator(0x00000)
