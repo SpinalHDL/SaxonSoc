@@ -7,6 +7,7 @@ import spinal.lib.bus.bmb._
 import spinal.lib.bus.misc.SizeMapping
 import spinal.lib.com.jtag.{JtagInstructionDebuggerGenerator, JtagTapDebuggerGenerator}
 import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
+import spinal.lib.com.jtag.altera.VJtag2BmbMasterGenerator
 import spinal.lib.generator._
 import spinal.lib.misc.plic.PlicMapping
 import vexriscv.VexRiscvBmbGenerator
@@ -18,7 +19,7 @@ class VexRiscvClusterGenerator(cpuCount : Int) extends Area {
   val bmbPeripheral = BmbBridgeGenerator(mapping = SizeMapping(0x10000000, 16 MiB)).peripheral(dataWidth = 32)
   implicit val peripheralDecoder = bmbPeripheral.asPeripheralDecoder()
 
-//   Define the main interrupt controllers
+  // Define the main interrupt controllers
   val plic = BmbPlicGenerator(0xC00000)
   plic.priorityWidth.load(2)
   plic.mapping.load(PlicMapping.sifive)
@@ -57,12 +58,12 @@ class VexRiscvClusterGenerator(cpuCount : Int) extends Area {
       invalidationMonitor.output -> List(dBus.bmb)
     )
 
-    for(cpu <- cores) {
-       interconnect.addConnection(
-         cpu.iBus -> List(iBus.bmb),
-         cpu.dBus -> List(dBusCoherent.bmb)
-       )
-     }
+   for(cpu <- cores) {
+      interconnect.addConnection(
+        cpu.iBus -> List(iBus.bmb),
+        cpu.dBus -> List(dBusCoherent.bmb)
+      )
+    }
 
     if(withOutOfOrderDecoder) interconnect.masters(dBus.bmb).withOutOfOrderDecoder()
   }
@@ -82,7 +83,6 @@ class VexRiscvClusterGenerator(cpuCount : Int) extends Area {
       tap
     }
 
-
     def withJtagInstruction() = {
       val tap = debugCd on JtagInstructionDebuggerGenerator()
       interconnect.addConnection(tap.bmb, ctrl.bmb)
@@ -92,6 +92,13 @@ class VexRiscvClusterGenerator(cpuCount : Int) extends Area {
     // For Xilinx series 7 FPGA
     def withBscane2(userId : Int) = {
       val tap = debugCd on Bscane2BmbMasterGenerator(userId)
+      interconnect.addConnection(tap.bmb, ctrl.bmb)
+      tap
+    }
+
+    // For Altera FPGAs
+    def withVJtag() = {
+      val tap = debugCd on VJtag2BmbMasterGenerator()
       interconnect.addConnection(tap.bmb, ctrl.bmb)
       tap
     }
