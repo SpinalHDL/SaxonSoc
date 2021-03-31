@@ -20,6 +20,8 @@
 * Bit-banged I2C with Linux driver for RTC
 * Optional PPPD networking via the esp32 co-processor
 
+![SoC](assets/diagram.png?raw=true "")
+
 ## Boot sequence
 
 The boot sequence is done in 4 steps :
@@ -29,7 +31,7 @@ The boot sequence is done in 4 steps :
   * Jump to the openSbi binary in machine mode
 
 * openSbi : In the SDRAM
-  * Initialise the machine mode CSR to support futher supervisor SBI call and to emulate some missing CSR
+  * Initialise the machine mode CSR to support futher supervisor SBI call
   * Jump to the u-boot binary in supervisor mode
 
 * u-boot : In the SDRAM
@@ -77,12 +79,15 @@ sudo apt-get update
 sudo apt-get install sbt
 
 # RISC-V toolchain
-wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-tar -xzvf riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-sudo mv riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6 /opt/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6
-sudo mv /opt/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6 /opt/riscv
-echo 'export PATH=/opt/riscv/bin:$PATH' >> ~/.bashrc
-export PATH=/opt/riscv/bin:$PATH
+VERSION=8.3.0-1.2
+mkdir -p ~/opt
+cd ~/opt
+wget https://github.com/xpack-dev-tools/riscv-none-embed-gcc-xpack/releases/download/v$VERSION/xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
+tar -xvf xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
+rm xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
+mv xpack-riscv-none-embed-gcc-$VERSION xpack-riscv-none-embed-gcc
+echo 'export PATH=~/opt/xpack-riscv-none-embed-gcc/bin:$PATH' >> ~/.bashrc
+export PATH=~/opt/xpack-riscv-none-embed-gcc/bin:$PATH
 ```
 
 You will also need the open source fpga tools: yosys, nextpnr-ecp5, ecppack (which you can get from [YosysHQ](https://github.com/YosysHQ/fpga-toolchain) ) and [fujproj](https://github.com/kost/fujprog) on the path. 
