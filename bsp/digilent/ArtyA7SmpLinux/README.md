@@ -16,7 +16,7 @@
 * Audio out (stereo) via sigma delta pin, Alsa driver provided
 * GPIO access in linux
 
-![SoC](assets/diagram.svg?raw=true "")
+![SoC](assets/diagram.png?raw=true "")
 
 ## Boot sequence
 
