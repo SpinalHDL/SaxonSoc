@@ -1,5 +1,94 @@
+## Hardware
 
-### Clone and build
+- Ulx3s 12f, 45f or 85f ECP5 board with 32Mb or 64Mb of SDRAM
+- USB micro cable
+- Micro SD card
+- Optional LAN8720 Ethernet board and cable
+- Optional HDMI monitor and cable
+
+## Implemented peripherals
+
+* SPI, which provides
+  * FPGA SPI flash access in Linux
+  * SDCARD in Linux
+  * User usage SPI
+* HDMI output, which can be used with DirectFB or X11 in Linux
+* Audio out (stereo) via sigma delta, Alsa driver provided
+* Uart to host and to esp32 co-processor
+* GPIO access in Linux
+* Ethernet MII with Linux driver
+* Bit-banged I2C with Linux driver for RTC
+* Optional PPPD networking via the esp32 co-processor
+
+## Boot sequence
+
+The boot sequence is done in 4 steps :
+
+* bootloader : In the OnChipRam initialized by the FPGA bitstream
+  * Copy the openSbi and the u-boot binary from the FPGA SPI flash to the SDRAM
+  * Jump to the openSbi binary in machine mode
+
+* openSbi : In the SDRAM
+  * Initialise the machine mode CSR to support futher supervisor SBI call and to emulate some missing CSR
+  * Jump to the u-boot binary in supervisor mode
+
+* u-boot : In the SDRAM
+  * Wait two seconds for user inputs
+  * Read the linux kernel uImage and dtb from the sdcard first partition
+  * Boot linux
+
+* Linux : in the SDRAM
+  * Kernel boot
+  * Run Buildroot from the sdcard second partition
+
+## Binary locations
+
+OnChipRam:
+- 0x20000000 : bootloader (~2 KB)
+
+SDRAM:
+- 0x80000000 : Linux kernel
+- 0x80F80000 : openSBI, 512 KB of reserved-memory (Linux can't use that memory space)
+- 0x80F00000 : u-boot
+
+FPGA SPI flash:
+- 0x340000   : openSBI
+- 0x380000   : u-boot
+
+Sdcard :
+- p1:uImage  : Linux kernel
+- p1:dtb     : Linux device tree binary
+- p2:*       : Buildroot
+
+## Dependencies
+
+```
+# Java JDK 8 (higher is ok)
+sudo add-apt-repository -y ppa:openjdk-r/ppa
+sudo apt-get update
+sudo apt-get install openjdk-8-jdk -y
+sudo update-alternatives --config java
+sudo update-alternatives --config javac
+
+# SBT (Scala build tool)
+echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823
+sudo apt-get update
+sudo apt-get install sbt
+
+# RISC-V toolchain
+wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
+tar -xzvf riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
+sudo mv riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6 /opt/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6
+sudo mv /opt/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6 /opt/riscv
+echo 'export PATH=/opt/riscv/bin:$PATH' >> ~/.bashrc
+export PATH=/opt/riscv/bin:$PATH
+```
+
+You will also need the open source fpga tools: yosys, nextpnr-ecp5, ecppack (which you can get from [YosysHQ](https://github.com/YosysHQ/fpga-toolchain) ) and [fujproj](https://github.com/kost/fujprog) on the path. 
+
+
+## Clone and build
 
 ```
 # Getting this repository
