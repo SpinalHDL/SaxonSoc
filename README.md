@@ -6,8 +6,8 @@ This repo experiment multiple things at once :
 - Linux and U-Boot on VexRiscv
 
 A few kits are supported :
-- ulx3s (ECP5) , documented in bsp/Ulx3sLinuxUboot/README.md
-- Arty-A7 (Artix 7), documented in bsp/Arty7Linux/README.md
+- ulx3s (ECP5) , documented in bsp/radiona/ulx3s/smp/README.md
+- Arty-A7 (Artix 7), documented in bsp/digilent/ArtyA7SmpLinux/README.md
 - ...
 
 
