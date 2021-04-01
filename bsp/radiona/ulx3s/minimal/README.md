@@ -15,12 +15,15 @@ sudo apt-get update
 sudo apt-get install sbt
 
 # RISC-V toolchain
-wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-tar -xzvf riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-sudo mv riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6 /opt/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6
-sudo mv /opt/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6 /opt/riscv
-echo 'export PATH=/opt/riscv/bin:$PATH' >> ~/.bashrc
-export PATH=/opt/riscv/bin:$PATH
+VERSION=8.3.0-1.2
+mkdir -p ~/opt
+cd ~/opt
+wget https://github.com/xpack-dev-tools/riscv-none-embed-gcc-xpack/releases/download/v$VERSION/xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
+tar -xvf xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
+rm xpack-riscv-none-embed-gcc-$VERSION-linux-x64.tar.gz
+mv xpack-riscv-none-embed-gcc-$VERSION xpack-riscv-none-embed-gcc
+echo 'export PATH=~/opt/xpack-riscv-none-embed-gcc/bin:$PATH' >> ~/.bashrc
+export PATH=~/opt/xpack-riscv-none-embed-gcc/bin:$PATH
 ```
 
 ## Clone and build
