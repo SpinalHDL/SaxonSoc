@@ -140,23 +140,6 @@ class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexR
         plugin.port.commit.pipelined(m2s = extraStage, s2m = false) >> port.commit
         plugin.port.completion := port.completion.stage()
         plugin.port.rsp << port.rsp.pipelined(m2s = false, s2m = extraStage)
-
-        if (i == 0) {
-          println("cpuDecode to fpuDispatch " + LatencyAnalysis(vex.decode.arbitration.isValid, logic.decode.input.valid))
-          println("fpuDispatch to cpuRsp    " + LatencyAnalysis(logic.decode.input.valid, plugin.port.rsp.valid))
-
-          println("cpuWriteback to fpuAdd   " + LatencyAnalysis(vex.writeBack.input(plugin.FPU_COMMIT), logic.commitLogic(0).add.counter))
-
-          println("add                      " + LatencyAnalysis(logic.decode.add.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
-          println("mul                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
-          println("fma                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.decode.add.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
-          println("short                    " + LatencyAnalysis(logic.decode.shortPip.rs1.mantissa, logic.merge.arbitrated.value.mantissa))
-
-
-          println("???                      " + LatencyAnalysis(vex.reflectBaseType("writeBack_FpuPlugin_commit_s2mPipe_rValid"), logic.io.port(0).rsp.ready))
-          println("???                      " + LatencyAnalysis(vex.reflectBaseType("writeBack_FpuPlugin_commit_s2mPipe_rValid"), logic.rf.scoreboards(0).targetWrite.valid))
-
-        }
       }
     }
   }
