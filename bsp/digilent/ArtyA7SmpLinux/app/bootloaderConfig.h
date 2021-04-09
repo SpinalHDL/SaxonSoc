@@ -30,7 +30,7 @@
 
 void bspMain() {
     bsp_putString("\n");
-    bsp_putString("SDRAM init\n");
+//    bsp_putString("SDRAM init\n");
     sdram_init(
         SDRAM_CTRL,
         RL,
@@ -66,7 +66,7 @@ void bspMain() {
     vgaInit();
 #endif
 
-    bsp_putString("Payload boot\n");
+//    bsp_putString("Payload boot\n");
     void (*userMain)(u32, u32, u32) = (void (*)(u32, u32, u32))OPENSBI_MEMORY;
     smp_unlock(userMain);
     userMain(0,0,0);

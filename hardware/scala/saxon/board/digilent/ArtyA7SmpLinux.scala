@@ -13,7 +13,7 @@ import spinal.lib.{Delay, LatencyAnalysis}
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
 import spinal.lib.bus.bmb._
 import spinal.lib.bus.bsb.BsbInterconnectGenerator
-import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
+import spinal.lib.bus.misc.{AddressMapping, DefaultMapping, SizeMapping}
 import spinal.lib.bus.simple.{PipelinedMemoryBus, PipelinedMemoryBusDecoder}
 import spinal.lib.com.eth.{MacEthParameter, PhyParameter}
 import spinal.lib.com.jtag.sim.JtagTcp
@@ -35,7 +35,94 @@ import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
 import vexriscv.ip.fpu.{FpuCore, FpuParameter}
 import vexriscv.plugin.{AesPlugin, FpuPlugin}
+import spinal.lib._
 
+
+class LabComponent(ctrlParameters : BmbParameter,
+                   preParameters : BmbParameter,
+                   postParameters : BmbParameter) extends Component{
+  val io = new Bundle {
+    val ctrl = slave(Bmb(ctrlParameters))
+    val valueA = out UInt(32 bits)
+
+    val preMask = slave(Bmb(preParameters))
+    val postMask = master(Bmb(postParameters))
+  }
+
+  val factory = BmbSlaveFactory(io.ctrl)
+  factory.driveAndRead(io.valueA, 0, 0)
+  val mask = factory.driveAndReadMultiWord(Bits(preParameters.access.dataWidth bits), 8) init(0xFF)
+
+  val cmdNeedMask = io.preMask.cmd.address(16)
+  io.postMask.cmd << io.preMask.cmd
+  io.postMask.cmd.context.removeAssignments()
+  io.postMask.cmd.context := io.preMask.cmd.context ## cmdNeedMask
+
+  io.preMask.rsp << io.postMask.rsp
+  io.preMask.rsp.context.removeAssignments()
+  io.preMask.rsp.context := io.postMask.rsp.context >> 1
+
+  val maskEnable = io.postMask.rsp.context(0)
+
+  when(maskEnable) {
+    io.preMask.rsp.data := io.postMask.rsp.data ^ mask
+  }
+}
+
+case class LabIntegration(ctrlAddress : Int, interconnect : BmbInterconnectGenerator) extends Area{
+  val logic = Handle(new LabComponent(
+    ctrlParameters = BmbParameter(ctrlRequirements),
+    preParameters  = BmbParameter(preRequirements),
+    postParameters = BmbParameter(postRequirements)
+  ))
+
+  val ctrl = Handle(logic.io.ctrl)
+  val valueA = Handle(logic.io.valueA.toIo())
+  val pre = Handle(logic.io.preMask)
+  val post = Handle(logic.io.postMask)
+
+  val ctrlSource       = Handle[BmbAccessCapabilities]
+  val ctrlCapabilities = Handle[BmbAccessCapabilities]
+  val ctrlRequirements = Handle[BmbAccessParameter]
+
+  interconnect.addSlave(
+    accessSource       = ctrlSource,
+    accessCapabilities = ctrlCapabilities,
+    accessRequirements = ctrlRequirements,
+    bus = ctrl,
+    mapping = SizeMapping(ctrlAddress, 4096)
+  )
+
+  val preSource       = Handle[BmbAccessCapabilities]
+  val preRequirements = Handle[BmbAccessParameter]
+
+  interconnect.addSlave(
+    accessSource       = preSource,
+    accessCapabilities = preSource,
+    accessRequirements = preRequirements,
+    bus = pre,
+    mapping = DefaultMapping
+  )
+
+  val postRequirements = Handle[BmbAccessParameter]
+  interconnect.addMaster(
+    accessRequirements = postRequirements,
+    bus = post
+  )
+
+  postRequirements.loadAsync(
+    preRequirements.sourcesTransform(source => source.copy(contextWidth = source.contextWidth + 1))
+  )
+
+  ctrlCapabilities.loadAsync(
+    ctrlSource.copy(
+      addressWidth = 12,
+      dataWidth = 32,
+      alignment = BmbParameter.BurstAlignement.LENGTH,
+      lengthWidthMax = 2
+    )
+  )
+}
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
 class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount){
@@ -102,16 +189,13 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
 
-//  val mainBus = BmbBridgeGenerator()
-//  interconnect.addConnection(
-//    fabric.iBus.bmb -> List(mainBus.bmb),
-//    fabric.dBus.bmb -> List(mainBus.bmb),
-//    mainBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
-//  )
+  val lab = LabIntegration(0x01000, interconnect)
+  interconnect.addConnection(bmbPeripheral.bmb, lab.ctrl)
+  interconnect.addConnection(lab.post, sdramA0.bmb)
 
   interconnect.addConnection(
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
-    fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
+    fabric.dBus.bmb -> List(lab.pre, bmbPeripheral.bmb)
   )
 
   val fpu = new Area{
@@ -415,12 +499,12 @@ object ArtyA7SmpLinux {
          setDefinitionName("ArtyA7SmpLinux")
 
          //Debug
-         val ja = out(Bits(8 bits))
-         systemCdCtrl.outputClockDomain on {
-           ja := 0
-           ja(0, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.fire)), 3)
-           ja(4, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.isStall)), 3)
-         }
+//         val ja = out(Bits(8 bits))
+//         systemCdCtrl.outputClockDomain on {
+//           ja := 0
+//           ja(0, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.fire)), 3)
+//           ja(4, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.isStall)), 3)
+//         }
 
        }))
     BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel, report.toplevel.system.cores(0).dBus)
@@ -520,14 +604,6 @@ object ArtyA7SmpLinuxSystemSim {
       systemCd.setInput(debugCd)
 
       val top = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount = 2) {
-
-        //      val vgaCd = ClockDomainResetGenerator()
-        //      vgaCd.holdDuration.load(63)
-        //      vgaCd.makeExternal(withResetPin = false)
-        //      vgaCd.asyncReset(debugCd)
-        //
-        //      vga.vgaCd.merge(vgaCd.outputClockDomain)
-
         vga.output.derivate(_.simPublic())
 
         vga.vgaCd.load(systemCd.outputClockDomain)
@@ -595,37 +671,17 @@ object ArtyA7SmpLinuxSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
-////      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
-//      val vga = VgaDisplaySim(dut.top.vga.output, clockDomain)
+      dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/lab/build/lab.bin")
+
+//      val images = "../buildroot-build/images/"
+//      dut.top.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
+//      dut.top.phy.logic.loadBin(0x00F00000, images + "u-boot.bin")
+//      dut.top.phy.logic.loadBin(0x00000000, images + "Image")
+//      dut.top.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
+//      dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
 //
-//      dut.top.eth.mii.RX.DV #= false
-//      dut.top.eth.mii.RX.ER #= false
-//      dut.top.eth.mii.RX.CRS #= false
-//      dut.top.eth.mii.RX.COL #= false
-//      dut.top.spiA.sdcard.data.read #= 3
-
-//      val memoryTraceFile = new FileOutputStream("memoryTrace")
-//      clockDomain.onSamplings{
-//        val cmd = dut.sdramA0.bmb.cmd
-//        if(cmd.valid.toBoolean){
-//          val address = cmd.address.toLong
-//          val opcode = cmd.opcode.toInt
-//          val source = cmd.source.toInt
-//          val bytes = Array[Byte](opcode.toByte, source.toByte, (address >> 0).toByte, (address >> 8).toByte, (address >> 16).toByte, (address >> 24).toByte)
-//          memoryTraceFile.write(bytes)
-//        }
-//      }
-
-      val images = "../buildroot-build/images/"
-
-      dut.top.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
-      dut.top.phy.logic.loadBin(0x00F00000, images + "u-boot.bin")
-      dut.top.phy.logic.loadBin(0x00000000, images + "Image")
-      dut.top.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
-      dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
-
-      //Bypass uboot
-      dut.top.phy.logic.loadBytes(0x00F00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
+//      //Bypass uboot
+//      dut.top.phy.logic.loadBytes(0x00F00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
 
 
 //        dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/fpu/build/fpu.bin")
