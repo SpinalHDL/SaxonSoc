@@ -31,12 +31,16 @@ import spinal.lib.memory.sdram.xdr.phy.{Ecp5Sdrx2Phy, XilinxS7Phy}
 import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
 import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
-import vexriscv.ip.fpu.{FpuCore, FpuParameter}
+import vexriscv.ip.fpu.{FpuCore, FpuParameter, FpuPort}
 import vexriscv.plugin.{AesPlugin, FpuPlugin}
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
 class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric(withOutOfOrderDecoder = true)
+
+  val fpu = includeFpu generate new FpuIntegration(){
+    setParameters(extraStage = cpuCount > 1)
+  }
 
   val sdramA = SdramXdrBmbGenerator(memoryAddress = 0x80000000l).mapCtrlAt(0x100000)
   val sdramA0 = sdramA.addPort()
@@ -93,7 +97,7 @@ class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexR
   }
 
   val dBus32 = BmbBridgeGenerator()
-  dBus32.dataWidth(32)
+  dBus32.dataWidth(32) //Avoid 64 bits FPU requirements getting further
 
   // interconnect.addConnection(dma.write, fabric.dBusCoherent.bmb)
   interconnect.addConnection(dma.read,    dBus32.bmb)
@@ -117,32 +121,6 @@ class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexR
     fabric.dBus.bmb -> List(dBus32.bmb),
     dBus32.bmb      -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
-
-  val fpu = includeFpu generate new Area{
-    val extraStage = cpuCount > 1
-    val logic = Handle{
-      new FpuCore(
-        portCount = cpuCount,
-        p =  FpuParameter(
-          withDouble = true,
-          asyncRegFile = false,
-          schedulerM2sPipe = extraStage
-        )
-      )
-    }
-
-    val connect = Handle{
-      for(i <- 0 until cpuCount;
-          vex = cores(i).logic.cpu;
-          port = logic.io.port(i)) {
-        val plugin = vex.service(classOf[FpuPlugin])
-        plugin.port.cmd >> port.cmd
-        plugin.port.commit.pipelined(m2s = extraStage, s2m = false) >> port.commit
-        plugin.port.completion := port.completion.stage()
-        plugin.port.rsp << port.rsp.pipelined(m2s = false, s2m = extraStage)
-      }
-    }
-  }
 }
 
 class Ulx3sSystemCtrl(addressOffset : BigInt)

@@ -34,6 +34,9 @@ import vexriscv.plugin.{AesPlugin, FpuPlugin}
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
 class NexysA7SmpLinuxAbtract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric()
+  val fpu = new FpuIntegration(){
+    setParameters(extraStage = false)
+  }
 
   val sdramA_cd = Handle[ClockDomain]
   val sdramA = sdramA_cd on SdramXdrBmbGenerator(memoryAddress = 0x80000000l)
@@ -100,30 +103,6 @@ class NexysA7SmpLinuxAbtract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
     fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
-
-  val fpu = new Area{
-    val logic = Handle{
-      new FpuCore(
-        portCount = cpuCount,
-        p =  FpuParameter(
-          withDouble = true,
-          asyncRegFile = false
-        )
-      )
-    }
-
-    val connect = Handle{
-      for(i <- 0 until cpuCount;
-          vex = cores(i).logic.cpu;
-          port = logic.io.port(i)) {
-        val plugin = vex.service(classOf[FpuPlugin])
-        plugin.port.cmd >> port.cmd
-        plugin.port.commit >> port.commit
-        plugin.port.completion := port.completion.stage()
-        plugin.port.rsp << port.rsp
-      }
-    }
-  }
 }
 
 class NexysA7SmpLinux(cpuCount : Int) extends Component{

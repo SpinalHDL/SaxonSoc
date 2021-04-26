@@ -41,6 +41,10 @@ import vexriscv.plugin.{AesPlugin, FpuPlugin}
 class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric()
 
+  val fpu = new FpuIntegration(){
+    setParameters(extraStage = false)
+  }
+
   val sdramA_cd = Handle[ClockDomain]
   val sdramA = sdramA_cd on SdramXdrBmbGenerator(memoryAddress = 0x80000000l)
   val sdramA0 = sdramA.addPort()
@@ -102,54 +106,10 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
 
-//  val mainBus = BmbBridgeGenerator()
-//  interconnect.addConnection(
-//    fabric.iBus.bmb -> List(mainBus.bmb),
-//    fabric.dBus.bmb -> List(mainBus.bmb),
-//    mainBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
-//  )
-
   interconnect.addConnection(
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
     fabric.dBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb)
   )
-
-  val fpu = new Area{
-    val logic = Handle{
-      new FpuCore(
-        portCount = cpuCount,
-        p =  FpuParameter(
-          withDouble = true,
-          asyncRegFile = false
-        )
-      )
-    }
-
-    val connect = Handle{
-      for(i <- 0 until cpuCount;
-          vex = cores(i).logic.cpu;
-          port = logic.io.port(i)) {
-        val plugin = vex.service(classOf[FpuPlugin])
-        plugin.port.cmd >> port.cmd
-        plugin.port.commit >> port.commit
-        plugin.port.completion := port.completion.stage()
-        plugin.port.rsp << port.rsp
-
-        if (i == 0) {
-          println("cpuDecode to fpuDispatch " + LatencyAnalysis(vex.decode.arbitration.isValid, logic.decode.input.valid))
-          println("fpuDispatch to cpuRsp    " + LatencyAnalysis(logic.decode.input.valid, plugin.port.rsp.valid))
-
-          println("cpuWriteback to fpuAdd   " + LatencyAnalysis(vex.writeBack.input(plugin.FPU_COMMIT), logic.commitLogic(0).add.counter))
-
-          println("add                      " + LatencyAnalysis(logic.decode.add.rs1.mantissa, logic.get.merge.arbitrated.value.mantissa))
-          println("mul                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.get.merge.arbitrated.value.mantissa))
-          println("fma                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.get.decode.add.rs1.mantissa, logic.get.merge.arbitrated.value.mantissa))
-          println("short                    " + LatencyAnalysis(logic.decode.shortPip.rs1.mantissa, logic.get.merge.arbitrated.value.mantissa))
-
-        }
-      }
-    }
-  }
 }
 
 class ArtyA7SmpLinux(cpuCount : Int) extends Component{

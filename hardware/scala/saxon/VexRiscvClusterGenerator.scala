@@ -11,7 +11,8 @@ import spinal.lib.com.jtag.altera.VJtag2BmbMasterGenerator
 import spinal.lib.generator._
 import spinal.lib.misc.plic.PlicMapping
 import vexriscv.VexRiscvBmbGenerator
-import vexriscv.plugin.CsrPlugin
+import vexriscv.ip.fpu.{FpuCore, FpuParameter, FpuPort}
+import vexriscv.plugin.{CsrPlugin, FpuPlugin}
 
 class VexRiscvClusterGenerator(cpuCount : Int) extends Area {
   // Define the BMB interconnect utilities
@@ -107,6 +108,61 @@ class VexRiscvClusterGenerator(cpuCount : Int) extends Area {
   def withoutDebug(): Unit ={
     for ((cpu,i) <- cores.zipWithIndex) {
       cores(i).disableDebug()
+    }
+  }
+
+  class FpuIntegration extends Area{
+    val parameter = Handle[FpuParameter]
+    val connect = Handle[(FpuPort,FpuPort) => Unit]
+
+    def setParameters(extraStage : Boolean): this.type ={
+      connect.load{(m : FpuPort, s : FpuPort) =>
+        m.cmd >> s.cmd
+        m.commit.pipelined(m2s = extraStage) >> s.commit
+        m.completion := s.completion.stage()
+        m.rsp << s.rsp.pipelined(s2m = extraStage)
+        : Unit
+      }
+      parameter.load(
+        FpuParameter(
+          withDouble = true,
+          asyncRegFile = false,
+          schedulerM2sPipe = extraStage
+        )
+      )
+      this
+    }
+
+
+    val logic = Handle{
+      new FpuCore(
+        portCount = cpuCount,
+        p =  FpuParameter(
+          withDouble = true,
+          asyncRegFile = false
+        )
+      )
+    }
+
+    val doConnect = Handle{
+      for(i <- 0 until cpuCount;
+          vex = cores(i).logic.cpu;
+          port = logic.io.port(i)) {
+        val plugin = vex.service(classOf[FpuPlugin])
+        connect(plugin.port, port)
+
+        if (i == 0) {
+          println("cpuDecode to fpuDispatch " + LatencyAnalysis(vex.decode.arbitration.isValid, logic.decode.input.valid))
+          println("fpuDispatch to cpuRsp    " + LatencyAnalysis(logic.decode.input.valid, plugin.port.rsp.valid))
+
+          println("cpuWriteback to fpuAdd   " + LatencyAnalysis(vex.writeBack.input(plugin.FPU_COMMIT), logic.commitLogic(0).add.counter))
+
+          println("add                      " + LatencyAnalysis(logic.decode.add.rs1.mantissa, logic.get.merge.arbitrated.value.mantissa))
+          println("mul                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.get.merge.arbitrated.value.mantissa))
+          println("fma                      " + LatencyAnalysis(logic.decode.mul.rs1.mantissa, logic.get.decode.add.rs1.mantissa, logic.get.merge.arbitrated.value.mantissa))
+          println("short                    " + LatencyAnalysis(logic.decode.shortPip.rs1.mantissa, logic.get.merge.arbitrated.value.mantissa))
+        }
+      }
     }
   }
 }
