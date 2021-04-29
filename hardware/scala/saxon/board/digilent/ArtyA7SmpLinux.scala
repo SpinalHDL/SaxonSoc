@@ -2,7 +2,7 @@ package saxon.board.digilent
 
 import java.awt.image.BufferedImage
 import java.awt.{Color, Dimension, Graphics}
-import java.io.{ByteArrayOutputStream, FileInputStream, FileOutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, FileInputStream, FileOutputStream}
 import javax.swing.{JFrame, JPanel, WindowConstants}
 import saxon.common.I2cModel
 import saxon._
@@ -22,6 +22,7 @@ import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
+import spinal.lib.com.usb.ohci.{OhciPortParameter, UsbOhciGenerator, UsbOhciParameter}
 import spinal.lib.generator._
 import spinal.lib.generator_backup.Handle.initImplicit
 import spinal.lib.graphic.RgbConfig
@@ -102,6 +103,11 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
   val audioOut = BmbBsbToDeltaSigmaGenerator(0x94000)
   bsbInterconnect.connect(dma.audioOut.stream.output, audioOut.input)
 
+  val usbACtrl = new UsbOhciGenerator(0xA0000)
+  plic.addInterrupt(usbACtrl.interrupt, 16)
+  interconnect.addConnection(usbACtrl.dma, fabric.dBusCoherent.bmb)
+
+
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
@@ -147,6 +153,9 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     // Enable native JTAG debug
     val debugBus = this.withDebugBus(debugCd, sdramCdCtrl, 0x10B80000)
     val nativeJtag = debugBus.withBscane2(userId = 2)
+
+    val usbAPhy = usbACtrl.createPhyDefault()
+    val usbAPort = usbAPhy.createInferableIo()
   }
 
 
@@ -176,7 +185,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
       addGenerics(
         "CLKIN1_PERIOD" -> 10.0,
         "CLKFBOUT_MULT" -> 12,
-        "CLKOUT0_DIVIDE" -> 12,
+        "CLKOUT0_DIVIDE" -> 12.5,
         "CLKOUT0_PHASE" -> 0,
         "CLKOUT1_DIVIDE" -> 8,
         "CLKOUT1_PHASE" -> 0,
@@ -210,13 +219,35 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     pll.CLKFBIN := pll.CLKFBOUT
     pll.CLKIN1 := GCLK100
 
+//    val pll2 = new BlackBox{
+//      setDefinitionName("PLLE2_ADV")
+//
+//      addGenerics(
+//        "CLKIN1_PERIOD" -> 10.0,
+//        "CLKFBOUT_MULT" -> 51,
+//        "DIVCLK_DIVIDE" -> 5,
+//        "CLKOUT0_DIVIDE" -> 30,
+//        "CLKOUT0_PHASE" -> 0
+//      )
+//
+//      val CLKIN1   = in Bool()
+//      val CLKFBIN  = in Bool()
+//      val CLKFBOUT = out Bool()
+//      val CLKOUT0  = out Bool()
+//      //      Clock.syncDrive(CLKIN1, CLKOUT0)
+//    }
+//
+//
+//    pll2.CLKFBIN := pll2.CLKFBOUT
+//    pll2.CLKIN1 := GCLK100
+
     val clk25 = out Bool()
     clk25 := pll.CLKOUT5
 
     debugCdCtrl.setInput(
       ClockDomain(
         clock = pll.CLKOUT0,
-        frequency = FixedFrequency(100 MHz)
+        frequency = FixedFrequency(96 MHz)
       )
     )
     sdramCdCtrl.setInput(
@@ -342,6 +373,16 @@ object ArtyA7SmpLinuxAbstract{
       rateWidth = 16
     )
 
+    usbACtrl.parameter load UsbOhciParameter(
+      noPowerSwitching = true,
+      powerSwitchingMode = true,
+      noOverCurrentProtection = true,
+      powerOnToPowerGoodTime = 10,
+      fsRatio = 96/12,
+      dataWidth = 64,
+      portsConfig = List.fill(1)(OhciPortParameter())
+    )
+
     // Add some interconnect pipelining to improve FMax
     for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
@@ -351,6 +392,7 @@ object ArtyA7SmpLinuxAbstract{
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
     interconnect.setPipelining(dma.read)(cmdHalfRate = true)
+    interconnect.setPipelining(usbACtrl.dma)(cmdValid = true, cmdReady = true, rspValid = true)
 
     g
   }
@@ -472,14 +514,14 @@ object ArtyA7SmpLinuxSystemSim {
       debugCd.enablePowerOnReset()
       debugCd.holdDuration.load(63)
       debugCd.makeExternal(
-        frequency = FixedFrequency(100 MHz)
+        frequency = FixedFrequency(96 MHz)
       )
 
       val systemCd = ClockDomainResetGenerator()
       systemCd.holdDuration.load(63)
       systemCd.setInput(debugCd)
 
-      val top = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount = 2) {
+      val top = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount = 1) {
 
         //      val vgaCd = ClockDomainResetGenerator()
         //      vgaCd.holdDuration.load(63)
@@ -504,6 +546,12 @@ object ArtyA7SmpLinuxSystemSim {
         sdramA_cd.load(systemCd.outputClockDomain)
 
         sdramA0.bmb.derivate(_.cmd.simPublic())
+
+        val usbAPhy = usbACtrl.createPhyDefault()
+        val usbAPort = usbAPhy.createSimIo()
+
+        Handle(fabric.dBusCoherent.bmb.get.simPublic())
+
         ArtyA7SmpLinuxAbstract.default(this)
         ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
       }
@@ -521,23 +569,40 @@ object ArtyA7SmpLinuxSystemSim {
 
 
       fork{
-        val at = 0
-        val duration = 0
-        while(simTime() < at*1000000000l) {
-          disableSimWave()
-          sleep(10000 * 10000)
-          enableSimWave()
-          sleep(  100 * 10000)
+        val d = dut.top.fabric.dBusCoherent.bmb.cmd
+        var timeout = 500
+        dut.debugCd.inputClockDomain.onSamplings{
+          if(timeout == 1){
+            disableSimWave()
+          }
+          timeout -= 1
+          if(d.valid.toBoolean && (d.address.toLong & 0xFFFFF000) == 0x100a0000){
+            timeout = 1500000
+            enableSimWave()
+          }
+          if(timeout == -50000){
+            timeout = 500
+            enableSimWave()
+          }
         }
-        println("\n\n********************")
-        sleep(duration*1000000000l)
-        println("********************\n\n")
-        while(true) {
-          disableSimWave()
-          sleep(100000 * 10000)
-          enableSimWave()
-          sleep(  100 * 10000)
-        }
+
+//        val at = 0
+//        val duration = 0
+//        while(simTime() < at*1000000000l) {
+//          disableSimWave()
+//          sleep(10000 * 10000)
+//          enableSimWave()
+//          sleep(  100 * 10000)
+//        }
+//        println("\n\n********************")
+//        sleep(duration*1000000000l)
+//        println("********************\n\n")
+//        while(true) {
+//          disableSimWave()
+//          sleep(100000 * 10000)
+//          enableSimWave()
+//          sleep(  100 * 10000)
+//        }
       }
 
       val tcpJtag = JtagTcp(
@@ -554,6 +619,15 @@ object ArtyA7SmpLinuxSystemSim {
         uartPin = dut.top.uartA.uart.rxd,
         baudPeriod = uartBaudPeriod
       )
+
+      delayed(10e9.toLong) {
+        val fakeIn = new ByteArrayInputStream("\n\n\nusb start\n".map(_.toByte).toArray);
+        System.setIn(fakeIn);
+      }
+
+      dut.top.usbAPort.get.apply(0).overcurrent #= false
+      dut.top.usbAPort.get.apply(0).rx.dp #= false
+      dut.top.usbAPort.get.apply(0).rx.dm #= true
 
 ////      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
 //      val vga = VgaDisplaySim(dut.top.vga.output, clockDomain)
@@ -579,13 +653,13 @@ object ArtyA7SmpLinuxSystemSim {
       val images = "../buildroot-build/images/"
 
       dut.top.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
-      dut.top.phy.logic.loadBin(0x00F00000, images + "u-boot.bin")
+      dut.top.phy.logic.loadBin(0x00E00000, images + "u-boot.bin")
       dut.top.phy.logic.loadBin(0x00000000, images + "Image")
       dut.top.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
       dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
 
-      //Bypass uboot
-      dut.top.phy.logic.loadBytes(0x00F00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
+      //Bypass uboot  WARNING maybe the following line need to bu updated
+//      dut.top.phy.logic.loadBytes(0x00E00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
 
 
 //        dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/fpu/build/fpu.bin")

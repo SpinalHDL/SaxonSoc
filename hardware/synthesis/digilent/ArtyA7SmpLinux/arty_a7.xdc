@@ -8,6 +8,11 @@ create_clock -period 10.000 -name clocking_GCLK100 [get_nets clocking_GCLK100]
 
 
 set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT1
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT2
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT3
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT4
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT5
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_clk25_OBUF
 
 # JTAG
 set_property -dict {PACKAGE_PIN T18 IOSTANDARD LVCMOS33} [get_ports debug_master_jtag_tms]
@@ -82,6 +87,10 @@ set_property -dict {PACKAGE_PIN F1 IOSTANDARD LVCMOS33} [get_ports system_spiA_u
 # Audio
 set_property -dict {PACKAGE_PIN U11 IOSTANDARD LVCMOS33} [get_ports {system_audioOut_outputs[0]}]
 set_property -dict {PACKAGE_PIN V16 IOSTANDARD LVCMOS33} [get_ports {system_audioOut_outputs[1]}]
+
+# USB
+set_property -dict {PACKAGE_PIN R10 IOSTANDARD LVCMOS33} [get_ports {system_usbAPort_0_dp}]
+set_property -dict {PACKAGE_PIN R11 IOSTANDARD LVCMOS33} [get_ports {system_usbAPort_0_dm}]
 
 
 set_property -dict {PACKAGE_PIN E3 IOSTANDARD LVCMOS33} [get_ports clocking_GCLK100]
