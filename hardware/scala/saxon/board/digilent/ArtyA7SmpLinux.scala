@@ -22,7 +22,8 @@ import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
-import spinal.lib.com.usb.ohci.{OhciPortParameter, UsbOhciGenerator, UsbOhciParameter}
+import spinal.lib.com.usb.ohci.{OhciPortParameter, UsbOhciGenerator, UsbOhciParameter, UsbPid}
+import spinal.lib.com.usb.sim.{UsbDeviceAgent, UsbDeviceAgentListener, UsbLsFsPhyAbstractIoAgent}
 import spinal.lib.generator._
 import spinal.lib.generator_backup.Handle.initImplicit
 import spinal.lib.graphic.RgbConfig
@@ -36,6 +37,8 @@ import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
 import vexriscv.ip.fpu.{FpuCore, FpuParameter}
 import vexriscv.plugin.{AesPlugin, FpuPlugin}
+
+import scala.collection.mutable
 
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
@@ -568,42 +571,6 @@ object ArtyA7SmpLinuxSystemSim {
 //      clockDomain.forkSimSpeedPrinter(2.0)
 
 
-      fork{
-        val d = dut.top.fabric.dBusCoherent.bmb.cmd
-        var timeout = 500
-        dut.debugCd.inputClockDomain.onSamplings{
-          if(timeout == 1){
-            disableSimWave()
-          }
-          timeout -= 1
-          if(d.valid.toBoolean && (d.address.toLong & 0xFFFFF000) == 0x100a0000){
-            timeout = 1500000
-            enableSimWave()
-          }
-          if(timeout == -50000){
-            timeout = 500
-            enableSimWave()
-          }
-        }
-
-//        val at = 0
-//        val duration = 0
-//        while(simTime() < at*1000000000l) {
-//          disableSimWave()
-//          sleep(10000 * 10000)
-//          enableSimWave()
-//          sleep(  100 * 10000)
-//        }
-//        println("\n\n********************")
-//        sleep(duration*1000000000l)
-//        println("********************\n\n")
-//        while(true) {
-//          disableSimWave()
-//          sleep(100000 * 10000)
-//          enableSimWave()
-//          sleep(  100 * 10000)
-//        }
-      }
 
       val tcpJtag = JtagTcp(
         jtag = dut.top.jtagTap.jtag,
@@ -621,13 +588,106 @@ object ArtyA7SmpLinuxSystemSim {
       )
 
       delayed(10e9.toLong) {
-        val fakeIn = new ByteArrayInputStream("\n\n\nusb start\n".map(_.toByte).toArray);
+        val fakeIn = new ByteArrayInputStream("\n\n\nusb start\nusb stop\nusb start\n".map(_.toByte).toArray);
         System.setIn(fakeIn);
       }
 
+      val usbAgent = new UsbLsFsPhyAbstractIoAgent(dut.top.usbAPort.get.apply(0), clockDomain, 96/12)
+      val usbDevice = new UsbDeviceAgent(usbAgent)
+      usbDevice.allowSporadicReset = true
+      usbDevice.connect(lowSpeed = true)
+      usbDevice.listener = new UsbDeviceAgentListener{
+        def log(msg : String) = println(simTime() + " : " + msg)
+        def rsp(body : => Unit) = delayed(2000000){body}
+        override def reset() = {
+          log("USB RESET")
+        }
+
+        override def hcToUsb(addr: Int, endp: Int, tockenPid: Int, dataPid: Int, data: Seq[Int]) = {
+          log("USB OUT ACK")
+          rsp(usbAgent.emitBytes(UsbPid.ACK, Nil, false, false, true))
+        }
+
+        val inTasks = mutable.Queue[() => Unit]()
+        def scheduleInRsp(pid : Int, data : Seq[Int]) = inTasks += (() => rsp(usbAgent.emitBytes(pid, data, true, false, true)))
+        def scheduleInRspStr(pid : Int, data : String) = {
+          assert(data.size % 2 == 0)
+          scheduleInRsp(pid, data.grouped(2).map(Integer.parseInt(_, 16)).toSeq)
+        }
+        override def usbToHc(addr: Int, endp: Int) = {
+          log("USB IN")
+          if(inTasks.nonEmpty){
+            inTasks.dequeue().apply()
+            true
+          }else {
+            log("USB IN ERROR")
+            false
+          }
+        }
+
+        scheduleInRsp(UsbPid.DATA1, Nil)
+        scheduleInRsp(UsbPid.DATA1, List(0x12, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x08))
+        scheduleInRsp(UsbPid.DATA0, List(0x6D, 0x04, 0x16, 0xc0, 0x40, 0x03, 0x01, 0x02))
+        scheduleInRsp(UsbPid.DATA1, List(0x00, 0x01))
+        scheduleInRspStr(UsbPid.DATA1, "09022200010100A0")
+        scheduleInRspStr(UsbPid.DATA0, "32")
+        scheduleInRspStr(UsbPid.DATA1, "09022200010100A0")
+        scheduleInRspStr(UsbPid.DATA0, "3209040000010301")
+        scheduleInRspStr(UsbPid.DATA1, "0200092110010001")
+        scheduleInRspStr(UsbPid.DATA0, "2234000705810304")
+        scheduleInRspStr(UsbPid.DATA1, "000a")
+        scheduleInRspStr(UsbPid.DATA1, "")
+        scheduleInRspStr(UsbPid.DATA1, "04030904")
+        scheduleInRspStr(UsbPid.DATA1, "12034c006f006700")
+        scheduleInRspStr(UsbPid.DATA0, "6900740065006300")
+        scheduleInRspStr(UsbPid.DATA1, "6800")
+        scheduleInRspStr(UsbPid.DATA1, "24034f0070007400")
+        scheduleInRspStr(UsbPid.DATA0, "6900630061006c00")
+        scheduleInRspStr(UsbPid.DATA1, "2000550053004200")
+        scheduleInRspStr(UsbPid.DATA0, "20004d006f007500")
+        scheduleInRspStr(UsbPid.DATA1, "73006500")
+
+      }
+
+      fork{
+        val d = dut.top.fabric.dBusCoherent.bmb.cmd
+        var timeout = 500
+        dut.debugCd.inputClockDomain.onSamplings{
+          if(timeout == 1){
+            disableSimWave()
+          }
+          timeout -= 1
+          if(d.valid.toBoolean && (d.address.toLong & 0xFFFFF000) == 0x100a0000 || dut.top.usbAPort.get.apply(0).tx.enable.toBoolean && !dut.top.usbAPort.get.apply(0).tx.se0.toBoolean && dut.top.usbAPort.get.apply(0).tx.data.toBoolean || usbAgent.rx.enable){
+            if(timeout < 10) enableSimWave()
+            timeout = 500
+          }
+          if(timeout == -50000){
+            timeout = 500
+            enableSimWave()
+          }
+        }
+
+        //        val at = 0
+        //        val duration = 0
+        //        while(simTime() < at*1000000000l) {
+        //          disableSimWave()
+        //          sleep(10000 * 10000)
+        //          enableSimWave()
+        //          sleep(  100 * 10000)
+        //        }
+        //        println("\n\n********************")
+        //        sleep(duration*1000000000l)
+        //        println("********************\n\n")
+        //        while(true) {
+        //          disableSimWave()
+        //          sleep(100000 * 10000)
+        //          enableSimWave()
+        //          sleep(  100 * 10000)
+        //        }
+      }
+
+
       dut.top.usbAPort.get.apply(0).overcurrent #= false
-      dut.top.usbAPort.get.apply(0).rx.dp #= false
-      dut.top.usbAPort.get.apply(0).rx.dm #= true
 
 ////      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
 //      val vga = VgaDisplaySim(dut.top.vga.output, clockDomain)
@@ -741,3 +801,144 @@ object ArtyA7SmpLinuxSystemSim {
 //  }
 //
 //}
+
+
+
+object UsbDebug extends App{
+  val str =
+    """Time [s],PID,Address,Endpoint,Frame #,Data,CRC
+      |9.672193296000000,SETUP,0x00,0x00,,,0x02
+      |9.672220127999999,DATA0,,,,0x00 0x05 0x02 0x00 0x00 0x00 0x00 0x00,0x16EB
+      |9.672292327999999,ACK,,,,,
+      |9.672307608000001,IN,0x00,0x00,,,0x02
+      |9.672334255999999,DATA1,,,,,0x0000
+      |9.672360191999999,ACK,,,,,
+      |9.693060352000000,SETUP,0x02,0x00,,,0x15
+      |9.693087183999999,DATA0,,,,0x80 0x06 0x00 0x01 0x00 0x00 0x12 0x00,0xF4E0
+      |9.693158907999999,ACK,,,,,
+      |9.693174184000000,IN,0x02,0x00,,,0x15
+      |9.693200836000001,NAK,,,,,
+      |9.693216120000001,IN,0x02,0x00,,,0x15
+      |9.693242767999999,DATA1,,,,0x12 0x01 0x00 0x02 0x00 0x00 0x00 0x08,0xE757
+      |9.693311292000001,ACK,,,,,
+      |9.693327044000000,IN,0x02,0x00,,,0x15
+      |9.693354584000000,NAK,,,,,
+      |9.693369860000001,IN,0x02,0x00,,,0x15
+      |9.693396512000000,DATA0,,,,0x6D 0x04 0x16 0xC0 0x40 0x03 0x01 0x02,0xF35A
+      |9.693465040000000,ACK,,,,,
+      |9.693480792000001,IN,0x02,0x00,,,0x15
+      |9.693508324000000,DATA1,,,,0x00 0x01,0x8F3F
+      |9.693545576000000,ACK,,,,,
+      |9.693561327999999,OUT,0x02,0x00,,,0x15
+      |9.693588172000000,DATA1,,,,,0x0000
+      |9.693615480000000,ACK,,,,,
+      |9.704563112000001,SETUP,0x02,0x00,,,0x15
+      |9.704589944000000,DATA0,,,,0x80 0x06 0x00 0x02 0x00 0x00 0x09 0x00,0x04AE
+      |9.704661752000000,ACK,,,,,
+      |9.704677031999999,IN,0x02,0x00,,,0x15
+      |9.704703680000000,DATA1,,,,0x09 0x02 0x22 0x00 0x01 0x01 0x00 0xA0,0x980A
+      |9.704772203999999,ACK,,,,,
+      |9.704787956000001,IN,0x02,0x00,,,0x15
+      |9.704815496000000,DATA0,,,,0x32,0x6AC1
+      |9.704846748000000,ACK,,,,,
+      |9.704862500000001,OUT,0x02,0x00,,,0x15
+      |9.704889344000000,DATA1,,,,,0x0000
+      |9.704916660000000,ACK,,,,,
+      |9.715029540000000,SETUP,0x02,0x00,,,0x15
+      |9.715056371999999,DATA0,,,,0x80 0x06 0x00 0x02 0x00 0x00 0x22 0x00,0xF4B0
+      |9.715128320000000,ACK,,,,,
+      |9.715143604000000,IN,0x02,0x00,,,0x15
+      |9.715170252000000,DATA1,,,,0x09 0x02 0x22 0x00 0x01 0x01 0x00 0xA0,0x980A
+      |9.715238771999999,ACK,,,,,
+      |9.715254527999999,IN,0x02,0x00,,,0x15
+      |9.715282064000000,DATA0,,,,0x32 0x09 0x04 0x00 0x00 0x01 0x03 0x01,0x4D35
+      |9.715350588000000,ACK,,,,,
+      |9.715366336000001,IN,0x02,0x00,,,0x15
+      |9.715393880000001,DATA1,,,,0x02 0x00 0x09 0x21 0x10 0x01 0x00 0x01,0x7316
+      |9.715462408000000,ACK,,,,,
+      |9.715478160000000,IN,0x02,0x00,,,0x15
+      |9.715505692000001,NAK,,,,,
+      |9.715520972000000,IN,0x02,0x00,,,0x15
+      |9.715547620000001,DATA0,,,,0x22 0x34 0x00 0x07 0x05 0x81 0x03 0x04,0xE1AD
+      |9.715616144000000,ACK,,,,,
+      |9.715742896000000,IN,0x02,0x00,,,0x15
+      |9.715770583999999,DATA1,,,,0x00 0x0A,0x487E
+      |9.715807831999999,ACK,,,,,
+      |9.715823584000001,OUT,0x02,0x00,,,0x15
+      |9.715850428000000,DATA1,,,,,0x0000
+      |9.715877740000000,ACK,,,,,
+      |9.726541328000000,SETUP,0x02,0x00,,,0x15
+      |9.726568159999999,DATA0,,,,0x00 0x09 0x01 0x00 0x00 0x00 0x00 0x00,0x2527
+      |9.726639816000000,ACK,,,,,
+      |9.726655096000000,IN,0x02,0x00,,,0x15
+      |9.726681748000001,DATA1,,,,,0x0000
+      |9.726707680000001,ACK,,,,,
+      |9.747407084000001,SETUP,0x02,0x00,,,0x15
+      |9.747433916000000,DATA0,,,,0x80 0x06 0x00 0x03 0x00 0x00 0xFF 0x00,0x64D4
+      |9.747506403999999,ACK,,,,,
+      |9.747521688000001,IN,0x02,0x00,,,0x15
+      |9.747548331999999,NAK,,,,,
+      |9.747563612000000,IN,0x02,0x00,,,0x15
+      |9.747590263999999,DATA1,,,,0x04 0x03 0x09 0x04,0x7809
+      |9.747637495999999,ACK,,,,,
+      |9.747653248000001,OUT,0x02,0x00,,,0x15
+      |9.747680092000000,DATA1,,,,,0x0000
+      |9.747707404000000,ACK,,,,,
+      |9.757863892000000,SETUP,0x02,0x00,,,0x15
+      |9.757890723999999,DATA0,,,,0x80 0x06 0x01 0x03 0x09 0x04 0xFF 0x00,0xE897
+      |9.757962996000000,ACK,,,,,
+      |9.757978280000000,IN,0x02,0x00,,,0x15
+      |9.758004924000000,DATA1,,,,0x12 0x03 0x4C 0x00 0x6F 0x00 0x67 0x00,0x0935
+      |9.758073447999999,ACK,,,,,
+      |9.758089200000001,IN,0x02,0x00,,,0x15
+      |9.758116736000000,NAK,,,,,
+      |9.758132015999999,IN,0x02,0x00,,,0x15
+      |9.758158668000000,DATA0,,,,0x69 0x00 0x74 0x00 0x65 0x00 0x63 0x00,0x3E45
+      |9.758227196000000,ACK,,,,,
+      |9.758242947999999,IN,0x02,0x00,,,0x15
+      |9.758270480000000,NAK,,,,,
+      |9.758383112000001,IN,0x02,0x00,,,0x15
+      |9.758410251999999,DATA1,,,,0x68 0x00,0x8FD1
+      |9.758447496000000,ACK,,,,,
+      |9.758463248000000,OUT,0x02,0x00,,,0x15
+      |9.758490092000001,DATA1,,,,,0x0000
+      |9.758517403999999,ACK,,,,,
+      |9.769367400000000,SETUP,0x02,0x00,,,0x15
+      |9.769394232000000,DATA0,,,,0x80 0x06 0x02 0x03 0x09 0x04 0xFF 0x00,0xDB97
+      |9.769466508000001,ACK,,,,,
+      |9.769481788000000,IN,0x02,0x00,,,0x15
+      |9.769508436000001,NAK,,,,,
+      |9.769523712000000,IN,0x02,0x00,,,0x15
+      |9.769550368000001,NAK,,,,,
+      |9.769565648000000,IN,0x02,0x00,,,0x15
+      |9.769592296000001,DATA1,,,,0x24 0x03 0x4F 0x00 0x70 0x00 0x74 0x00,0xE0BC
+      |9.769660820000000,ACK,,,,,
+      |9.769676572000000,IN,0x02,0x00,,,0x15
+      |9.769704111999999,NAK,,,,,
+      |9.769823212000000,IN,0x02,0x00,,,0x15
+      |9.769850536000000,DATA0,,,,0x69 0x00 0x63 0x00 0x61 0x00 0x6C 0x00,0xD942
+      |9.769919056000001,ACK,,,,,
+      |9.769934808000000,IN,0x02,0x00,,,0x15
+      |9.769962348000000,DATA1,,,,0x20 0x00 0x55 0x00 0x53 0x00 0x42 0x00,0x0D90
+      |9.770030876000000,ACK,,,,,
+      |9.770046627999999,IN,0x02,0x00,,,0x15
+      |9.770074160000000,NAK,,,,,
+      |9.770089444000000,IN,0x02,0x00,,,0x15
+      |9.770116092000000,DATA0,,,,0x20 0x00 0x4D 0x00 0x6F 0x00 0x75 0x00,0xB589
+      |9.770184616000000,ACK,,,,,
+      |9.770200364000001,IN,0x02,0x00,,,0x15
+      |9.770227908000001,NAK,,,,,
+      |9.770243192000001,IN,0x02,0x00,,,0x15
+      |9.770269836000001,DATA1,,,,0x73 0x00 0x65 0x00,0x0FCE
+      |9.770317732000001,ACK,,,,,
+      |9.770333488000000,OUT,0x02,0x00,,,0x15
+      |9.770360331999999,DATA1,,,,,0x0000
+      |""".stripMargin
+
+  var isOut = false
+//  for(line <- str.lines{
+////    if(line.con)
+//  }
+
+
+}

@@ -209,9 +209,8 @@ py3tftp -p 69
 On host to setup the nfs files (note the NFS server setup should be already in place and have /srv/saxon-soc/nfs_root in read/write mode) : 
 
 ```sh
-cd $SAXON_ROOT
 sudo rm -rf /srv/saxon-soc/nfs_root
-sudo cp -rf buildroot-build/images/nfs_root /srv/saxon-soc/nfs_root
+sudo cp -rf $SAXON_ROOT/buildroot-build/images/nfs_root /srv/saxon-soc/nfs_root
 ```
 
 
