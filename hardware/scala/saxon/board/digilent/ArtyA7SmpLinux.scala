@@ -2,7 +2,7 @@ package saxon.board.digilent
 
 import java.awt.image.BufferedImage
 import java.awt.{Color, Dimension, Graphics}
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, FileInputStream, FileOutputStream}
+import java.io.{BufferedWriter, ByteArrayInputStream, ByteArrayOutputStream, File, FileInputStream, FileOutputStream, FileWriter}
 import javax.swing.{JFrame, JPanel, WindowConstants}
 import saxon.common.I2cModel
 import saxon._
@@ -188,7 +188,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
       addGenerics(
         "CLKIN1_PERIOD" -> 10.0,
         "CLKFBOUT_MULT" -> 12,
-        "CLKOUT0_DIVIDE" -> 12.5,
+        "CLKOUT0_DIVIDE" -> 12,
         "CLKOUT0_PHASE" -> 0,
         "CLKOUT1_DIVIDE" -> 8,
         "CLKOUT1_PHASE" -> 0,
@@ -222,34 +222,34 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     pll.CLKFBIN := pll.CLKFBOUT
     pll.CLKIN1 := GCLK100
 
-//    val pll2 = new BlackBox{
-//      setDefinitionName("PLLE2_ADV")
-//
-//      addGenerics(
-//        "CLKIN1_PERIOD" -> 10.0,
-//        "CLKFBOUT_MULT" -> 51,
-//        "DIVCLK_DIVIDE" -> 5,
-//        "CLKOUT0_DIVIDE" -> 30,
-//        "CLKOUT0_PHASE" -> 0
-//      )
-//
-//      val CLKIN1   = in Bool()
-//      val CLKFBIN  = in Bool()
-//      val CLKFBOUT = out Bool()
-//      val CLKOUT0  = out Bool()
-//      //      Clock.syncDrive(CLKIN1, CLKOUT0)
-//    }
-//
-//
-//    pll2.CLKFBIN := pll2.CLKFBOUT
-//    pll2.CLKIN1 := GCLK100
+    val pll2 = new BlackBox{
+      setDefinitionName("PLLE2_ADV")
+
+      addGenerics(
+        "CLKIN1_PERIOD" -> 10.0,
+        "CLKFBOUT_MULT" -> 48,
+        "DIVCLK_DIVIDE" -> 5,
+        "CLKOUT0_DIVIDE" -> 10,
+        "CLKOUT0_PHASE" -> 0
+      )
+
+      val CLKIN1   = in Bool()
+      val CLKFBIN  = in Bool()
+      val CLKFBOUT = out Bool()
+      val CLKOUT0  = out Bool()
+      //      Clock.syncDrive(CLKIN1, CLKOUT0)
+    }
+
+
+    pll2.CLKFBIN := pll2.CLKFBOUT
+    pll2.CLKIN1 := GCLK100
 
     val clk25 = out Bool()
     clk25 := pll.CLKOUT5
 
     debugCdCtrl.setInput(
       ClockDomain(
-        clock = pll.CLKOUT0,
+        clock = pll2.CLKOUT0,
         frequency = FixedFrequency(96 MHz)
       )
     )
@@ -423,8 +423,12 @@ object ArtyA7SmpLinux {
          val ja = out(Bits(8 bits))
          systemCdCtrl.outputClockDomain on {
            ja := 0
-           ja(0, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.fire)), 3)
-           ja(4, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.isStall)), 3)
+           ja(0, 2 bits) := Delay(system.usbACtrl.logic.endpoint.flowType.pull.asBits, 3)
+           ja(2) := Delay(system.usbACtrl.logic.endpoint.ED.F.pull, 3)
+           ja(3) := Delay(system.usbACtrl.logic.endpoint.TD.retire.pull, 3)
+           ja(4, 4 bits) := Delay(system.usbACtrl.logic.endpoint.TD.CC.pull, 3)
+//           ja(0, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.fire)), 3)
+//           ja(4, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.isStall)), 3)
          }
 
        }))
@@ -649,23 +653,23 @@ object ArtyA7SmpLinuxSystemSim {
 
       }
 
-      fork{
-        val d = dut.top.fabric.dBusCoherent.bmb.cmd
-        var timeout = 500
-        dut.debugCd.inputClockDomain.onSamplings{
-          if(timeout == 1){
-            disableSimWave()
-          }
-          timeout -= 1
-          if(d.valid.toBoolean && (d.address.toLong & 0xFFFFF000) == 0x100a0000 || dut.top.usbAPort.get.apply(0).tx.enable.toBoolean && !dut.top.usbAPort.get.apply(0).tx.se0.toBoolean && dut.top.usbAPort.get.apply(0).tx.data.toBoolean || usbAgent.rx.enable){
-            if(timeout < 10) enableSimWave()
-            timeout = 500
-          }
-          if(timeout == -50000){
-            timeout = 500
-            enableSimWave()
-          }
-        }
+//      fork{
+//        val d = dut.top.fabric.dBusCoherent.bmb.cmd
+//        var timeout = 500
+//        dut.debugCd.inputClockDomain.onSamplings{
+//          if(timeout == 1){
+//            disableSimWave()
+//          }
+//          timeout -= 1
+//          if(d.valid.toBoolean && (d.address.toLong & 0xFFFFF000) == 0x100a0000 || dut.top.usbAPort.get.apply(0).tx.enable.toBoolean && !dut.top.usbAPort.get.apply(0).tx.se0.toBoolean && dut.top.usbAPort.get.apply(0).tx.data.toBoolean || usbAgent.rx.enable){
+//            if(timeout < 10) enableSimWave()
+//            timeout = 500
+//          }
+//          if(timeout == -50000){
+//            timeout = 500
+//            enableSimWave()
+//          }
+//        }
 
         //        val at = 0
         //        val duration = 0
@@ -684,7 +688,7 @@ object ArtyA7SmpLinuxSystemSim {
         //          enableSimWave()
         //          sleep(  100 * 10000)
         //        }
-      }
+//      }
 
 
       dut.top.usbAPort.get.apply(0).overcurrent #= false
@@ -714,16 +718,16 @@ object ArtyA7SmpLinuxSystemSim {
 
       dut.top.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
       dut.top.phy.logic.loadBin(0x00E00000, images + "u-boot.bin")
-      dut.top.phy.logic.loadBin(0x00000000, images + "Image")
-      dut.top.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
-      dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
+//      dut.top.phy.logic.loadBin(0x00000000, images + "Image")
+//      dut.top.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
+//      dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
 
       //Bypass uboot  WARNING maybe the following line need to bu updated
 //      dut.top.phy.logic.loadBytes(0x00E00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
 
 
 //        dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/fpu/build/fpu.bin")
-//      dut.phy.logic.loadBin(0x00F80000, "software/standalone/audioOut/build/audioOut.bin")
+      dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/test/aes/build/aes.bin")
       //dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
@@ -941,4 +945,46 @@ object UsbDebug extends App{
 //  }
 
 
+}
+
+
+
+object UsbCaptureDecode extends App{
+  import scala.io.Source
+
+//  val filename = "/media/data/open/waves/linux_hub1_yellow_underflow"
+  val filename = "/media/data/open/waves/pc_hub1_yellow"
+  var state = "idle"
+
+  val file = new File(filename + "_decoded.txt")
+  val bw = new BufferedWriter(new FileWriter(file))
+
+  var ignore = false
+  for (line <- Source.fromFile(filename).getLines) {
+    val split = line.split(",")
+    val content = split(4).drop(1).dropRight(1)
+
+    state match {
+      case "idle" => {
+        if(!ignore) {
+          if(content.contains("SOF")){
+            ignore = true
+          } else if(content.contains("EOP")){
+            bw.write("\n")
+          } else if(content.contains("SYNC")){
+          } else if(content.contains("Byte")){
+            bw.write(content.drop(7))
+          } else {
+            bw.write(" " + content + " ")
+          }
+        }
+        if(content.contains("EOP")){
+          ignore = false
+        }
+      }
+      case "packet" =>
+    }
+  }
+  bw.flush()
+  bw.close()
 }
