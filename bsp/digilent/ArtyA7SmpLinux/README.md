@@ -169,6 +169,19 @@ saxon_sdcard_p1
 saxon_sdcard_p2
 ```
 
+## Booting from a USB drive
+
+```
+#Format the usb drive with the buildroot image, don't forget to set the USB_DRIVE variable to point to the /dev/xxx
+sudo dd if=$SAXON_ROOT/buildroot-build/images/sdcard.img of=USB_DRIVE bs=4M conv=sync status=progress
+```
+
+```
+#In U-BOOT
+env set bootargs "rootwait console=hvc0 earlycon=sbi root=/dev/sda2 init=/sbin/init"
+usb start; load usb 0:1 0x80000000 uImage;load usb 0:1 0x80FF0000 linux.dtb; bootm 0x80000000 - 0x80FF0000 
+```
+
 ## Booting from the sdcard
 
 ```
@@ -177,13 +190,14 @@ sudo dd if=$SAXON_ROOT/buildroot-build/images/sdcard.img of=$SDCARD bs=4M conv=s
 ```
 
 ```
+#In U-BOOT
 load mmc 0:1 0x80000000 uImage;load mmc 0:1 0x80FF0000 dtb; bootm 0x80000000 - 0x80FF0000 
 ```
 
 ## Booting with a ramfs with a preloaded sdcard in uboot
 
 ```
-load mmc 0:1 0x80000000 uImage;load mmc 0:1 0x80FF0000 dtb; load mmc 0:1 0x80FFFFC0 rootfs.cpio.uboot;bootm 0x80000000 0x80FFFFC0 0x80FF0000
+load mmc 0:1 0x80000000 uImage;load mmc 0:1 0x80FF0000 linux.dtb; load mmc 0:1 0x80FFFFC0 rootfs.cpio.uboot;bootm 0x80000000 0x80FFFFC0 0x80FF0000
 ```
 
 ## Running a baremetal simulation
