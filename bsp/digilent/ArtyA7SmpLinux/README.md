@@ -236,3 +236,44 @@ env set bootargs "rootwait console=hvc0 earlycon=sbi root=/dev/nfs nfsroot=192.1
 env set bootcmd "run boot_net"
 boot
 ```
+
+
+## X11 packages
+
+```
+BR2_PACKAGE_SDL2_X11=y
+BR2_PACKAGE_XORG7=y
+BR2_PACKAGE_XSERVER_XORG_SERVER=y
+BR2_PACKAGE_XAPP_SETXKBMAP=y
+BR2_PACKAGE_XAPP_TWM=y
+BR2_PACKAGE_XAPP_XCALC=y
+BR2_PACKAGE_XAPP_XCLOCK=y
+BR2_PACKAGE_XAPP_XDPYINFO=y
+BR2_PACKAGE_XAPP_XEYES=y
+BR2_PACKAGE_XAPP_XINIT=y
+BR2_PACKAGE_XAPP_XINPUT=y
+BR2_PACKAGE_XAPP_XMODMAP=y
+BR2_PACKAGE_XAPP_XREFRESH=y
+BR2_PACKAGE_XAPP_XWININFO=y
+BR2_PACKAGE_XDRIVER_XF86_INPUT_KEYBOARD=y
+BR2_PACKAGE_XDRIVER_XF86_INPUT_MOUSE=y
+BR2_PACKAGE_XDRIVER_XF86_VIDEO_FBDEV=y
+BR2_PACKAGE_XDOTOOL=y
+BR2_PACKAGE_XTERM=y
+```
+
+## Change keyboard layout :
+
+On your pc to identify the layout : 
+```
+setxkbmap -print | grep xkb_symbols
+# it give for me : 
+# xkb_symbols   { include "pc+ch(fr)+inet(evdev)+terminate(ctrl_alt_bksp)"	};
+```
+
+On the SoC :
+
+``` 
+setxkbmap -symbols "pc+ch(fr)+inet(evdev)+terminate(ctrl_alt_bksp)"
+```
+
