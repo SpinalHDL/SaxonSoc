@@ -173,7 +173,7 @@ saxon_sdcard_p2
 
 ```
 #Format the usb drive with the buildroot image, don't forget to set the USB_DRIVE variable to point to the /dev/xxx
-sudo dd if=$SAXON_ROOT/buildroot-build/images/sdcard.img of=USB_DRIVE bs=4M conv=sync status=progress
+sudo dd if=$SAXON_ROOT/buildroot-build/images/sdcard.img of=$USB_DRIVE bs=4M conv=sync status=progress
 ```
 
 ```

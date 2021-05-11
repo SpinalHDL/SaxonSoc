@@ -183,12 +183,12 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     val GCLK100 = in Bool()
 
     val pll = new BlackBox{
-      setDefinitionName("PLLE2_ADV")
+      setDefinitionName("MMCME2_BASE") //MMCME2_BASE
 
       addGenerics(
         "CLKIN1_PERIOD" -> 10.0,
-        "CLKFBOUT_MULT" -> 12,
-        "CLKOUT0_DIVIDE" -> 12,
+        "CLKFBOUT_MULT_F" -> 12,
+        "CLKOUT0_DIVIDE_F" -> 12.5,
         "CLKOUT0_PHASE" -> 0,
         "CLKOUT1_DIVIDE" -> 8,
         "CLKOUT1_PHASE" -> 0,
@@ -199,7 +199,9 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
         "CLKOUT4_DIVIDE" -> 4,
         "CLKOUT4_PHASE" -> 90,
         "CLKOUT5_DIVIDE" -> 48,
-        "CLKOUT5_PHASE" -> 0
+        "CLKOUT5_PHASE" -> 0,
+        "CLKOUT6_DIVIDE" -> 30,
+        "CLKOUT6_PHASE" -> 0
       )
 
       val CLKIN1   = in Bool()
@@ -211,6 +213,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
       val CLKOUT3  = out Bool()
       val CLKOUT4  = out Bool()
       val CLKOUT5  = out Bool()
+      val CLKOUT6  = out Bool()
 
       Clock.syncDrive(CLKIN1, CLKOUT1)
       Clock.syncDrive(CLKIN1, CLKOUT2)
@@ -222,34 +225,37 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     pll.CLKFBIN := pll.CLKFBOUT
     pll.CLKIN1 := GCLK100
 
-    val pll2 = new BlackBox{
-      setDefinitionName("PLLE2_ADV")
-
-      addGenerics(
-        "CLKIN1_PERIOD" -> 10.0,
-        "CLKFBOUT_MULT" -> 48,
-        "DIVCLK_DIVIDE" -> 5,
-        "CLKOUT0_DIVIDE" -> 10,
-        "CLKOUT0_PHASE" -> 0
-      )
-
-      val CLKIN1   = in Bool()
-      val CLKFBIN  = in Bool()
-      val CLKFBOUT = out Bool()
-      val CLKOUT0  = out Bool()
-      //      Clock.syncDrive(CLKIN1, CLKOUT0)
-    }
-
-
-    pll2.CLKFBIN := pll2.CLKFBOUT
-    pll2.CLKIN1 := GCLK100
+//    val pll2 = new BlackBox{
+//      setDefinitionName("PLLE2_ADV")
+//
+//      addGenerics(
+//        "CLKIN1_PERIOD" -> 10.0,
+//        "CLKFBOUT_MULT" -> 48,
+//        "DIVCLK_DIVIDE" -> 5,
+//        "CLKOUT0_DIVIDE" -> 10,
+//        "CLKOUT0_PHASE" -> 0//,
+////        "CLKOUT1_DIVIDE" -> 24,
+////        "CLKOUT1_PHASE" -> 0
+//      )
+//
+//      val CLKIN1   = in Bool()
+//      val CLKFBIN  = in Bool()
+//      val CLKFBOUT = out Bool()
+//      val CLKOUT0  = out Bool()
+////      val CLKOUT1  = out Bool()
+//      //      Clock.syncDrive(CLKIN1, CLKOUT0)
+//    }
+//
+//
+//    pll2.CLKFBIN := pll2.CLKFBOUT
+//    pll2.CLKIN1 := GCLK100
 
     val clk25 = out Bool()
     clk25 := pll.CLKOUT5
 
     debugCdCtrl.setInput(
       ClockDomain(
-        clock = pll2.CLKOUT0,
+        clock = pll.CLKOUT0,
         frequency = FixedFrequency(96 MHz)
       )
     )
@@ -259,7 +265,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
         frequency = FixedFrequency(150 MHz)
       )
     )
-    vgaCdCtrl.setInput(ClockDomain(clk25))
+    vgaCdCtrl.setInput(ClockDomain(pll.CLKOUT6))
     system.vga.vgaCd.load(vgaCd)
 
     sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
@@ -383,7 +389,7 @@ object ArtyA7SmpLinuxAbstract{
       powerOnToPowerGoodTime = 10,
       fsRatio = 96/12,
       dataWidth = 64,
-      portsConfig = List.fill(1)(OhciPortParameter())
+      portsConfig = List.fill(4)(OhciPortParameter())
     )
 
     // Add some interconnect pipelining to improve FMax
@@ -420,16 +426,16 @@ object ArtyA7SmpLinux {
          setDefinitionName("ArtyA7SmpLinux")
 
          //Debug
-         val ja = out(Bits(8 bits))
-         systemCdCtrl.outputClockDomain on {
-           ja := 0
-           ja(0, 2 bits) := Delay(system.usbACtrl.logic.endpoint.flowType.pull.asBits, 3)
-           ja(2) := Delay(system.usbACtrl.logic.endpoint.ED.F.pull, 3)
-           ja(3) := Delay(system.usbACtrl.logic.endpoint.TD.retire.pull, 3)
-           ja(4, 4 bits) := Delay(system.usbACtrl.logic.endpoint.TD.CC.pull, 3)
-//           ja(0, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.fire)), 3)
-//           ja(4, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.isStall)), 3)
-         }
+//         val ja = out(Bits(8 bits))
+//         systemCdCtrl.outputClockDomain on {
+//           ja := 0
+//           ja(0, 2 bits) := Delay(system.usbACtrl.logic.endpoint.flowType.pull.asBits, 3)
+//           ja(2) := Delay(system.usbACtrl.logic.endpoint.ED.F.pull, 3)
+//           ja(3) := Delay(system.usbACtrl.logic.endpoint.TD.retire.pull, 3)
+//           ja(4, 4 bits) := Delay(system.usbACtrl.logic.endpoint.TD.CC.pull, 3)
+////           ja(0, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.fire)), 3)
+////           ja(4, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.isStall)), 3)
+//         }
 
        }))
     BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel, report.toplevel.system.cores(0).dBus)

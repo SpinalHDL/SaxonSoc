@@ -38,16 +38,29 @@ static const Vga_Timing vga_h800_v600_r72 = {
 };
 
 static const Vga_Timing vga_h800_v600_r60 = {
-    .hSyncStart  = 128,
-    .hSyncEnd    = 1056,
-    .hColorStart = 128 + 40,
-    .hColorEnd   = 1056 - 88,
-    .vSyncStart  = 4,
-    .vSyncEnd 	 = 628,
-    .vColorStart = 4 + 1,
-    .vColorEnd 	 = 628 - 23,
+    .hSyncStart  = 127,
+    .hSyncEnd    = 1055,
+    .hColorStart = 215,
+    .hColorEnd   = 1015,
+    .vSyncStart  = 3,
+    .vSyncEnd 	 = 627,
+    .vColorStart = 26,
+    .vColorEnd 	 = 626,
     .polarities  = 3,
 };
+
+static const Vga_Timing vga_h1920_v1080_r60 = {
+    .hSyncStart  = 43,
+    .hSyncEnd    = 2199,
+    .hColorStart = 191,
+    .hColorEnd   = 2111,
+    .vSyncStart  = 4,
+    .vSyncEnd 	 = 1124,
+    .vColorStart = 40,
+    .vColorEnd 	 = 1120,
+    .polarities  = 3,
+};
+
 
 static const Vga_Timing vga_simRes = {
     .hSyncStart  = 8,

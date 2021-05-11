@@ -5,14 +5,16 @@ set_property CONFIG_VOLTAGE 3.3 [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 
 create_clock -period 10.000 -name clocking_GCLK100 [get_nets clocking_GCLK100]
+set_property CLOCK_DEDICATED_ROUTE BACKBONE [get_nets clocking_GCLK100_IBUF]
+set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets clocking_GCLK100_IBUF]
 
-
-set_clock_groups -asynchronous -group clocking_pll2_CLKOUT0 -group clocking_pll_CLKOUT1
-set_clock_groups -asynchronous -group clocking_pll2_CLKOUT0 -group clocking_pll_CLKOUT2
-set_clock_groups -asynchronous -group clocking_pll2_CLKOUT0 -group clocking_pll_CLKOUT3
-set_clock_groups -asynchronous -group clocking_pll2_CLKOUT0 -group clocking_pll_CLKOUT4
-set_clock_groups -asynchronous -group clocking_pll2_CLKOUT0 -group clocking_pll_CLKOUT5
-set_clock_groups -asynchronous -group clocking_pll2_CLKOUT0 -group clocking_clk25_OBUF
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT1
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT2
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT3
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT4
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT5
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT6
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_clk25_OBUF
 
 # JTAG
 set_property -dict {PACKAGE_PIN T18 IOSTANDARD LVCMOS33} [get_ports debug_master_jtag_tms]
@@ -89,8 +91,14 @@ set_property -dict {PACKAGE_PIN U11 IOSTANDARD LVCMOS33} [get_ports {system_audi
 set_property -dict {PACKAGE_PIN V16 IOSTANDARD LVCMOS33} [get_ports {system_audioOut_outputs[1]}]
 
 # USB
-set_property -dict {PACKAGE_PIN R10 IOSTANDARD LVCMOS33} [get_ports {system_usbAPort_0_dp}]
-set_property -dict {PACKAGE_PIN R11 IOSTANDARD LVCMOS33} [get_ports {system_usbAPort_0_dm}]
+set_property -dict {PACKAGE_PIN G13 IOSTANDARD LVCMOS33 SLEW FAST DRIVE 16} [get_ports {system_usbAPort_0_dp}]
+set_property -dict {PACKAGE_PIN D13 IOSTANDARD LVCMOS33 SLEW FAST DRIVE 16} [get_ports {system_usbAPort_0_dm}]
+set_property -dict {PACKAGE_PIN B11 IOSTANDARD LVCMOS33 SLEW FAST DRIVE 16} [get_ports {system_usbAPort_1_dp}]
+set_property -dict {PACKAGE_PIN B18 IOSTANDARD LVCMOS33 SLEW FAST DRIVE 16} [get_ports {system_usbAPort_1_dm}]
+set_property -dict {PACKAGE_PIN A11 IOSTANDARD LVCMOS33 SLEW FAST DRIVE 16} [get_ports {system_usbAPort_2_dp}]
+set_property -dict {PACKAGE_PIN A18 IOSTANDARD LVCMOS33 SLEW FAST DRIVE 16} [get_ports {system_usbAPort_2_dm}]
+set_property -dict {PACKAGE_PIN D12 IOSTANDARD LVCMOS33 SLEW FAST DRIVE 16} [get_ports {system_usbAPort_3_dp}]
+set_property -dict {PACKAGE_PIN K16 IOSTANDARD LVCMOS33 SLEW FAST DRIVE 16} [get_ports {system_usbAPort_3_dm}]
 
 
 set_property -dict {PACKAGE_PIN E3 IOSTANDARD LVCMOS33} [get_ports clocking_GCLK100]
@@ -157,14 +165,14 @@ set_property -dict {PACKAGE_PIN K6 IOSTANDARD SSTL135 SLEW FAST} [get_ports sdra
 
 
 
-set_property -dict { PACKAGE_PIN G13   IOSTANDARD LVCMOS33 } [get_ports { ja[0] }]; #IO_0_15 Sch=ja[1]
-set_property -dict { PACKAGE_PIN B11   IOSTANDARD LVCMOS33 } [get_ports { ja[1] }]; #IO_L4P_T0_15 Sch=ja[2]
-set_property -dict { PACKAGE_PIN A11   IOSTANDARD LVCMOS33 } [get_ports { ja[2] }]; #IO_L4N_T0_15 Sch=ja[3]
-set_property -dict { PACKAGE_PIN D12   IOSTANDARD LVCMOS33 } [get_ports { ja[3] }]; #IO_L6P_T0_15 Sch=ja[4]
-set_property -dict { PACKAGE_PIN D13   IOSTANDARD LVCMOS33 } [get_ports { ja[4] }]; #IO_L6N_T0_VREF_15 Sch=ja[7]
-set_property -dict { PACKAGE_PIN B18   IOSTANDARD LVCMOS33 } [get_ports { ja[5] }]; #IO_L10P_T1_AD11P_15 Sch=ja[8]
-set_property -dict { PACKAGE_PIN A18   IOSTANDARD LVCMOS33 } [get_ports { ja[6] }]; #IO_L10N_T1_AD11N_15 Sch=ja[9]
-set_property -dict { PACKAGE_PIN K16   IOSTANDARD LVCMOS33 } [get_ports { ja[7] }]; #IO_L11P_T1_SRCC_15 Sch=ja[10]
+#set_property -dict { PACKAGE_PIN G13   IOSTANDARD LVCMOS33 } [get_ports { ja[0] }]; #IO_0_15 Sch=ja[1]
+#set_property -dict { PACKAGE_PIN B11   IOSTANDARD LVCMOS33 } [get_ports { ja[1] }]; #IO_L4P_T0_15 Sch=ja[2]
+#set_property -dict { PACKAGE_PIN A11   IOSTANDARD LVCMOS33 } [get_ports { ja[2] }]; #IO_L4N_T0_15 Sch=ja[3]
+#set_property -dict { PACKAGE_PIN D12   IOSTANDARD LVCMOS33 } [get_ports { ja[3] }]; #IO_L6P_T0_15 Sch=ja[4]
+#set_property -dict { PACKAGE_PIN D13   IOSTANDARD LVCMOS33 } [get_ports { ja[4] }]; #IO_L6N_T0_VREF_15 Sch=ja[7]
+#set_property -dict { PACKAGE_PIN B18   IOSTANDARD LVCMOS33 } [get_ports { ja[5] }]; #IO_L10P_T1_AD11P_15 Sch=ja[8]
+#set_property -dict { PACKAGE_PIN A18   IOSTANDARD LVCMOS33 } [get_ports { ja[6] }]; #IO_L10N_T1_AD11N_15 Sch=ja[9]
+#set_property -dict { PACKAGE_PIN K16   IOSTANDARD LVCMOS33 } [get_ports { ja[7] }]; #IO_L11P_T1_SRCC_15 Sch=ja[10]
 
 
 # SMSC Ethernet PHY
