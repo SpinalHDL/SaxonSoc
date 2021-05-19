@@ -10,7 +10,7 @@ import spinal.core._
 import spinal.core.fiber._
 import spinal.core.sim._
 import spinal.lib.{Delay, LatencyAnalysis}
-import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
+import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, IBUF, STARTUPE2}
 import spinal.lib.bus.bmb._
 import spinal.lib.bus.bsb.BsbInterconnectGenerator
 import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
@@ -181,6 +181,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
   //Manage clocks and PLL
   val clocking = new Area{
     val GCLK100 = in Bool()
+    val GCLK100_B = BUFG.on(GCLK100)
 
     val pll = new BlackBox{
       setDefinitionName("MMCME2_BASE") //MMCME2_BASE
@@ -198,7 +199,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
         "CLKOUT3_PHASE" -> 0,
         "CLKOUT4_DIVIDE" -> 4,
         "CLKOUT4_PHASE" -> 90,
-        "CLKOUT5_DIVIDE" -> 48,
+        "CLKOUT5_DIVIDE" -> 24,
         "CLKOUT5_PHASE" -> 0,
         "CLKOUT6_DIVIDE" -> 30,
         "CLKOUT6_PHASE" -> 0
@@ -223,54 +224,50 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     }
 
     pll.CLKFBIN := pll.CLKFBOUT
-    pll.CLKIN1 := GCLK100
+    pll.CLKIN1 := IBUF.on(GCLK100_B)
 
-//    val pll2 = new BlackBox{
-//      setDefinitionName("PLLE2_ADV")
-//
-//      addGenerics(
-//        "CLKIN1_PERIOD" -> 10.0,
-//        "CLKFBOUT_MULT" -> 48,
-//        "DIVCLK_DIVIDE" -> 5,
-//        "CLKOUT0_DIVIDE" -> 10,
-//        "CLKOUT0_PHASE" -> 0//,
-////        "CLKOUT1_DIVIDE" -> 24,
-////        "CLKOUT1_PHASE" -> 0
-//      )
-//
-//      val CLKIN1   = in Bool()
-//      val CLKFBIN  = in Bool()
-//      val CLKFBOUT = out Bool()
-//      val CLKOUT0  = out Bool()
-////      val CLKOUT1  = out Bool()
-//      //      Clock.syncDrive(CLKIN1, CLKOUT0)
-//    }
-//
-//
-//    pll2.CLKFBIN := pll2.CLKFBOUT
-//    pll2.CLKIN1 := GCLK100
+    val pll2 = new BlackBox{
+      setDefinitionName("PLLE2_ADV")
 
-    val clk25 = out Bool()
-    clk25 := pll.CLKOUT5
+      addGenerics(
+        "CLKIN1_PERIOD" -> 10.0,
+        "CLKFBOUT_MULT" -> 13,
+        "DIVCLK_DIVIDE" -> 1,
+        "CLKOUT0_DIVIDE" -> 20,
+        "CLKOUT0_PHASE" -> 0
+      )
+
+      val CLKIN1   = in Bool()
+      val CLKFBIN  = in Bool()
+      val CLKFBOUT = out Bool()
+      val CLKOUT0  = out Bool()
+    }
+
+
+    pll2.CLKFBIN := pll2.CLKFBOUT
+    pll2.CLKIN1 := GCLK100_B
+
+    val clk25 = ClockDomain(BUFG.on(pll.CLKOUT5))(out(Reg(Bool)))
+    clk25 := !clk25
 
     debugCdCtrl.setInput(
       ClockDomain(
-        clock = pll.CLKOUT0,
+        clock = BUFG.on(pll.CLKOUT0),
         frequency = FixedFrequency(96 MHz)
       )
     )
     sdramCdCtrl.setInput(
       ClockDomain(
-        clock = pll.CLKOUT1,
+        clock = BUFG.on(pll.CLKOUT1),
         frequency = FixedFrequency(150 MHz)
       )
     )
-    vgaCdCtrl.setInput(ClockDomain(pll.CLKOUT6))
+    vgaCdCtrl.setInput(ClockDomain(BUFG.on(pll2.CLKOUT0)))
     system.vga.vgaCd.load(vgaCd)
 
-    sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
-    sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
-    sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
+    sdramDomain.phyA.clk90.load(ClockDomain(BUFG.on(pll.CLKOUT2)))
+    sdramDomain.phyA.serdesClk0.load(ClockDomain(BUFG.on(pll.CLKOUT3)))
+    sdramDomain.phyA.serdesClk90.load(ClockDomain(BUFG.on(pll.CLKOUT4)))
   }
 
   // Allow to access the native SPI flash clock pin

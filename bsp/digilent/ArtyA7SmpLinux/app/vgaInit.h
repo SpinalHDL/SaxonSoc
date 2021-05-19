@@ -16,9 +16,9 @@
     #define VGA_WIDTH 160
     #define VGA_HEIGHT 120
 #else
-    #define VGA_TIMINGS vga_h800_v600_r60
-    #define VGA_WIDTH 800
-    #define VGA_HEIGHT 600
+    #define VGA_TIMINGS vga_h1024_v768_r60
+    #define VGA_WIDTH 1024
+    #define VGA_HEIGHT 768
 #endif
 
 #define VGA_BYTE_PER_PIXEL 2

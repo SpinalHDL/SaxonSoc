@@ -49,6 +49,18 @@ static const Vga_Timing vga_h800_v600_r60 = {
     .polarities  = 3,
 };
 
+static const Vga_Timing vga_h1024_v768_r60 = {
+    .hSyncStart  = 135,
+    .hSyncEnd    = 1343,
+    .hColorStart = 295,
+    .hColorEnd   = 1319,
+    .vSyncStart  = 5,
+    .vSyncEnd 	 = 805,
+    .vColorStart = 34,
+    .vColorEnd 	 = 802,
+    .polarities  = 0
+};
+
 static const Vga_Timing vga_h1920_v1080_r60 = {
     .hSyncStart  = 43,
     .hSyncEnd    = 2199,

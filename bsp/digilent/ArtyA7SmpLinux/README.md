@@ -227,7 +227,11 @@ sudo rm -rf /srv/saxon-soc/nfs_root
 sudo cp -rf $SAXON_ROOT/buildroot-build/images/nfs_root /srv/saxon-soc/nfs_root
 ```
 
+If you want to update an already existing /srv/saxon-soc/nfs_root : 
 
+```sh
+sudo rsync -r -l $SAXON_ROOT/buildroot-build/images/nfs_root/ /srv/saxon-soc/nfs_root
+```
 uboot config :
 
 ```
@@ -277,3 +281,23 @@ On the SoC :
 setxkbmap -symbols "pc+ch(fr)+inet(evdev)+terminate(ctrl_alt_bksp)"
 ```
 
+
+## Change background
+
+```sh
+feh --bg-fill background.jpg
+```
+
+
+
+
+## Junk
+
+
+find images/nfs_root/share/man/man1 -type f -exec sed -i  's|/media/data/open/SaxonSoc/artyA7SmpUsb/buildroot-build/per-package/wmaker/target||g' {} ";"
+find images/nfs_root/man/man1  -type f -exec sed -i  's|/media/data/open/SaxonSoc/artyA7SmpUsb/buildroot-build/per-package/wmaker/target||g' {} ";"
+find images/nfs_root/WindowMaker  -type f -exec sed -i  's|/media/data/open/SaxonSoc/artyA7SmpUsb/buildroot-build/per-package/wmaker/target||g' {} ";"
+find images/nfs_root/etc/WindowMaker  -type f -exec sed -i  's|/media/data/open/SaxonSoc/artyA7SmpUsb/buildroot-build/per-package/wmaker/target||g' {} ";"
+find images/nfs_root/bin/wmaker.inst  -type f -exec sed -i  's|/media/data/open/SaxonSoc/artyA7SmpUsb/buildroot-build/per-package/wmaker/target||g' {} ";"
+
+xwd -root -out screenshot.xwd
