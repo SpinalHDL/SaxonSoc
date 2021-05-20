@@ -35,6 +35,7 @@ import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
 import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
+import vexriscv.ip.{DataCache, InstructionCache}
 import vexriscv.ip.fpu.{FpuCore, FpuParameter}
 import vexriscv.plugin.{AesPlugin, FpuPlugin}
 
@@ -423,16 +424,28 @@ object ArtyA7SmpLinux {
          setDefinitionName("ArtyA7SmpLinux")
 
          //Debug
-//         val ja = out(Bits(8 bits))
-//         systemCdCtrl.outputClockDomain on {
-//           ja := 0
-//           ja(0, 2 bits) := Delay(system.usbACtrl.logic.endpoint.flowType.pull.asBits, 3)
-//           ja(2) := Delay(system.usbACtrl.logic.endpoint.ED.F.pull, 3)
-//           ja(3) := Delay(system.usbACtrl.logic.endpoint.TD.retire.pull, 3)
-//           ja(4, 4 bits) := Delay(system.usbACtrl.logic.endpoint.TD.CC.pull, 3)
-////           ja(0, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.fire)), 3)
-////           ja(4, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.isStall)), 3)
-//         }
+         val debug = out(Bits(6 bits))
+         systemCdCtrl.outputClockDomain on {
+           debug := 0
+
+           def pip[T <: Data](that : T) = Delay(that, 3)
+
+           //PERF
+           debug(0) := pip(system.cores(0).logic.cpu.children.find(_.isInstanceOf[InstructionCache]).get.asInstanceOf[InstructionCache].lineLoader.valid.pull())
+           debug(1) := pip(system.cores(0).logic.cpu.children.find(_.isInstanceOf[DataCache]).get.asInstanceOf[DataCache].loader.valid.pull())
+           debug(2) := pip(system.cores(0).logic.cpu.reflectBaseType("MmuPlugin_shared_state").pull().asBits =/= 0)
+
+           if(cpuCount >= 2) {
+             debug(0 + 3) := pip(system.cores(1).logic.cpu.children.find(_.isInstanceOf[InstructionCache]).get.asInstanceOf[InstructionCache].lineLoader.valid.pull())
+             debug(1 + 3) := pip(system.cores(1).logic.cpu.children.find(_.isInstanceOf[DataCache]).get.asInstanceOf[DataCache].loader.valid.pull())
+             debug(2 + 3) := pip(system.cores(1).logic.cpu.reflectBaseType("MmuPlugin_shared_state").pull().asBits =/= 0)
+           }
+
+           //USB
+//           debug(0) := Delay(system.usbACtrl.logic.endpoint.ED.F.pull, 3)
+//           debug(1) := Delay(system.usbACtrl.logic.endpoint.TD.retire.pull, 3)
+//           debug(2, 4 bits) := Delay(system.usbACtrl.logic.endpoint.TD.CC.pull, 3)
+         }
 
        }))
     BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel, report.toplevel.system.cores(0).dBus)
@@ -956,7 +969,7 @@ object UsbCaptureDecode extends App{
   import scala.io.Source
 
 //  val filename = "/media/data/open/waves/linux_hub1_yellow_underflow"
-  val filename = "/media/data/open/waves/pc_hub1_yellow"
+  val filename = "/media/data/open/waves/uboot_x3_fail_pass"
   var state = "idle"
 
   val file = new File(filename + "_decoded.txt")
@@ -972,8 +985,12 @@ object UsbCaptureDecode extends App{
         if(!ignore) {
           if(content.contains("SOF")){
             ignore = true
+          } else if(content.contains("Keep alive")){
+//            ignore = true
           } else if(content.contains("EOP")){
             bw.write("\n")
+          } else if(content.contains("Reset")){
+            bw.write("\n* RESET *\n")
           } else if(content.contains("SYNC")){
           } else if(content.contains("Byte")){
             bw.write(content.drop(7))

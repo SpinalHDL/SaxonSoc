@@ -70,6 +70,14 @@ set_property -dict {PACKAGE_PIN T14 IOSTANDARD LVCMOS33} [get_ports {system_gpio
 set_property -dict {PACKAGE_PIN T15 IOSTANDARD LVCMOS33} [get_ports {system_gpioA_gpio[30]}]
 set_property -dict {PACKAGE_PIN T16 IOSTANDARD LVCMOS33} [get_ports {system_gpioA_gpio[31]}]
 
+# DEBUG
+set_property -dict { PACKAGE_PIN N15   IOSTANDARD LVCMOS33 } [get_ports { debug[0]  }]; #IO_L11P_T1_SRCC_14           Sch=ck_io[8]
+set_property -dict { PACKAGE_PIN M16   IOSTANDARD LVCMOS33 } [get_ports { debug[1]  }]; #IO_L10P_T1_D14_14            Sch=ck_io[9]
+set_property -dict { PACKAGE_PIN V17   IOSTANDARD LVCMOS33 } [get_ports { debug[2] }]; #IO_L18N_T2_A11_D27_14        Sch=ck_io[10]
+set_property -dict { PACKAGE_PIN U18   IOSTANDARD LVCMOS33 } [get_ports { debug[3] }]; #IO_L17N_T2_A13_D29_14        Sch=ck_io[11]
+set_property -dict { PACKAGE_PIN R17   IOSTANDARD LVCMOS33 } [get_ports { debug[4] }]; #IO_L12N_T1_MRCC_14           Sch=ck_io[12]
+set_property -dict { PACKAGE_PIN P17   IOSTANDARD LVCMOS33 } [get_ports { debug[5] }]; #IO_L12P_T1_MRCC_14           Sch=ck_io[13]
+
 # serial flash
 set_property -dict {PACKAGE_PIN L13 IOSTANDARD LVCMOS33} [get_ports {system_spiA_flash_ss[0]}]
 set_property -dict {PACKAGE_PIN K17 IOSTANDARD LVCMOS33} [get_ports {system_spiA_flash_data[0]}]
@@ -92,14 +100,14 @@ set_property -dict {PACKAGE_PIN U11 IOSTANDARD LVCMOS33} [get_ports {system_audi
 set_property -dict {PACKAGE_PIN V16 IOSTANDARD LVCMOS33} [get_ports {system_audioOut_outputs[1]}]
 
 # USB
-set_property -dict {PACKAGE_PIN G13 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8} [get_ports {system_usbAPort_0_dp}]
-set_property -dict {PACKAGE_PIN D13 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8} [get_ports {system_usbAPort_0_dm}]
-set_property -dict {PACKAGE_PIN B11 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8} [get_ports {system_usbAPort_1_dp}]
-set_property -dict {PACKAGE_PIN B18 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8} [get_ports {system_usbAPort_1_dm}]
-set_property -dict {PACKAGE_PIN A11 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8} [get_ports {system_usbAPort_2_dp}]
-set_property -dict {PACKAGE_PIN A18 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8} [get_ports {system_usbAPort_2_dm}]
-set_property -dict {PACKAGE_PIN D12 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8} [get_ports {system_usbAPort_3_dp}]
-set_property -dict {PACKAGE_PIN K16 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8} [get_ports {system_usbAPort_3_dm}]
+set_property -dict {PACKAGE_PIN G13 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8 PULLDOWN YES} [get_ports {system_usbAPort_0_dp}]
+set_property -dict {PACKAGE_PIN D13 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8 PULLDOWN YES} [get_ports {system_usbAPort_0_dm}]
+set_property -dict {PACKAGE_PIN B11 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8 PULLDOWN YES} [get_ports {system_usbAPort_1_dp}]
+set_property -dict {PACKAGE_PIN B18 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8 PULLDOWN YES} [get_ports {system_usbAPort_1_dm}]
+set_property -dict {PACKAGE_PIN A11 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8 PULLDOWN YES} [get_ports {system_usbAPort_2_dp}]
+set_property -dict {PACKAGE_PIN A18 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8 PULLDOWN YES} [get_ports {system_usbAPort_2_dm}]
+set_property -dict {PACKAGE_PIN D12 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8 PULLDOWN YES} [get_ports {system_usbAPort_3_dp}]
+set_property -dict {PACKAGE_PIN K16 IOSTANDARD LVCMOS33 SLEW SLOW DRIVE 8 PULLDOWN YES} [get_ports {system_usbAPort_3_dm}]
 
 
 set_property -dict {PACKAGE_PIN E3 IOSTANDARD LVCMOS33} [get_ports clocking_GCLK100]
