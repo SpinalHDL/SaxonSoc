@@ -8,6 +8,10 @@ create_clock -period 10.000 -name clocking_GCLK100 [get_nets clocking_GCLK100]
 set_property CLOCK_DEDICATED_ROUTE BACKBONE [get_nets clocking_GCLK100_IBUF]
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets clocking_GCLK100_IBUF]
 
+
+create_clock -period 40.000 -name system_eth_mii_RX_CLK [get_nets system_eth_mii_RX_CLK]
+create_clock -period 40.000 -name system_eth_mii_TX_CLK [get_nets system_eth_mii_TX_CLK]
+
 set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT1
 set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT2
 set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT3
@@ -16,6 +20,8 @@ set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_C
 set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll_CLKOUT6
 set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_clk25_OBUF
 set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group clocking_pll2_CLKOUT0
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group system_eth_mii_RX_CLK
+set_clock_groups -asynchronous -group clocking_pll_CLKOUT0 -group system_eth_mii_TX_CLK
 
 # JTAG
 set_property -dict {PACKAGE_PIN T18 IOSTANDARD LVCMOS33} [get_ports debug_master_jtag_tms]
