@@ -2,7 +2,7 @@ package saxon.board.digilent
 
 import java.awt.image.BufferedImage
 import java.awt.{Color, Dimension, Graphics}
-import java.io.{ByteArrayOutputStream, FileInputStream, FileOutputStream}
+import java.io.{BufferedWriter, ByteArrayInputStream, ByteArrayOutputStream, File, FileInputStream, FileOutputStream, FileWriter}
 import javax.swing.{JFrame, JPanel, WindowConstants}
 import saxon.common.I2cModel
 import saxon._
@@ -10,7 +10,7 @@ import spinal.core._
 import spinal.core.fiber._
 import spinal.core.sim._
 import spinal.lib.{Delay, LatencyAnalysis}
-import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
+import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, IBUF, STARTUPE2}
 import spinal.lib.bus.bmb._
 import spinal.lib.bus.bsb.BsbInterconnectGenerator
 import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
@@ -22,6 +22,8 @@ import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
+import spinal.lib.com.usb.ohci.{OhciPortParameter, UsbOhciGenerator, UsbOhciParameter, UsbPid}
+import spinal.lib.com.usb.sim.{UsbDeviceAgent, UsbDeviceAgentListener, UsbLsFsPhyAbstractIoAgent}
 import spinal.lib.generator._
 import spinal.lib.generator_backup.Handle.initImplicit
 import spinal.lib.graphic.RgbConfig
@@ -33,8 +35,11 @@ import spinal.lib.memory.sdram.xdr.phy.XilinxS7Phy
 import spinal.lib.misc.analog.{BmbBsbToDeltaSigmaGenerator, BsbToDeltaSigmaParameter}
 import spinal.lib.system.dma.sg.{DmaMemoryLayout, DmaSgGenerator}
 import vexriscv.demo.smp.VexRiscvSmpClusterGen
+import vexriscv.ip.{DataCache, InstructionCache}
 import vexriscv.ip.fpu.{FpuCore, FpuParameter}
 import vexriscv.plugin.{AesPlugin, FpuPlugin}
+
+import scala.collection.mutable
 
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
@@ -102,6 +107,11 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
   val audioOut = BmbBsbToDeltaSigmaGenerator(0x94000)
   bsbInterconnect.connect(dma.audioOut.stream.output, audioOut.input)
 
+  val usbACtrl = new UsbOhciGenerator(0xA0000)
+  plic.addInterrupt(usbACtrl.interrupt, 16)
+  interconnect.addConnection(usbACtrl.dma, fabric.dBusCoherent.bmb)
+
+
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
@@ -147,6 +157,9 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     // Enable native JTAG debug
     val debugBus = this.withDebugBus(debugCd, sdramCdCtrl, 0x10B80000)
     val nativeJtag = debugBus.withBscane2(userId = 2)
+
+    val usbAPhy = usbACtrl.createPhyDefault()
+    val usbAPort = usbAPhy.createInferableIo()
   }
 
 
@@ -169,14 +182,15 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
   //Manage clocks and PLL
   val clocking = new Area{
     val GCLK100 = in Bool()
+    val GCLK100_B = BUFG.on(GCLK100)
 
     val pll = new BlackBox{
-      setDefinitionName("PLLE2_ADV")
+      setDefinitionName("MMCME2_BASE") //MMCME2_BASE
 
       addGenerics(
         "CLKIN1_PERIOD" -> 10.0,
-        "CLKFBOUT_MULT" -> 12,
-        "CLKOUT0_DIVIDE" -> 12,
+        "CLKFBOUT_MULT_F" -> 12,
+        "CLKOUT0_DIVIDE_F" -> 12.5,
         "CLKOUT0_PHASE" -> 0,
         "CLKOUT1_DIVIDE" -> 8,
         "CLKOUT1_PHASE" -> 0,
@@ -186,8 +200,10 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
         "CLKOUT3_PHASE" -> 0,
         "CLKOUT4_DIVIDE" -> 4,
         "CLKOUT4_PHASE" -> 90,
-        "CLKOUT5_DIVIDE" -> 48,
-        "CLKOUT5_PHASE" -> 0
+        "CLKOUT5_DIVIDE" -> 24,
+        "CLKOUT5_PHASE" -> 0,
+        "CLKOUT6_DIVIDE" -> 30,
+        "CLKOUT6_PHASE" -> 0
       )
 
       val CLKIN1   = in Bool()
@@ -199,6 +215,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
       val CLKOUT3  = out Bool()
       val CLKOUT4  = out Bool()
       val CLKOUT5  = out Bool()
+      val CLKOUT6  = out Bool()
 
       Clock.syncDrive(CLKIN1, CLKOUT1)
       Clock.syncDrive(CLKIN1, CLKOUT2)
@@ -208,29 +225,50 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     }
 
     pll.CLKFBIN := pll.CLKFBOUT
-    pll.CLKIN1 := GCLK100
+    pll.CLKIN1 := IBUF.on(GCLK100_B)
 
-    val clk25 = out Bool()
-    clk25 := pll.CLKOUT5
+    val pll2 = new BlackBox{
+      setDefinitionName("PLLE2_ADV")
+
+      addGenerics(
+        "CLKIN1_PERIOD" -> 10.0,
+        "CLKFBOUT_MULT" -> 13,
+        "DIVCLK_DIVIDE" -> 1,
+        "CLKOUT0_DIVIDE" -> 20,
+        "CLKOUT0_PHASE" -> 0
+      )
+
+      val CLKIN1   = in Bool()
+      val CLKFBIN  = in Bool()
+      val CLKFBOUT = out Bool()
+      val CLKOUT0  = out Bool()
+    }
+
+
+    pll2.CLKFBIN := pll2.CLKFBOUT
+    pll2.CLKIN1 := GCLK100_B
+
+    val clk25 = ClockDomain(BUFG.on(pll.CLKOUT5))(out(Reg(Bool)))
+    clk25 := !clk25
 
     debugCdCtrl.setInput(
       ClockDomain(
-        clock = pll.CLKOUT0,
-        frequency = FixedFrequency(100 MHz)
+        clock = BUFG.on(pll.CLKOUT0),
+        frequency = FixedFrequency(96 MHz)
       )
     )
     sdramCdCtrl.setInput(
       ClockDomain(
-        clock = pll.CLKOUT1,
+        clock = BUFG.on(pll.CLKOUT1),
         frequency = FixedFrequency(150 MHz)
       )
     )
-    vgaCdCtrl.setInput(ClockDomain(clk25))
+    vgaCdCtrl.setInput(ClockDomain(BUFG.on(pll2.CLKOUT0)))
     system.vga.vgaCd.load(vgaCd)
 
-    sdramDomain.phyA.clk90.load(ClockDomain(pll.CLKOUT2))
-    sdramDomain.phyA.serdesClk0.load(ClockDomain(pll.CLKOUT3))
-    sdramDomain.phyA.serdesClk90.load(ClockDomain(pll.CLKOUT4))
+    sdramDomain.phyA.clk90.load(ClockDomain(BUFG.on(pll.CLKOUT2)))
+    sdramDomain.phyA.serdesClk0.load(ClockDomain(BUFG.on(pll.CLKOUT3)))
+    sdramDomain.phyA.serdesClk90.load(ClockDomain(BUFG.on(pll.CLKOUT4)))
   }
 
   // Allow to access the native SPI flash clock pin
@@ -342,6 +380,16 @@ object ArtyA7SmpLinuxAbstract{
       rateWidth = 16
     )
 
+    usbACtrl.parameter load UsbOhciParameter(
+      noPowerSwitching = true,
+      powerSwitchingMode = true,
+      noOverCurrentProtection = true,
+      powerOnToPowerGoodTime = 10,
+      fsRatio = 96/12,
+      dataWidth = 64,
+      portsConfig = List.fill(4)(OhciPortParameter())
+    )
+
     // Add some interconnect pipelining to improve FMax
     for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
@@ -351,6 +399,7 @@ object ArtyA7SmpLinuxAbstract{
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
     interconnect.setPipelining(dma.read)(cmdHalfRate = true)
+    interconnect.setPipelining(usbACtrl.dma)(cmdValid = true, cmdReady = true, rspValid = true)
 
     g
   }
@@ -375,11 +424,27 @@ object ArtyA7SmpLinux {
          setDefinitionName("ArtyA7SmpLinux")
 
          //Debug
-         val ja = out(Bits(8 bits))
+         val debug = out(Bits(6 bits))
          systemCdCtrl.outputClockDomain on {
-           ja := 0
-           ja(0, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.fire)), 3)
-           ja(4, cpuCount bits) := Delay(B(system.fpu.logic.io.port.map(_.cmd.isStall)), 3)
+           debug := 0
+
+           def pip[T <: Data](that : T) = Delay(that, 3)
+
+           //PERF
+           debug(0) := pip(system.cores(0).logic.cpu.children.find(_.isInstanceOf[InstructionCache]).get.asInstanceOf[InstructionCache].lineLoader.valid.pull())
+           debug(1) := pip(system.cores(0).logic.cpu.children.find(_.isInstanceOf[DataCache]).get.asInstanceOf[DataCache].loader.valid.pull())
+           debug(2) := pip(system.cores(0).logic.cpu.reflectBaseType("MmuPlugin_shared_state").pull().asBits =/= 0)
+
+           if(cpuCount >= 2) {
+             debug(0 + 3) := pip(system.cores(1).logic.cpu.children.find(_.isInstanceOf[InstructionCache]).get.asInstanceOf[InstructionCache].lineLoader.valid.pull())
+             debug(1 + 3) := pip(system.cores(1).logic.cpu.children.find(_.isInstanceOf[DataCache]).get.asInstanceOf[DataCache].loader.valid.pull())
+             debug(2 + 3) := pip(system.cores(1).logic.cpu.reflectBaseType("MmuPlugin_shared_state").pull().asBits =/= 0)
+           }
+
+           //USB
+//           debug(0) := Delay(system.usbACtrl.logic.endpoint.ED.F.pull, 3)
+//           debug(1) := Delay(system.usbACtrl.logic.endpoint.TD.retire.pull, 3)
+//           debug(2, 4 bits) := Delay(system.usbACtrl.logic.endpoint.TD.CC.pull, 3)
          }
 
        }))
@@ -472,14 +537,14 @@ object ArtyA7SmpLinuxSystemSim {
       debugCd.enablePowerOnReset()
       debugCd.holdDuration.load(63)
       debugCd.makeExternal(
-        frequency = FixedFrequency(100 MHz)
+        frequency = FixedFrequency(96 MHz)
       )
 
       val systemCd = ClockDomainResetGenerator()
       systemCd.holdDuration.load(63)
       systemCd.setInput(debugCd)
 
-      val top = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount = 2) {
+      val top = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount = 1) {
 
         //      val vgaCd = ClockDomainResetGenerator()
         //      vgaCd.holdDuration.load(63)
@@ -504,6 +569,12 @@ object ArtyA7SmpLinuxSystemSim {
         sdramA_cd.load(systemCd.outputClockDomain)
 
         sdramA0.bmb.derivate(_.cmd.simPublic())
+
+        val usbAPhy = usbACtrl.createPhyDefault()
+        val usbAPort = usbAPhy.createSimIo()
+
+        Handle(fabric.dBusCoherent.bmb.get.simPublic())
+
         ArtyA7SmpLinuxAbstract.default(this)
         ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
       }
@@ -520,25 +591,6 @@ object ArtyA7SmpLinuxSystemSim {
 //      clockDomain.forkSimSpeedPrinter(2.0)
 
 
-      fork{
-        val at = 0
-        val duration = 0
-        while(simTime() < at*1000000000l) {
-          disableSimWave()
-          sleep(10000 * 10000)
-          enableSimWave()
-          sleep(  100 * 10000)
-        }
-        println("\n\n********************")
-        sleep(duration*1000000000l)
-        println("********************\n\n")
-        while(true) {
-          disableSimWave()
-          sleep(100000 * 10000)
-          enableSimWave()
-          sleep(  100 * 10000)
-        }
-      }
 
       val tcpJtag = JtagTcp(
         jtag = dut.top.jtagTap.jtag,
@@ -554,6 +606,108 @@ object ArtyA7SmpLinuxSystemSim {
         uartPin = dut.top.uartA.uart.rxd,
         baudPeriod = uartBaudPeriod
       )
+
+      delayed(10e9.toLong) {
+        val fakeIn = new ByteArrayInputStream("\n\n\nusb start\nusb stop\nusb start\n".map(_.toByte).toArray);
+        System.setIn(fakeIn);
+      }
+
+      val usbAgent = new UsbLsFsPhyAbstractIoAgent(dut.top.usbAPort.get.apply(0), clockDomain, 96/12)
+      val usbDevice = new UsbDeviceAgent(usbAgent)
+      usbDevice.allowSporadicReset = true
+      usbDevice.connect(lowSpeed = true)
+      usbDevice.listener = new UsbDeviceAgentListener{
+        def log(msg : String) = println(simTime() + " : " + msg)
+        def rsp(body : => Unit) = delayed(2000000){body}
+        override def reset() = {
+          log("USB RESET")
+        }
+
+        override def hcToUsb(addr: Int, endp: Int, tockenPid: Int, dataPid: Int, data: Seq[Int]) = {
+          log("USB OUT ACK")
+          rsp(usbAgent.emitBytes(UsbPid.ACK, Nil, false, false, true))
+        }
+
+        val inTasks = mutable.Queue[() => Unit]()
+        def scheduleInRsp(pid : Int, data : Seq[Int]) = inTasks += (() => rsp(usbAgent.emitBytes(pid, data, true, false, true)))
+        def scheduleInRspStr(pid : Int, data : String) = {
+          assert(data.size % 2 == 0)
+          scheduleInRsp(pid, data.grouped(2).map(Integer.parseInt(_, 16)).toSeq)
+        }
+        override def usbToHc(addr: Int, endp: Int) = {
+          log("USB IN")
+          if(inTasks.nonEmpty){
+            inTasks.dequeue().apply()
+            true
+          }else {
+            log("USB IN ERROR")
+            false
+          }
+        }
+
+        scheduleInRsp(UsbPid.DATA1, Nil)
+        scheduleInRsp(UsbPid.DATA1, List(0x12, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x08))
+        scheduleInRsp(UsbPid.DATA0, List(0x6D, 0x04, 0x16, 0xc0, 0x40, 0x03, 0x01, 0x02))
+        scheduleInRsp(UsbPid.DATA1, List(0x00, 0x01))
+        scheduleInRspStr(UsbPid.DATA1, "09022200010100A0")
+        scheduleInRspStr(UsbPid.DATA0, "32")
+        scheduleInRspStr(UsbPid.DATA1, "09022200010100A0")
+        scheduleInRspStr(UsbPid.DATA0, "3209040000010301")
+        scheduleInRspStr(UsbPid.DATA1, "0200092110010001")
+        scheduleInRspStr(UsbPid.DATA0, "2234000705810304")
+        scheduleInRspStr(UsbPid.DATA1, "000a")
+        scheduleInRspStr(UsbPid.DATA1, "")
+        scheduleInRspStr(UsbPid.DATA1, "04030904")
+        scheduleInRspStr(UsbPid.DATA1, "12034c006f006700")
+        scheduleInRspStr(UsbPid.DATA0, "6900740065006300")
+        scheduleInRspStr(UsbPid.DATA1, "6800")
+        scheduleInRspStr(UsbPid.DATA1, "24034f0070007400")
+        scheduleInRspStr(UsbPid.DATA0, "6900630061006c00")
+        scheduleInRspStr(UsbPid.DATA1, "2000550053004200")
+        scheduleInRspStr(UsbPid.DATA0, "20004d006f007500")
+        scheduleInRspStr(UsbPid.DATA1, "73006500")
+
+      }
+
+//      fork{
+//        val d = dut.top.fabric.dBusCoherent.bmb.cmd
+//        var timeout = 500
+//        dut.debugCd.inputClockDomain.onSamplings{
+//          if(timeout == 1){
+//            disableSimWave()
+//          }
+//          timeout -= 1
+//          if(d.valid.toBoolean && (d.address.toLong & 0xFFFFF000) == 0x100a0000 || dut.top.usbAPort.get.apply(0).tx.enable.toBoolean && !dut.top.usbAPort.get.apply(0).tx.se0.toBoolean && dut.top.usbAPort.get.apply(0).tx.data.toBoolean || usbAgent.rx.enable){
+//            if(timeout < 10) enableSimWave()
+//            timeout = 500
+//          }
+//          if(timeout == -50000){
+//            timeout = 500
+//            enableSimWave()
+//          }
+//        }
+
+        //        val at = 0
+        //        val duration = 0
+        //        while(simTime() < at*1000000000l) {
+        //          disableSimWave()
+        //          sleep(10000 * 10000)
+        //          enableSimWave()
+        //          sleep(  100 * 10000)
+        //        }
+        //        println("\n\n********************")
+        //        sleep(duration*1000000000l)
+        //        println("********************\n\n")
+        //        while(true) {
+        //          disableSimWave()
+        //          sleep(100000 * 10000)
+        //          enableSimWave()
+        //          sleep(  100 * 10000)
+        //        }
+//      }
+
+
+      dut.top.usbAPort.get.apply(0).overcurrent #= false
 
 ////      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
 //      val vga = VgaDisplaySim(dut.top.vga.output, clockDomain)
@@ -579,17 +733,17 @@ object ArtyA7SmpLinuxSystemSim {
       val images = "../buildroot-build/images/"
 
       dut.top.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
-      dut.top.phy.logic.loadBin(0x00F00000, images + "u-boot.bin")
-      dut.top.phy.logic.loadBin(0x00000000, images + "Image")
-      dut.top.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
-      dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
+      dut.top.phy.logic.loadBin(0x00E00000, images + "u-boot.bin")
+//      dut.top.phy.logic.loadBin(0x00000000, images + "Image")
+//      dut.top.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
+//      dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
 
-      //Bypass uboot
-      dut.top.phy.logic.loadBytes(0x00F00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
+      //Bypass uboot  WARNING maybe the following line need to bu updated
+//      dut.top.phy.logic.loadBytes(0x00E00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)
 
 
 //        dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/fpu/build/fpu.bin")
-//      dut.phy.logic.loadBin(0x00F80000, "software/standalone/audioOut/build/audioOut.bin")
+      dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/test/aes/build/aes.bin")
       //dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
@@ -667,3 +821,190 @@ object ArtyA7SmpLinuxSystemSim {
 //  }
 //
 //}
+
+
+
+object UsbDebug extends App{
+  val str =
+    """Time [s],PID,Address,Endpoint,Frame #,Data,CRC
+      |9.672193296000000,SETUP,0x00,0x00,,,0x02
+      |9.672220127999999,DATA0,,,,0x00 0x05 0x02 0x00 0x00 0x00 0x00 0x00,0x16EB
+      |9.672292327999999,ACK,,,,,
+      |9.672307608000001,IN,0x00,0x00,,,0x02
+      |9.672334255999999,DATA1,,,,,0x0000
+      |9.672360191999999,ACK,,,,,
+      |9.693060352000000,SETUP,0x02,0x00,,,0x15
+      |9.693087183999999,DATA0,,,,0x80 0x06 0x00 0x01 0x00 0x00 0x12 0x00,0xF4E0
+      |9.693158907999999,ACK,,,,,
+      |9.693174184000000,IN,0x02,0x00,,,0x15
+      |9.693200836000001,NAK,,,,,
+      |9.693216120000001,IN,0x02,0x00,,,0x15
+      |9.693242767999999,DATA1,,,,0x12 0x01 0x00 0x02 0x00 0x00 0x00 0x08,0xE757
+      |9.693311292000001,ACK,,,,,
+      |9.693327044000000,IN,0x02,0x00,,,0x15
+      |9.693354584000000,NAK,,,,,
+      |9.693369860000001,IN,0x02,0x00,,,0x15
+      |9.693396512000000,DATA0,,,,0x6D 0x04 0x16 0xC0 0x40 0x03 0x01 0x02,0xF35A
+      |9.693465040000000,ACK,,,,,
+      |9.693480792000001,IN,0x02,0x00,,,0x15
+      |9.693508324000000,DATA1,,,,0x00 0x01,0x8F3F
+      |9.693545576000000,ACK,,,,,
+      |9.693561327999999,OUT,0x02,0x00,,,0x15
+      |9.693588172000000,DATA1,,,,,0x0000
+      |9.693615480000000,ACK,,,,,
+      |9.704563112000001,SETUP,0x02,0x00,,,0x15
+      |9.704589944000000,DATA0,,,,0x80 0x06 0x00 0x02 0x00 0x00 0x09 0x00,0x04AE
+      |9.704661752000000,ACK,,,,,
+      |9.704677031999999,IN,0x02,0x00,,,0x15
+      |9.704703680000000,DATA1,,,,0x09 0x02 0x22 0x00 0x01 0x01 0x00 0xA0,0x980A
+      |9.704772203999999,ACK,,,,,
+      |9.704787956000001,IN,0x02,0x00,,,0x15
+      |9.704815496000000,DATA0,,,,0x32,0x6AC1
+      |9.704846748000000,ACK,,,,,
+      |9.704862500000001,OUT,0x02,0x00,,,0x15
+      |9.704889344000000,DATA1,,,,,0x0000
+      |9.704916660000000,ACK,,,,,
+      |9.715029540000000,SETUP,0x02,0x00,,,0x15
+      |9.715056371999999,DATA0,,,,0x80 0x06 0x00 0x02 0x00 0x00 0x22 0x00,0xF4B0
+      |9.715128320000000,ACK,,,,,
+      |9.715143604000000,IN,0x02,0x00,,,0x15
+      |9.715170252000000,DATA1,,,,0x09 0x02 0x22 0x00 0x01 0x01 0x00 0xA0,0x980A
+      |9.715238771999999,ACK,,,,,
+      |9.715254527999999,IN,0x02,0x00,,,0x15
+      |9.715282064000000,DATA0,,,,0x32 0x09 0x04 0x00 0x00 0x01 0x03 0x01,0x4D35
+      |9.715350588000000,ACK,,,,,
+      |9.715366336000001,IN,0x02,0x00,,,0x15
+      |9.715393880000001,DATA1,,,,0x02 0x00 0x09 0x21 0x10 0x01 0x00 0x01,0x7316
+      |9.715462408000000,ACK,,,,,
+      |9.715478160000000,IN,0x02,0x00,,,0x15
+      |9.715505692000001,NAK,,,,,
+      |9.715520972000000,IN,0x02,0x00,,,0x15
+      |9.715547620000001,DATA0,,,,0x22 0x34 0x00 0x07 0x05 0x81 0x03 0x04,0xE1AD
+      |9.715616144000000,ACK,,,,,
+      |9.715742896000000,IN,0x02,0x00,,,0x15
+      |9.715770583999999,DATA1,,,,0x00 0x0A,0x487E
+      |9.715807831999999,ACK,,,,,
+      |9.715823584000001,OUT,0x02,0x00,,,0x15
+      |9.715850428000000,DATA1,,,,,0x0000
+      |9.715877740000000,ACK,,,,,
+      |9.726541328000000,SETUP,0x02,0x00,,,0x15
+      |9.726568159999999,DATA0,,,,0x00 0x09 0x01 0x00 0x00 0x00 0x00 0x00,0x2527
+      |9.726639816000000,ACK,,,,,
+      |9.726655096000000,IN,0x02,0x00,,,0x15
+      |9.726681748000001,DATA1,,,,,0x0000
+      |9.726707680000001,ACK,,,,,
+      |9.747407084000001,SETUP,0x02,0x00,,,0x15
+      |9.747433916000000,DATA0,,,,0x80 0x06 0x00 0x03 0x00 0x00 0xFF 0x00,0x64D4
+      |9.747506403999999,ACK,,,,,
+      |9.747521688000001,IN,0x02,0x00,,,0x15
+      |9.747548331999999,NAK,,,,,
+      |9.747563612000000,IN,0x02,0x00,,,0x15
+      |9.747590263999999,DATA1,,,,0x04 0x03 0x09 0x04,0x7809
+      |9.747637495999999,ACK,,,,,
+      |9.747653248000001,OUT,0x02,0x00,,,0x15
+      |9.747680092000000,DATA1,,,,,0x0000
+      |9.747707404000000,ACK,,,,,
+      |9.757863892000000,SETUP,0x02,0x00,,,0x15
+      |9.757890723999999,DATA0,,,,0x80 0x06 0x01 0x03 0x09 0x04 0xFF 0x00,0xE897
+      |9.757962996000000,ACK,,,,,
+      |9.757978280000000,IN,0x02,0x00,,,0x15
+      |9.758004924000000,DATA1,,,,0x12 0x03 0x4C 0x00 0x6F 0x00 0x67 0x00,0x0935
+      |9.758073447999999,ACK,,,,,
+      |9.758089200000001,IN,0x02,0x00,,,0x15
+      |9.758116736000000,NAK,,,,,
+      |9.758132015999999,IN,0x02,0x00,,,0x15
+      |9.758158668000000,DATA0,,,,0x69 0x00 0x74 0x00 0x65 0x00 0x63 0x00,0x3E45
+      |9.758227196000000,ACK,,,,,
+      |9.758242947999999,IN,0x02,0x00,,,0x15
+      |9.758270480000000,NAK,,,,,
+      |9.758383112000001,IN,0x02,0x00,,,0x15
+      |9.758410251999999,DATA1,,,,0x68 0x00,0x8FD1
+      |9.758447496000000,ACK,,,,,
+      |9.758463248000000,OUT,0x02,0x00,,,0x15
+      |9.758490092000001,DATA1,,,,,0x0000
+      |9.758517403999999,ACK,,,,,
+      |9.769367400000000,SETUP,0x02,0x00,,,0x15
+      |9.769394232000000,DATA0,,,,0x80 0x06 0x02 0x03 0x09 0x04 0xFF 0x00,0xDB97
+      |9.769466508000001,ACK,,,,,
+      |9.769481788000000,IN,0x02,0x00,,,0x15
+      |9.769508436000001,NAK,,,,,
+      |9.769523712000000,IN,0x02,0x00,,,0x15
+      |9.769550368000001,NAK,,,,,
+      |9.769565648000000,IN,0x02,0x00,,,0x15
+      |9.769592296000001,DATA1,,,,0x24 0x03 0x4F 0x00 0x70 0x00 0x74 0x00,0xE0BC
+      |9.769660820000000,ACK,,,,,
+      |9.769676572000000,IN,0x02,0x00,,,0x15
+      |9.769704111999999,NAK,,,,,
+      |9.769823212000000,IN,0x02,0x00,,,0x15
+      |9.769850536000000,DATA0,,,,0x69 0x00 0x63 0x00 0x61 0x00 0x6C 0x00,0xD942
+      |9.769919056000001,ACK,,,,,
+      |9.769934808000000,IN,0x02,0x00,,,0x15
+      |9.769962348000000,DATA1,,,,0x20 0x00 0x55 0x00 0x53 0x00 0x42 0x00,0x0D90
+      |9.770030876000000,ACK,,,,,
+      |9.770046627999999,IN,0x02,0x00,,,0x15
+      |9.770074160000000,NAK,,,,,
+      |9.770089444000000,IN,0x02,0x00,,,0x15
+      |9.770116092000000,DATA0,,,,0x20 0x00 0x4D 0x00 0x6F 0x00 0x75 0x00,0xB589
+      |9.770184616000000,ACK,,,,,
+      |9.770200364000001,IN,0x02,0x00,,,0x15
+      |9.770227908000001,NAK,,,,,
+      |9.770243192000001,IN,0x02,0x00,,,0x15
+      |9.770269836000001,DATA1,,,,0x73 0x00 0x65 0x00,0x0FCE
+      |9.770317732000001,ACK,,,,,
+      |9.770333488000000,OUT,0x02,0x00,,,0x15
+      |9.770360331999999,DATA1,,,,,0x0000
+      |""".stripMargin
+
+  var isOut = false
+//  for(line <- str.lines{
+////    if(line.con)
+//  }
+
+
+}
+
+
+
+object UsbCaptureDecode extends App{
+  import scala.io.Source
+
+//  val filename = "/media/data/open/waves/linux_hub1_yellow_underflow"
+  val filename = "/media/data/open/waves/uboot_x3_fail_pass"
+  var state = "idle"
+
+  val file = new File(filename + "_decoded.txt")
+  val bw = new BufferedWriter(new FileWriter(file))
+
+  var ignore = false
+  for (line <- Source.fromFile(filename).getLines) {
+    val split = line.split(",")
+    val content = split(4).drop(1).dropRight(1)
+
+    state match {
+      case "idle" => {
+        if(!ignore) {
+          if(content.contains("SOF")){
+            ignore = true
+          } else if(content.contains("Keep alive")){
+//            ignore = true
+          } else if(content.contains("EOP")){
+            bw.write("\n")
+          } else if(content.contains("Reset")){
+            bw.write("\n* RESET *\n")
+          } else if(content.contains("SYNC")){
+          } else if(content.contains("Byte")){
+            bw.write(content.drop(7))
+          } else {
+            bw.write(" " + content + " ")
+          }
+        }
+        if(content.contains("EOP")){
+          ignore = false
+        }
+      }
+      case "packet" =>
+    }
+  }
+  bw.flush()
+  bw.close()
+}

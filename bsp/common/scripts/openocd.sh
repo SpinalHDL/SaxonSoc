@@ -28,6 +28,11 @@ saxon_buildroot_load(){
   $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s $SAXON_BSP_PATH/openocd -c 'set CPU0_YAML cpu0.yaml'  -c "set SAXON_BUILDROOT_IMAGE_PATH $SAXON_BUILDROOT_IMAGE_PATH" -f usb_connect.cfg -f soc_init.cfg -f linux_boot.cfg -c 'exit'
 }
 
+saxon_uboot_load(){
+  cd $SAXON_SOC
+  $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s $SAXON_BSP_PATH/openocd -c 'set CPU0_YAML cpu0.yaml' -c 'set NO_LINUX 1' -c "set SAXON_BUILDROOT_IMAGE_PATH $SAXON_BUILDROOT_IMAGE_PATH" -f usb_connect.cfg -f soc_init.cfg -f linux_boot.cfg -c 'exit'
+}
+
 saxon_baremetal_load(){
   cd $SAXON_SOC
   $SAXON_ROOT/openocd_riscv/src/openocd -s $SAXON_ROOT/openocd_riscv/tcl -s $SAXON_BSP_PATH/openocd -c 'set CPU0_YAML cpu0.yaml' -c "set APP_BIN $1" -f usb_connect.cfg -f soc_init.cfg -f baremetal.cfg

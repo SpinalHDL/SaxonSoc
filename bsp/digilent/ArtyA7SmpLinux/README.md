@@ -169,6 +169,19 @@ saxon_sdcard_p1
 saxon_sdcard_p2
 ```
 
+## Booting from a USB drive
+
+```
+#Format the usb drive with the buildroot image, don't forget to set the USB_DRIVE variable to point to the /dev/xxx
+sudo dd if=$SAXON_ROOT/buildroot-build/images/sdcard.img of=$USB_DRIVE bs=4M conv=sync status=progress
+```
+
+```
+#In U-BOOT
+env set bootargs "rootwait console=hvc0 earlycon=sbi root=/dev/sda2 init=/sbin/init"
+usb start; load usb 0:1 0x80000000 uImage;load usb 0:1 0x80FF0000 linux.dtb; bootm 0x80000000 - 0x80FF0000 
+```
+
 ## Booting from the sdcard
 
 ```
@@ -177,13 +190,14 @@ sudo dd if=$SAXON_ROOT/buildroot-build/images/sdcard.img of=$SDCARD bs=4M conv=s
 ```
 
 ```
+#In U-BOOT
 load mmc 0:1 0x80000000 uImage;load mmc 0:1 0x80FF0000 dtb; bootm 0x80000000 - 0x80FF0000 
 ```
 
 ## Booting with a ramfs with a preloaded sdcard in uboot
 
 ```
-load mmc 0:1 0x80000000 uImage;load mmc 0:1 0x80FF0000 dtb; load mmc 0:1 0x80FFFFC0 rootfs.cpio.uboot;bootm 0x80000000 0x80FFFFC0 0x80FF0000
+load mmc 0:1 0x80000000 uImage;load mmc 0:1 0x80FF0000 linux.dtb; load mmc 0:1 0x80FFFFC0 rootfs.cpio.uboot;bootm 0x80000000 0x80FFFFC0 0x80FF0000
 ```
 
 ## Running a baremetal simulation
@@ -209,12 +223,15 @@ py3tftp -p 69
 On host to setup the nfs files (note the NFS server setup should be already in place and have /srv/saxon-soc/nfs_root in read/write mode) : 
 
 ```sh
-cd $SAXON_ROOT
 sudo rm -rf /srv/saxon-soc/nfs_root
-sudo cp -rf buildroot-build/images/nfs_root /srv/saxon-soc/nfs_root
+sudo cp -rf $SAXON_ROOT/buildroot-build/images/nfs_root /srv/saxon-soc/nfs_root
 ```
 
+If you want to update an already existing /srv/saxon-soc/nfs_root : 
 
+```sh
+sudo rsync -r -l $SAXON_ROOT/buildroot-build/images/nfs_root/ /srv/saxon-soc/nfs_root
+```
 uboot config :
 
 ```
@@ -223,3 +240,64 @@ env set bootargs "rootwait console=hvc0 earlycon=sbi root=/dev/nfs nfsroot=192.1
 env set bootcmd "run boot_net"
 boot
 ```
+
+
+## X11 packages
+
+```
+BR2_PACKAGE_SDL2_X11=y
+BR2_PACKAGE_XORG7=y
+BR2_PACKAGE_XSERVER_XORG_SERVER=y
+BR2_PACKAGE_XAPP_SETXKBMAP=y
+BR2_PACKAGE_XAPP_TWM=y
+BR2_PACKAGE_XAPP_XCALC=y
+BR2_PACKAGE_XAPP_XCLOCK=y
+BR2_PACKAGE_XAPP_XDPYINFO=y
+BR2_PACKAGE_XAPP_XEYES=y
+BR2_PACKAGE_XAPP_XINIT=y
+BR2_PACKAGE_XAPP_XINPUT=y
+BR2_PACKAGE_XAPP_XMODMAP=y
+BR2_PACKAGE_XAPP_XREFRESH=y
+BR2_PACKAGE_XAPP_XWININFO=y
+BR2_PACKAGE_XDRIVER_XF86_INPUT_KEYBOARD=y
+BR2_PACKAGE_XDRIVER_XF86_INPUT_MOUSE=y
+BR2_PACKAGE_XDRIVER_XF86_VIDEO_FBDEV=y
+BR2_PACKAGE_XDOTOOL=y
+BR2_PACKAGE_XTERM=y
+```
+
+## Change keyboard layout :
+
+On your pc to identify the layout : 
+```
+setxkbmap -print | grep xkb_symbols
+# it give for me : 
+# xkb_symbols   { include "pc+ch(fr)+inet(evdev)+terminate(ctrl_alt_bksp)"	};
+```
+
+On the SoC :
+
+``` 
+setxkbmap -symbols "pc+ch(fr)+inet(evdev)+terminate(ctrl_alt_bksp)"
+```
+
+
+## Change background
+
+```sh
+feh --bg-fill background.jpg
+```
+
+
+
+
+## Junk
+
+
+find images/nfs_root/share/man/man1 -type f -exec sed -i  's|/media/data/open/SaxonSoc/artyA7SmpUsb/buildroot-build/per-package/wmaker/target||g' {} ";"
+find images/nfs_root/man/man1  -type f -exec sed -i  's|/media/data/open/SaxonSoc/artyA7SmpUsb/buildroot-build/per-package/wmaker/target||g' {} ";"
+find images/nfs_root/WindowMaker  -type f -exec sed -i  's|/media/data/open/SaxonSoc/artyA7SmpUsb/buildroot-build/per-package/wmaker/target||g' {} ";"
+find images/nfs_root/etc/WindowMaker  -type f -exec sed -i  's|/media/data/open/SaxonSoc/artyA7SmpUsb/buildroot-build/per-package/wmaker/target||g' {} ";"
+find images/nfs_root/bin/wmaker.inst  -type f -exec sed -i  's|/media/data/open/SaxonSoc/artyA7SmpUsb/buildroot-build/per-package/wmaker/target||g' {} ";"
+
+xwd -root -out screenshot.xwd
