@@ -248,8 +248,10 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     pll2.CLKFBIN := pll2.CLKFBOUT
     pll2.CLKIN1 := GCLK100_B
 
-    val clk25 = ClockDomain(BUFG.on(pll.CLKOUT5))(out(Reg(Bool)))
-    clk25 := !clk25
+    val cd50 = ClockDomain(BUFG.on(pll.CLKOUT5))
+    val clk25_gen = cd50(Reg(Bool))
+    clk25_gen := !clk25_gen
+    val clk25 = out(cd50(Delay(clk25_gen, 2)))
 
     debugCdCtrl.setInput(
       ClockDomain(
@@ -298,7 +300,10 @@ object ArtyA7SmpLinuxAbstract{
         earlyBranch = true,
         withFloat = true,
         withDouble = true,
-        externalFpu = true
+        externalFpu = true,
+        rvc = true,
+        injectorStage = true,
+        prediction = vexriscv.plugin.NONE
       ))
       cpu.config.plugins += AesPlugin()
     }
@@ -425,21 +430,51 @@ object ArtyA7SmpLinux {
 
          //Debug
          val debug = out(Bits(6 bits))
-         systemCdCtrl.outputClockDomain on {
+         Handle{systemCdCtrl.outputClockDomain on {
            debug := 0
 
            def pip[T <: Data](that : T) = Delay(that, 3)
 
            //PERF
-           debug(0) := pip(system.cores(0).logic.cpu.children.find(_.isInstanceOf[InstructionCache]).get.asInstanceOf[InstructionCache].lineLoader.valid.pull())
-           debug(1) := pip(system.cores(0).logic.cpu.children.find(_.isInstanceOf[DataCache]).get.asInstanceOf[DataCache].loader.valid.pull())
-           debug(2) := pip(system.cores(0).logic.cpu.reflectBaseType("MmuPlugin_shared_state").pull().asBits =/= 0)
+//           for(i <- 0 until cpuCount.min(2)) {
+//             val pending, hit = RegInit(False)
+//             val prefetched = Reg(UInt(32 bits))
+//             val cpu = system.cores(i).logic.cpu
+//             val ibus = system.cores(i).iBus.get
+//             when(ibus.cmd.lastFire) {
+//               pending := True
+//               hit := ibus.cmd.address === prefetched
+//               prefetched := ibus.cmd.address + 64
+//             }
+//
+//             when(ibus.rsp.lastFire) {
+//               pending := False
+//               hit := False
+//             }
+//
+//
+//             debug(i*3+0) := pip(cpu.lastStageIsFiring.pull())
+//             debug(i*3+1) := pip(pending)
+//             debug(i*3+2) := pip(hit)
+//           }
 
-           if(cpuCount >= 2) {
-             debug(0 + 3) := pip(system.cores(1).logic.cpu.children.find(_.isInstanceOf[InstructionCache]).get.asInstanceOf[InstructionCache].lineLoader.valid.pull())
-             debug(1 + 3) := pip(system.cores(1).logic.cpu.children.find(_.isInstanceOf[DataCache]).get.asInstanceOf[DataCache].loader.valid.pull())
-             debug(2 + 3) := pip(system.cores(1).logic.cpu.reflectBaseType("MmuPlugin_shared_state").pull().asBits =/= 0)
+
+           for(i <- 0 until cpuCount.min(2)){
+             val cpu = system.cores(i).logic.cpu
+             debug(i*3+0) := pip(cpu.reflectBaseType("CsrPlugin_jumpInterface_valid").asInstanceOf[Bool].pull())
+             debug(i*3+1) := pip(system.clint.logic.io.timerInterrupt.pull()(i))
+             debug(i*3+1) := pip(system.clint.logic.io.softwareInterrupt.pull()(i))
            }
+
+//           debug(0) := pip(system.cores(0).logic.cpu.children.find(_.isInstanceOf[InstructionCache]).get.asInstanceOf[InstructionCache].lineLoader.valid.pull())
+//           debug(1) := pip(system.cores(0).logic.cpu.children.find(_.isInstanceOf[DataCache]).get.asInstanceOf[DataCache].loader.valid.pull())
+//           debug(2) := pip(system.cores(0).logic.cpu.reflectBaseType("MmuPlugin_shared_state").pull().asBits =/= 0)
+//
+//           if(cpuCount >= 2) {
+//             debug(0 + 3) := pip(system.cores(1).logic.cpu.children.find(_.isInstanceOf[InstructionCache]).get.asInstanceOf[InstructionCache].lineLoader.valid.pull())
+//             debug(1 + 3) := pip(system.cores(1).logic.cpu.children.find(_.isInstanceOf[DataCache]).get.asInstanceOf[DataCache].loader.valid.pull())
+//             debug(2 + 3) := pip(system.cores(1).logic.cpu.reflectBaseType("MmuPlugin_shared_state").pull().asBits =/= 0)
+//           }
 
            //USB
 //           debug(0) := Delay(system.usbACtrl.logic.endpoint.ED.F.pull, 3)
@@ -447,7 +482,7 @@ object ArtyA7SmpLinux {
 //           debug(2, 4 bits) := Delay(system.usbACtrl.logic.endpoint.TD.CC.pull, 3)
          }
 
-       }))
+       }}))
     BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel, report.toplevel.system.cores(0).dBus)
   }
 }
@@ -544,7 +579,7 @@ object ArtyA7SmpLinuxSystemSim {
       systemCd.holdDuration.load(63)
       systemCd.setInput(debugCd)
 
-      val top = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount = 1) {
+      val top = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount = 2) {
 
         //      val vgaCd = ClockDomainResetGenerator()
         //      vgaCd.holdDuration.load(63)
@@ -590,6 +625,12 @@ object ArtyA7SmpLinuxSystemSim {
 //      dut.vgaCd.inputClockDomain.get.forkStimulus(40000)
 //      clockDomain.forkSimSpeedPrinter(2.0)
 
+      forkSimSporadicWave(
+        captures = Seq(
+          0e-3 -> 1e-3
+          //            400e-3 -> 750e-3
+        )
+      )
 
 
       val tcpJtag = JtagTcp(
@@ -607,67 +648,73 @@ object ArtyA7SmpLinuxSystemSim {
         baudPeriod = uartBaudPeriod
       )
 
-      delayed(10e9.toLong) {
-        val fakeIn = new ByteArrayInputStream("\n\n\nusb start\nusb stop\nusb start\n".map(_.toByte).toArray);
-        System.setIn(fakeIn);
+//      delayed(10e9.toLong) {
+//        val fakeIn = new ByteArrayInputStream("\n\n\nusb start\nusb stop\nusb start\n".map(_.toByte).toArray);
+//        System.setIn(fakeIn);
+//      }
+
+
+      dut.top.usbAPort.foreach{usb =>
+        usb.overcurrent #= false
+        usb.rx.dp #= false
+        usb.rx.dm #= false
       }
-
-      val usbAgent = new UsbLsFsPhyAbstractIoAgent(dut.top.usbAPort.get.apply(0), clockDomain, 96/12)
-      val usbDevice = new UsbDeviceAgent(usbAgent)
-      usbDevice.allowSporadicReset = true
-      usbDevice.connect(lowSpeed = true)
-      usbDevice.listener = new UsbDeviceAgentListener{
-        def log(msg : String) = println(simTime() + " : " + msg)
-        def rsp(body : => Unit) = delayed(2000000){body}
-        override def reset() = {
-          log("USB RESET")
-        }
-
-        override def hcToUsb(addr: Int, endp: Int, tockenPid: Int, dataPid: Int, data: Seq[Int]) = {
-          log("USB OUT ACK")
-          rsp(usbAgent.emitBytes(UsbPid.ACK, Nil, false, false, true))
-        }
-
-        val inTasks = mutable.Queue[() => Unit]()
-        def scheduleInRsp(pid : Int, data : Seq[Int]) = inTasks += (() => rsp(usbAgent.emitBytes(pid, data, true, false, true)))
-        def scheduleInRspStr(pid : Int, data : String) = {
-          assert(data.size % 2 == 0)
-          scheduleInRsp(pid, data.grouped(2).map(Integer.parseInt(_, 16)).toSeq)
-        }
-        override def usbToHc(addr: Int, endp: Int) = {
-          log("USB IN")
-          if(inTasks.nonEmpty){
-            inTasks.dequeue().apply()
-            true
-          }else {
-            log("USB IN ERROR")
-            false
-          }
-        }
-
-        scheduleInRsp(UsbPid.DATA1, Nil)
-        scheduleInRsp(UsbPid.DATA1, List(0x12, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x08))
-        scheduleInRsp(UsbPid.DATA0, List(0x6D, 0x04, 0x16, 0xc0, 0x40, 0x03, 0x01, 0x02))
-        scheduleInRsp(UsbPid.DATA1, List(0x00, 0x01))
-        scheduleInRspStr(UsbPid.DATA1, "09022200010100A0")
-        scheduleInRspStr(UsbPid.DATA0, "32")
-        scheduleInRspStr(UsbPid.DATA1, "09022200010100A0")
-        scheduleInRspStr(UsbPid.DATA0, "3209040000010301")
-        scheduleInRspStr(UsbPid.DATA1, "0200092110010001")
-        scheduleInRspStr(UsbPid.DATA0, "2234000705810304")
-        scheduleInRspStr(UsbPid.DATA1, "000a")
-        scheduleInRspStr(UsbPid.DATA1, "")
-        scheduleInRspStr(UsbPid.DATA1, "04030904")
-        scheduleInRspStr(UsbPid.DATA1, "12034c006f006700")
-        scheduleInRspStr(UsbPid.DATA0, "6900740065006300")
-        scheduleInRspStr(UsbPid.DATA1, "6800")
-        scheduleInRspStr(UsbPid.DATA1, "24034f0070007400")
-        scheduleInRspStr(UsbPid.DATA0, "6900630061006c00")
-        scheduleInRspStr(UsbPid.DATA1, "2000550053004200")
-        scheduleInRspStr(UsbPid.DATA0, "20004d006f007500")
-        scheduleInRspStr(UsbPid.DATA1, "73006500")
-
-      }
+//      val usbAgent = new UsbLsFsPhyAbstractIoAgent(dut.top.usbAPort.get.apply(0), clockDomain, 96/12)
+//      val usbDevice = new UsbDeviceAgent(usbAgent)
+//      usbDevice.allowSporadicReset = true
+//      usbDevice.connect(lowSpeed = true)
+//      usbDevice.listener = new UsbDeviceAgentListener{
+//        def log(msg : String) = println(simTime() + " : " + msg)
+//        def rsp(body : => Unit) = delayed(2000000){body}
+//        override def reset() = {
+//          log("USB RESET")
+//        }
+//
+//        override def hcToUsb(addr: Int, endp: Int, tockenPid: Int, dataPid: Int, data: Seq[Int]) = {
+//          log("USB OUT ACK")
+//          rsp(usbAgent.emitBytes(UsbPid.ACK, Nil, false, false, true))
+//        }
+//
+//        val inTasks = mutable.Queue[() => Unit]()
+//        def scheduleInRsp(pid : Int, data : Seq[Int]) = inTasks += (() => rsp(usbAgent.emitBytes(pid, data, true, false, true)))
+//        def scheduleInRspStr(pid : Int, data : String) = {
+//          assert(data.size % 2 == 0)
+//          scheduleInRsp(pid, data.grouped(2).map(Integer.parseInt(_, 16)).toSeq)
+//        }
+//        override def usbToHc(addr: Int, endp: Int) = {
+//          log("USB IN")
+//          if(inTasks.nonEmpty){
+//            inTasks.dequeue().apply()
+//            true
+//          }else {
+//            log("USB IN ERROR")
+//            false
+//          }
+//        }
+//
+//        scheduleInRsp(UsbPid.DATA1, Nil)
+//        scheduleInRsp(UsbPid.DATA1, List(0x12, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x08))
+//        scheduleInRsp(UsbPid.DATA0, List(0x6D, 0x04, 0x16, 0xc0, 0x40, 0x03, 0x01, 0x02))
+//        scheduleInRsp(UsbPid.DATA1, List(0x00, 0x01))
+//        scheduleInRspStr(UsbPid.DATA1, "09022200010100A0")
+//        scheduleInRspStr(UsbPid.DATA0, "32")
+//        scheduleInRspStr(UsbPid.DATA1, "09022200010100A0")
+//        scheduleInRspStr(UsbPid.DATA0, "3209040000010301")
+//        scheduleInRspStr(UsbPid.DATA1, "0200092110010001")
+//        scheduleInRspStr(UsbPid.DATA0, "2234000705810304")
+//        scheduleInRspStr(UsbPid.DATA1, "000a")
+//        scheduleInRspStr(UsbPid.DATA1, "")
+//        scheduleInRspStr(UsbPid.DATA1, "04030904")
+//        scheduleInRspStr(UsbPid.DATA1, "12034c006f006700")
+//        scheduleInRspStr(UsbPid.DATA0, "6900740065006300")
+//        scheduleInRspStr(UsbPid.DATA1, "6800")
+//        scheduleInRspStr(UsbPid.DATA1, "24034f0070007400")
+//        scheduleInRspStr(UsbPid.DATA0, "6900630061006c00")
+//        scheduleInRspStr(UsbPid.DATA1, "2000550053004200")
+//        scheduleInRspStr(UsbPid.DATA0, "20004d006f007500")
+//        scheduleInRspStr(UsbPid.DATA1, "73006500")
+//
+//      }
 
 //      fork{
 //        val d = dut.top.fabric.dBusCoherent.bmb.cmd
@@ -707,7 +754,7 @@ object ArtyA7SmpLinuxSystemSim {
 //      }
 
 
-      dut.top.usbAPort.get.apply(0).overcurrent #= false
+//      dut.top.usbAPort.get.apply(0).overcurrent #= false
 
 ////      val vga = VgaDisplaySim(dut.vga.output, dut.vgaCd.inputClockDomain)
 //      val vga = VgaDisplaySim(dut.top.vga.output, clockDomain)
@@ -743,7 +790,7 @@ object ArtyA7SmpLinuxSystemSim {
 
 
 //        dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/fpu/build/fpu.bin")
-      dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/test/aes/build/aes.bin")
+//      dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/test/aes/build/aes.bin")
       //dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
