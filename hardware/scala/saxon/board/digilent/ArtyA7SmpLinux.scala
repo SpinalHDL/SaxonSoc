@@ -207,7 +207,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
         "CLKOUT4_PHASE" -> 90,
         "CLKOUT5_DIVIDE" -> 24,
         "CLKOUT5_PHASE" -> 0,
-        "CLKOUT6_DIVIDE" -> 20,
+        "CLKOUT6_DIVIDE" -> 25,
         "CLKOUT6_PHASE" -> 0
       )
 
@@ -271,7 +271,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
       )
     )
     vgaCdCtrl.setInput(ClockDomain(BUFG.on(pll2.CLKOUT0)))
-    usbCdCtrl.setInput(ClockDomain(BUFG.on(pll.CLKOUT6)))
+    usbCdCtrl.setInput(ClockDomain(BUFG.on(pll.CLKOUT6), frequency = FixedFrequency(48 MHz)))
     system.vga.vgaCd.load(vgaCd)
 
     sdramDomain.phyA.clk90.load(ClockDomain(BUFG.on(pll.CLKOUT2)))
@@ -396,7 +396,6 @@ object ArtyA7SmpLinuxAbstract{
       powerSwitchingMode = true,
       noOverCurrentProtection = true,
       powerOnToPowerGoodTime = 10,
-      fsRatio = 60/12,
       dataWidth = 64,
       portsConfig = List.fill(4)(OhciPortParameter())
     )
@@ -411,6 +410,7 @@ object ArtyA7SmpLinuxAbstract{
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
     interconnect.setPipelining(dma.read)(cmdHalfRate = true)
     interconnect.setPipelining(usbACtrl.dma)(cmdValid = true, cmdReady = true, rspValid = true)
+    interconnect.setPipelining(usbACtrl.ctrl)(cmdHalfRate = true)
 
     g
   }
@@ -435,7 +435,7 @@ object ArtyA7SmpLinux {
          setDefinitionName("ArtyA7SmpLinux")
 
          //Debug
-         val debug = out(Bits(6 bits))
+         val debug = out(Bits(8 bits))
          Handle{systemCdCtrl.outputClockDomain on {
            debug := 0
 
@@ -464,13 +464,17 @@ object ArtyA7SmpLinux {
 //             debug(i*3+2) := pip(hit)
 //           }
 
+           debug(0) := usbCd(pip(system.usbAPhy.logic.ports.head.filter.io.filtred.sample.pull()))
+           debug(1) := usbCd(pip(system.usbAPhy.logic.ports.head.filter.io.filtred.dp.pull()))
+           debug(2) := usbCd(pip(system.usbAPhy.logic.ports.head.filter.io.filtred.dm.pull()))
+           debug(4, 4 bits) := Delay(system.usbACtrl.logic.endpoint.TD.CC.pull, 3)
 
-           for(i <- 0 until cpuCount.min(2)){
-             val cpu = system.cores(i).logic.cpu
-             debug(i*3+0) := pip(cpu.reflectBaseType("CsrPlugin_jumpInterface_valid").asInstanceOf[Bool].pull())
-             debug(i*3+1) := pip(system.clint.logic.io.timerInterrupt.pull()(i))
-             debug(i*3+1) := pip(system.clint.logic.io.softwareInterrupt.pull()(i))
-           }
+//           for(i <- 0 until cpuCount.min(2)){
+//             val cpu = system.cores(i).logic.cpu
+//             debug(i*3+0) := pip(cpu.reflectBaseType("CsrPlugin_jumpInterface_valid").asInstanceOf[Bool].pull())
+//             debug(i*3+1) := pip(system.clint.logic.io.timerInterrupt.pull()(i))
+//             debug(i*3+1) := pip(system.clint.logic.io.softwareInterrupt.pull()(i))
+//           }
 
 //           debug(0) := pip(system.cores(0).logic.cpu.children.find(_.isInstanceOf[InstructionCache]).get.asInstanceOf[InstructionCache].lineLoader.valid.pull())
 //           debug(1) := pip(system.cores(0).logic.cpu.children.find(_.isInstanceOf[DataCache]).get.asInstanceOf[DataCache].loader.valid.pull())

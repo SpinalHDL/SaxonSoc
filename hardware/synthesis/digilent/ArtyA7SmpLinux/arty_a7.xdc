@@ -83,6 +83,8 @@ set_property -dict { PACKAGE_PIN V17   IOSTANDARD LVCMOS33 IOB TRUE} [get_ports 
 set_property -dict { PACKAGE_PIN U18   IOSTANDARD LVCMOS33 IOB TRUE} [get_ports { debug[3] }]; #IO_L17N_T2_A13_D29_14        Sch=ck_io[11]
 set_property -dict { PACKAGE_PIN R17   IOSTANDARD LVCMOS33 IOB TRUE} [get_ports { debug[4] }]; #IO_L12N_T1_MRCC_14           Sch=ck_io[12]
 set_property -dict { PACKAGE_PIN P17   IOSTANDARD LVCMOS33 IOB TRUE} [get_ports { debug[5] }]; #IO_L12P_T1_MRCC_14           Sch=ck_io[13]
+set_property -dict { PACKAGE_PIN R16   IOSTANDARD LVCMOS33 IOB TRUE} [get_ports { debug[6] }]; #IO_L15P_T2_DQS_RDWR_B_14 	Sch=ck_io[34]
+set_property -dict { PACKAGE_PIN N16   IOSTANDARD LVCMOS33 IOB TRUE} [get_ports { debug[7] }]; #IO_L11N_T1_SRCC_14 			Sch=ck_io[35]
 
 # serial flash
 set_property -dict {PACKAGE_PIN L13 IOSTANDARD LVCMOS33 IOB TRUE} [get_ports {system_spiA_flash_ss[0]}]
