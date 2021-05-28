@@ -8,7 +8,7 @@ SAXON_BSP_COMMON_SCRIPTS=$SAXON_ROOT/SaxonSoc/bsp/common/scripts
 
 # Configurations
 SAXON_BUILDROOT_DEFCONFIG=saxon_arty_a7_35_defconfig
-SAXON_BUILDROOT_FULL_OOT_GIT="https://github.com/SpinalHDL/buildroot-spinal-saxon.git --branch usb"
+SAXON_BUILDROOT_FULL_OOT_GIT="https://github.com/SpinalHDL/buildroot-spinal-saxon.git --branch main"
 
 # Functionalities
 source $SAXON_BSP_COMMON_SCRIPTS/base.sh
