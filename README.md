@@ -45,17 +45,22 @@ sudo apt-get update
 sudo apt-get install sbt
 
 # Verilator (for simulation only, v3.9+, in general apt-get will give you 3.8)
-sudo apt-get install git make autoconf g++ flex bison
+sudo apt-get install git make autoconf g++ flex bison -y  # First time prerequisites
 git clone http://git.veripool.org/git/verilator   # Only first time
 unsetenv VERILATOR_ROOT  # For csh; ignore error if on bash
 unset VERILATOR_ROOT  # For bash
 cd verilator
 git pull        # Make sure we're up-to-date
-git checkout verilator_3_918
+git checkout v4.040
 autoconf        # Create ./configure script
 ./configure
-make
+make -j$(nproc)
 sudo make install
+echo "DONE"
+
+# A fiew dependencies ?
+sudo apt install pkg-config shtool libtool cpio bc unzip rsync mercurial
+sudo apt install libusb-1.0-0-dev libyaml-dev
 ```
 
 ## Jar package
