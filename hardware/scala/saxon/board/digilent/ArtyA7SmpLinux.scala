@@ -9,8 +9,8 @@ import saxon._
 import spinal.core._
 import spinal.core.fiber._
 import spinal.core.sim._
-import spinal.lib.{Delay, LatencyAnalysis}
-import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, IBUF, STARTUPE2}
+import spinal.lib._
+import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, IBUF, Mmcme2CtrlGenerator, Mmcme2Dbus, STARTUPE2}
 import spinal.lib.bus.bmb._
 import spinal.lib.bus.bsb.BsbInterconnectGenerator
 import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
@@ -40,6 +40,7 @@ import vexriscv.ip.fpu.{FpuCore, FpuParameter}
 import vexriscv.plugin.{AesPlugin, FpuPlugin}
 
 import scala.collection.mutable
+import scala.util.Random
 
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
@@ -77,6 +78,7 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
       val channel = createChannel()
       channel.fixedBurst(64)
       channel.withCircularMode()
+      channel.withScatterGatter()
       channel.fifoMapping load Some(0, 256)
       channel.connectInterrupt(plic, 12)
 
@@ -111,6 +113,7 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
   plic.addInterrupt(usbACtrl.interrupt, 16)
   interconnect.addConnection(usbACtrl.dma, fabric.dBusCoherent.bmb)
 
+  val pllReconfig = new Mmcme2CtrlGenerator(0x91000)
 
   val ramA = BmbOnChipRamGenerator(0xA00000l)
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
@@ -233,25 +236,32 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     pll.CLKIN1 := IBUF.on(GCLK100_B)
 
     val pll2 = new BlackBox{
-      setDefinitionName("PLLE2_ADV")
+      setDefinitionName("MMCME2_ADV")
 
       addGenerics(
-        "CLKIN1_PERIOD" -> 10.0,
-        "CLKFBOUT_MULT" -> 13,
-        "DIVCLK_DIVIDE" -> 1,
-        "CLKOUT0_DIVIDE" -> 20,
-        "CLKOUT0_PHASE" -> 0
+        "CLKIN1_PERIOD"    -> 10.0,
+        "CLKFBOUT_MULT_F"  -> 13,
+//        "DIVCLK_DIVIDE"    -> ,
+        "CLKOUT0_DIVIDE_F" -> 20,
+        "CLKOUT0_PHASE"    -> 0
       )
 
       val CLKIN1   = in Bool()
       val CLKFBIN  = in Bool()
       val CLKFBOUT = out Bool()
       val CLKOUT0  = out Bool()
+
+      val dbus = slave(Mmcme2Dbus()).setName("")
+      val DCLK = in Bool()
     }
 
 
     pll2.CLKFBIN := pll2.CLKFBOUT
     pll2.CLKIN1 := GCLK100_B
+    Handle{
+      pll2.DCLK := systemCd.clock
+      pll2.dbus <> system.pllReconfig.dbus
+    }
 
     val cd50 = ClockDomain(BUFG.on(pll.CLKOUT5))
     val clk25_gen = cd50(Reg(Bool))
@@ -464,10 +474,18 @@ object ArtyA7SmpLinux {
 //             debug(i*3+2) := pip(hit)
 //           }
 
-           debug(0) := usbCd(pip(system.usbAPhy.logic.ports.head.filter.io.filtred.sample.pull()))
-           debug(1) := usbCd(pip(system.usbAPhy.logic.ports.head.filter.io.filtred.dp.pull()))
-           debug(2) := usbCd(pip(system.usbAPhy.logic.ports.head.filter.io.filtred.dm.pull()))
-           debug(4, 4 bits) := Delay(system.usbACtrl.logic.endpoint.TD.CC.pull, 3)
+           debug(0) := pip(clocking.pll2.dbus.DEN.pull())
+           debug(1) := pip(clocking.pll2.dbus.DWE.pull())
+           debug(2) := pip(clocking.pll2.dbus.DRDY.pull())
+           debug(3) := pip(system.pllReconfig.ctrl.cmd.valid.pull())
+           debug(4) := pip(system.pllReconfig.ctrl.rsp.valid.pull())
+
+//           debug(0) := (pip(system.cores(0).logic.cpu.reflectBaseType("CsrPlugin_privilege").asInstanceOf[UInt].pull()(0)))
+
+//           debug(0) := usbCd(pip(system.usbAPhy.logic.ports.head.filter.io.filtred.sample.pull()))
+//           debug(1) := usbCd(pip(system.usbAPhy.logic.ports.head.filter.io.filtred.dp.pull()))
+//           debug(2) := usbCd(pip(system.usbAPhy.logic.ports.head.filter.io.filtred.dm.pull()))
+//           debug(4, 4 bits) := Delay(system.usbACtrl.logic.endpoint.TD.CC.pull, 3)
 
 //           for(i <- 0 until cpuCount.min(2)){
 //             val cpu = system.cores(i).logic.cpu
@@ -591,6 +609,7 @@ object ArtyA7SmpLinuxSystemSim {
 
       val top = systemCd.outputClockDomain on new ArtyA7SmpLinuxAbstract(cpuCount = 2) {
 
+        pllReconfig.dbus.loadAsync(pllReconfig.dbus.toIo())
         //      val vgaCd = ClockDomainResetGenerator()
         //      vgaCd.holdDuration.load(63)
         //      vgaCd.makeExternal(withResetPin = false)
@@ -619,6 +638,7 @@ object ArtyA7SmpLinuxSystemSim {
         val usbAPort = usbAPhy.createSimIo()
 
         Handle(fabric.dBusCoherent.bmb.get.simPublic())
+
 
         ArtyA7SmpLinuxAbstract.default(this)
         ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
@@ -744,6 +764,8 @@ object ArtyA7SmpLinuxSystemSim {
 //          }
 //        }
 
+      clockDomain.onSamplings(dut.top.pllReconfig.dbus.DRDY #= Random.nextDouble() < 0.1)
+
         //        val at = 0
         //        val duration = 0
         //        while(simTime() < at*1000000000l) {
@@ -804,6 +826,7 @@ object ArtyA7SmpLinuxSystemSim {
       //dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
+      dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/mmcmeConfig/build/mmcmeConfig.bin")
       println("DRAM loading done")
     }
   }

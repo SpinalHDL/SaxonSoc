@@ -234,7 +234,7 @@ sudo cp -rf /srv/saxon-soc/nfs_root/root /srv/saxon-soc/root_backup
 sudo rm -rf /srv/saxon-soc/nfs_root
 sudo cp -rf $SAXON_ROOT/buildroot-build/images/nfs_root /srv/saxon-soc/nfs_root
 sudo rm -rf /srv/saxon-soc/nfs_root/root
-sudo cp -rf /srv/saxon-soc/root_backup /srv/saxon-soc/nfs_root/root
+sudo cp -rf /srv/saxon-soc/root_backup/* /srv/saxon-soc/nfs_root/root
 ```
 
 If you want to update an already existing /srv/saxon-soc/nfs_root : 
