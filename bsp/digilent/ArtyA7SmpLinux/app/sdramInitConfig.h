@@ -3,6 +3,7 @@
 #include "bsp.h"
 #include "sdram.h"
 #include "vgaInit.h"
+#include "spiFlash.h"
 
 #define SDRAM_CTRL SYSTEM_SDRAM_A_CTRL
 #define SDRAM_PHY  SDRAM_DOMAIN_PHY_A_CTRL
@@ -12,6 +13,9 @@
 #define WL 5
 #define CTRL_BURST_LENGHT 2
 #define PHY_CLK_RATIO 2
+
+#define SPI SYSTEM_SPI_A_CTRL
+#define SPI_CS 0
 
 void bspMain() {
     sdram_init(
@@ -41,6 +45,9 @@ void bspMain() {
 #endif
 
     vgaInit();
+
+    spiFlash_init(SPI, SPI_CS);
+    spiFlash_wake(SPI, SPI_CS);
 
     asm("ebreak");
 }
