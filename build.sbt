@@ -1,3 +1,5 @@
+val spinalVersion = "1.5.1"
+
 lazy val root = (project in file(".")).
   settings(
     inThisBuild(List(
@@ -5,7 +7,7 @@ lazy val root = (project in file(".")).
       scalaVersion := "2.11.12",
       version      := "1.0.0"
     )),
-    scalacOptions +=  s"-Xplugin:${new File(baseDirectory.value + "/ext/SpinalHDL/idslplugin/target/scala-2.11/spinalhdl-idsl-plugin_2.11-1.4.4.jar")}",
+    scalacOptions +=  s"-Xplugin:${new File(baseDirectory.value + s"/ext/SpinalHDL/idslplugin/target/scala-2.11/spinalhdl-idsl-plugin_2.11-$spinalVersion.jar")}",
     scalacOptions += s"-Xplugin-require:idsl-plugin",
 
     libraryDependencies ++= Seq(
