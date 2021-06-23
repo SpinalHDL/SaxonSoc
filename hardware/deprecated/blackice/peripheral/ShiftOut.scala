@@ -21,10 +21,10 @@ case class ShiftOut() extends Bundle with IMasterSlave {
 case class ShiftOutCtrl() extends Component {
   val io = new Bundle {
     val shiftOut = master(ShiftOut())
-    val bitOrder = in Bool
+    val bitOrder = in Bool()
     val value = in UInt(8 bits)
     val preScale = in UInt(32 bits)
-    val set = in Bool
+    val set = in Bool()
   }
 
   val prescaler = Reg(UInt(32 bits))

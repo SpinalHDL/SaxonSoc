@@ -159,12 +159,12 @@ case class QspiCtrl() extends Component {
 
 class QspiSlaveTX extends Component {
   val io = new Bundle {
-    val qckFall = in Bool
-    val qssRise = in Bool
+    val qckFall = in Bool()
+    val qssRise = in Bool()
     val qd = out Bits(4 bits)
-    val txReady = out Bool
+    val txReady = out Bool()
     val txData = in Bits(8 bits)
-    val writeEnable = in Bool
+    val writeEnable = in Bool()
   }
 
   val outData = Reg(Bits(4 bits))
@@ -194,13 +194,13 @@ class QspiSlaveTX extends Component {
 
 class QspiSlaveRX extends Component {
   val io = new Bundle {
-    val qckRise = in Bool
-    val qssRise = in Bool
+    val qckRise = in Bool()
+    val qssRise = in Bool()
     val qd = in Bits(4 bits)
-    val rxReady = out Bool
+    val rxReady = out Bool()
     val rxData = out Bits(8 bits)
     val byteNumber = out UInt(4 bits)
-    val readEnable = in Bool
+    val readEnable = in Bool()
   }
 
   val shiftReg = Reg(Bits(8 bits))

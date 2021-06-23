@@ -95,7 +95,7 @@ class BlackiceMxArduino extends Generator{
 
   val clocking = add task new Area{
     val clk_25M = in Bool()
-    val sdramClk = out Bool
+    val sdramClk = out Bool()
 
     val pll = BlackiceMxPll()
     pll.clock_in := clk_25M

@@ -6,7 +6,7 @@ import spinal.lib.generator.Generator
 
 case class TinyFpgaBxUsbOff() extends Component {
  val io = new Bundle {
-   val usb_pu = out Bool
+   val usb_pu = out Bool()
  }
 
  io.usb_pu := False

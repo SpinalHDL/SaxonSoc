@@ -1,6 +1,6 @@
 package saxon.board.blackice.sram
 
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 import spinal.core._
 import spinal.core.sim.SimConfig
 import spinal.lib._

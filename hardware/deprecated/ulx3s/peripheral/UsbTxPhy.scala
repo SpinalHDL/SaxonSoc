@@ -5,15 +5,15 @@ import spinal.lib._
 
 class UsbTxPhy extends Component {
   val io = new Bundle {
-    val fsCe = in Bool
-    val phyMode = in Bool
-    val txdp = out Bool
-    val txdn = out Bool
-    val txoe = out Bool
-    val lineCtrlI = in Bool
+    val fsCe = in Bool()
+    val phyMode = in Bool()
+    val txdp = out Bool()
+    val txdn = out Bool()
+    val txoe = out Bool()
+    val lineCtrlI = in Bool()
     val dataOutI = in Bits(8 bits)
-    val txValidI = in Bool
-    val txReadyO = out Bool
+    val txValidI = in Bool()
+    val txReadyO = out Bool()
   }
 
   val IDLE_STATE = B"0000"

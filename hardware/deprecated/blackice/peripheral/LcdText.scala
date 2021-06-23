@@ -22,7 +22,7 @@ case class LcdText() extends Bundle with IMasterSlave {
 case class LcdTextCtrl(clockHz : Int = 50000000) extends Component {
   val io = new Bundle {
     val lcdText = master(LcdText())
-    val enable = in Bool
+    val enable = in Bool()
     val data = in(Bits(9 bits))
   }
 

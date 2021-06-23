@@ -23,7 +23,7 @@ case class Ili9341() extends Bundle with IMasterSlave {
 case class Ili9341Ctrl() extends Component {
   val io = new Bundle {
     val ili9341 = master(Ili9341())
-    val resetCursor = in Bool
+    val resetCursor = in Bool()
     val pixels = slave Stream(Bits(16 bits))
     val diag = out Bits(8 bits)
   }
@@ -240,7 +240,7 @@ class StripedIli9341() extends Component{
   val io = new Bundle{
     val ili9341 = master(Ili9341())
     val leds = out Bits(8 bits)
-    val led = out Bool
+    val led = out Bool()
   }
 
   io.led := True
@@ -283,8 +283,8 @@ object StripedIli9341 {
 case class TiledIli9341() extends Component{
   val io = new Bundle{
     val ili9341 = master(Ili9341())
-    val writeEnable = in Bool
-    val texture = in Bool
+    val writeEnable = in Bool()
+    val texture = in Bool()
     val offset = in UInt(12 bits)
     val value = in UInt(6 bits)
     val diag = out UInt(32 bits)

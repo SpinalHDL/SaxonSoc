@@ -134,8 +134,8 @@ case class PS2KeyboardCtrl() extends Component {
 class PS2Test extends Component {
   val io = new Bundle {
     val ps2 = master(PS2Keyboard())
-    val usb_pu_dp = out Bool
-    val usb_pu_dn = out Bool
+    val usb_pu_dp = out Bool()
+    val usb_pu_dn = out Bool()
     val leds = out Bits(8 bits)
     val led2 = out Bits(5 bits)
   }

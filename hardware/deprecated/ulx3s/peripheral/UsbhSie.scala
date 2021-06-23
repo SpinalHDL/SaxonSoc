@@ -5,35 +5,35 @@ import spinal.lib._
 
 class UsbhSie extends Component {
   val io = new Bundle {
-    val startI = in Bool
-    val inTransferI = in Bool
-    val sofTransferI = in Bool
-    val respExpectedI = in Bool
+    val startI = in Bool()
+    val inTransferI = in Bool()
+    val sofTransferI = in Bool()
+    val respExpectedI = in Bool()
     val tokenPidI = in Bits(8 bits)
     val tokenDevI = in Bits(7 bits)
     val tokenEpI = in Bits(4 bits)
     val dataLenI = in UInt(16 bits)
-    val dataIdxI = in Bool
+    val dataIdxI = in Bool()
     val txDataI = in Bits(8 bits)
-    val utmiTxReadyI = in Bool
+    val utmiTxReadyI = in Bool()
     val utmiDataI = in Bits (8 bits)
-    val utmiRxValidI = in Bool
-    val utmiRxActiveI = in Bool
+    val utmiRxValidI = in Bool()
+    val utmiRxActiveI = in Bool()
 
-    val ackO = out Bool
-    val txPopO = out Bool
+    val ackO = out Bool()
+    val txPopO = out Bool()
     val rxDataO = out Bits(8 bits)
-    val rxPushO = out Bool
-    val txDoneO = out Bool
-    val rxDoneO = out Bool
-    val crcErrO = out Bool
-    val timeoutO = out Bool
+    val rxPushO = out Bool()
+    val txDoneO = out Bool()
+    val rxDoneO = out Bool()
+    val crcErrO = out Bool()
+    val timeoutO = out Bool()
     val responseO = out Bits(8 bits)
     val rxCountO = out UInt(16 bits)
-    val idleO = out Bool
-    val utmiLineCtrlO = out Bool
+    val idleO = out Bool()
+    val utmiLineCtrlO = out Bool()
     val utmiDataO = out Bits(8 bits)
-    val utmiTxValidO = out Bool
+    val utmiTxValidO = out Bool()
   }
 
   val RX_TIMEOUT       = 511 // 10.6uS @ 48MHz, 85us @ 6MHz

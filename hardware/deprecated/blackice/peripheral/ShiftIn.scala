@@ -22,9 +22,9 @@ case class ShiftInCtrl() extends Component {
   val io = new Bundle {
     val shiftIn = master(ShiftIn())
     val value = out UInt(8 bits)
-    val req = in Bool
+    val req = in Bool()
     val preScale = in UInt(12 bits)
-    val bitOrder = in Bool
+    val bitOrder = in Bool()
   }
 
   val shiftReg = Reg(UInt(8 bits))

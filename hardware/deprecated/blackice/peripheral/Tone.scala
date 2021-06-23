@@ -21,8 +21,8 @@ case class ToneCtrl(clockHz : Int = 50000000) extends Component {
     val tone = master(Tone())
     val period = in UInt(32 bits)
     val duration = in UInt(32 bits)
-    val clear = in Bool
-    val done = out Bool
+    val clear = in Bool()
+    val done = out Bool()
   }
 
   val prescaler = Reg(UInt(8 bits))

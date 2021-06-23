@@ -5,10 +5,10 @@ import spinal.lib._
 
 class Ps2ScanToAscii extends Component {
   val io = new Bundle {
-    val shift = in Bool
-    val ctrl = in Bool
-    val alt = in Bool
-    val extend = in Bool
+    val shift = in Bool()
+    val ctrl = in Bool()
+    val alt = in Bool()
+    val extend = in Bool()
     val scanCode = in Bits(8 bits)
     val ascii = out Bits(8 bits)
   }

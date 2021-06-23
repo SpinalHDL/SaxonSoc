@@ -40,9 +40,9 @@ case class Apb3HdmiConsoleCtrl() extends Component{
   val io = new Bundle {
     val apb = slave(Apb3(Apb3HdmiConsoleCtrl.getApb3Config))
     val hdmi = master(Hdmi())
-    val pixclk = in Bool
-    val pixclk_x5 = in Bool
-    val resetn = in Bool
+    val pixclk = in Bool()
+    val pixclk_x5 = in Bool()
+    val resetn = in Bool()
   }
 
   // Instantiate an HDMI console controller
@@ -76,8 +76,8 @@ class HdmiConsoleCtrl(rgbConfig: RgbConfig = RgbConfig(8, 8, 8)) extends Compone
     val vga = master(Vga(rgbConfig))
     val chars = slave Flow(Bits(8 bits))
     val led = out Bits(8 bits)
-    val pixclk = in Bool
-    val resetn = in Bool
+    val pixclk = in Bool()
+    val resetn = in Bool()
     val attributes = in Bits(9 bits)
   }
 

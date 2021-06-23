@@ -5,23 +5,23 @@ import spinal.lib._
 
 class UsbPhy extends Component {
   val io = new Bundle {
-    val phyTxMode = in Bool
-    val usbRst = out Bool
-    val rxd = in Bool
-    val rxdp = in Bool
-    val rxdn =in Bool
-    val txdp = out Bool
-    val txdn = out Bool
-    val txoe = out Bool
-    val ceO = out Bool
-    val lineCtrlI = in Bool
+    val phyTxMode = in Bool()
+    val usbRst = out Bool()
+    val rxd = in Bool()
+    val rxdp = in Bool()
+    val rxdn =in Bool()
+    val txdp = out Bool()
+    val txdn = out Bool()
+    val txoe = out Bool()
+    val ceO = out Bool()
+    val lineCtrlI = in Bool()
     val dataOutI = in Bits(8 bits)
-    val txValidI = in Bool
-    val txReadyO = out Bool
+    val txValidI = in Bool()
+    val txReadyO = out Bool()
     val dataInO = out Bits(8 bits)
-    val rxValidO = out Bool
-    val rxActiveO = out Bool
-    val rxErrorO = out Bool
+    val rxValidO = out Bool()
+    val rxActiveO = out Bool()
+    val rxErrorO = out Bool()
     val lineStateO = out Bits(2 bits)
   }
 

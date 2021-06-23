@@ -122,7 +122,7 @@ case class Apb3UsbKeyboardGenerator(apbOffset : BigInt)
 class UsbHostHid(g: UsbHostHidGenerics) extends Component {
   val io = new Bundle {
     val usb = master(Usb())
-    val usbDif = in Bool
+    val usbDif = in Bool()
     val hid = master(Hid(g))
     val led = out Bits(8 bits)
   }

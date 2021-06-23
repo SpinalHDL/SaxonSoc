@@ -6,7 +6,7 @@ import spinal.lib.generator.Generator
 
 case class Ulx3sNoReset() extends Component {
  val io = new Bundle {
-   val wifi_gpio0 = out Bool
+   val wifi_gpio0 = out Bool()
  }
 
  io.wifi_gpio0 := True

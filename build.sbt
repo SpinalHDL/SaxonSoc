@@ -11,7 +11,7 @@ lazy val root = (project in file(".")).
     scalacOptions += s"-Xplugin-require:idsl-plugin",
 
     libraryDependencies ++= Seq(
-      "org.scalatest" % "scalatest_2.11" % "2.2.1",
+      "org.scalatest" %% "scalatest" % "3.2.5",
       "org.yaml" % "snakeyaml" % "1.8"
     ),
     name := "SaxonSoc",

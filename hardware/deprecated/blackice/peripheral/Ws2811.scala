@@ -24,7 +24,7 @@ case class Ws2811Ctrl(maxLeds: Int, clockHz: Int = 50000000) extends Component {
     val pixels = slave Stream (Rgb(RgbConfig(8,8,8)))
     val address = out UInt(log2Up(maxLeds) bits)
     val numLeds = in UInt(32 bits)
-    val newAddress = out Bool
+    val newAddress = out Bool()
   }
   // Drive at 800khz
   val cycleCount = clockHz / 800000
@@ -149,7 +149,7 @@ case class Ws2811BusCtrl(maxLeds: Int, clockHz: Int = 50000000) extends Componen
     val ws2811 = master(Ws2811())
     val pixel = Rgb(RgbConfig(8,8,8)).asInput
     val address = in UInt(log2Up(maxLeds) bits)
-    val write = in Bool
+    val write = in Bool()
     val numLeds = in UInt(32 bits)
   }
 

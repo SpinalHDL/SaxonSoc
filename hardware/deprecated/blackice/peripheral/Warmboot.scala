@@ -9,14 +9,14 @@ import spinal.lib.generator.Generator
 import saxon.Apb3DecoderGenerator
 
 case class SB_WARMBOOT() extends BlackBox {
-  val S0 = in Bool
-  val S1 = in Bool
-  val BOOT = in Bool
+  val S0 = in Bool()
+  val S1 = in Bool()
+  val BOOT = in Bool()
 }
 
 case class WarmbootCtrl() extends Component {
   val io = new Bundle {
-    val boot = in Bool
+    val boot = in Bool()
   }
 
   val warmBoot = SB_WARMBOOT()

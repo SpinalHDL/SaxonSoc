@@ -7,17 +7,17 @@ class UsbRxPhy(inputHz : Int = 6000000,
                 bitHz : Int = 1500000,
                 paBits : Int = 8) extends Component {
   val io = new Bundle() {
-    val usbDif = in Bool
-    val usbDp = in Bool
-    val usbDn = in Bool
+    val usbDif = in Bool()
+    val usbDp = in Bool()
+    val usbDn = in Bool()
     val lineState = out Bits(2 bits)
-    val clkRecovered = out Bool
-    val clkRecoveredEdge = out Bool
-    val rawData = out Bool
-    val rxEn = in Bool
-    val rxActive = out Bool
-    val rxError = out Bool
-    val valid = out Bool
+    val clkRecovered = out Bool()
+    val clkRecoveredEdge = out Bool()
+    val rawData = out Bool()
+    val rxEn = in Bool()
+    val rxActive = out Bool()
+    val rxError = out Bool()
+    val valid = out Bool()
     val data = out Bits(8 bits)
   }
 

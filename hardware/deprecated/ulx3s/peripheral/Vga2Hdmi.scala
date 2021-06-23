@@ -7,8 +7,8 @@ import spinal.lib.graphic._
 
 class Vga2Hdmi(rgbConfig: RgbConfig = RgbConfig(8, 8, 8)) extends BlackBox {
   val io = new Bundle {
-    val pixclk = in Bool
-    val pixclk_x5 = in Bool
+    val pixclk = in Bool()
+    val pixclk_x5 = in Bool()
     val vga = slave(Vga(rgbConfig))
     val hdmi = master(Hdmi())
   }
