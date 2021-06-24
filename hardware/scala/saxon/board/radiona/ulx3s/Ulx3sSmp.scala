@@ -405,7 +405,10 @@ object Ulx3sSmpAbstract{
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(dma.read)(cmdHalfRate = true, rspValid = true)
     interconnect.setPipelining(dma.readSg)(rspValid = true)
-    if(usbACtrl != null) interconnect.setPipelining(usbACtrl.dma)(cmdValid = true, cmdReady = true, rspValid = true)
+    if(usbACtrl != null) {
+      interconnect.setPipelining(usbACtrl.dma)(cmdValid = true, cmdReady = true, rspValid = true)
+      interconnect.setPipelining(usbACtrl.ctrl)(cmdHalfRate = true)
+    }
 
     g
   }
