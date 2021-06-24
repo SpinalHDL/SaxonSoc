@@ -17,11 +17,11 @@
 
 #define OPENSBI_MEMORY 0x80F80000
 #define OPENSBI_FLASH  0x00340000
-#define OPENSBI_SIZE      0x40000
+#define OPENSBI_SIZE      0x20000
 
-#define UBOOT_MEMORY     0x80F00000
-#define UBOOT_SBI_FLASH  0x00380000
-#define UBOOT_SIZE          0x80000
+#define UBOOT_MEMORY     0x81000000
+#define UBOOT_SBI_FLASH  0x00360000
+#define UBOOT_SIZE          0xA0000
 
 #define RL 3
 #define WL 0
@@ -136,11 +136,21 @@ void bspMain() {
     bsp_putString("\n");
     
     // Set 100Mbps and auto-negotiate
-    mdio_write(SPI, MD_CS, 1, 0,  0x3000);
+    //mdio_write(SPI, MD_CS, 1, 0, 0x3000);
+    mdio_write(SPI, MD_CS, 1, 0, 0x2000 | 0x4000);
+    mdio_write(SPI, MD_CS, 1, 4, 0x0081);
     
     bsp_putString("  control (new): ");
     control = mdio_read(SPI, MD_CS, 1, 0);
     putHexU16(control);
+
+    bsp_putString("xxx => \n");
+    for(int i = 0;i < 32;i++){
+        putHexU16(i); bsp_putString(" => ");
+        putHexU16(mdio_read(SPI, MD_CS, 1, i));
+        bsp_putString("\n");
+    }
+
     bsp_putString("\n");
 #endif
 

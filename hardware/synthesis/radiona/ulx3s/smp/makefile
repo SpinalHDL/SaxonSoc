@@ -1,4 +1,4 @@
-VERILOG = ../../../../netlist/Ulx3sSmp.v pll_linux.v
+VERILOG = ../../../../netlist/Ulx3sSmp.v pll_linux.v pll_linux2.v
 
 FPGA_SIZE ?= 12
 
@@ -64,5 +64,12 @@ pll:
 		--phase1 270 \
                 -n  pll_linux\
                 -f pll_linux.v
+
+pll2:
+	ecppll \
+                -i 52.0833 \
+                --clkout0 48 \
+                -n pll_linux2\
+                -f pll_linux2.v
 clean:
 	$(RM) -rf bin *.bin

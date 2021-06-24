@@ -7,7 +7,7 @@ import spinal.core
 import spinal.core.{Clock, _}
 import spinal.core.sim._
 import spinal.lib.{Delay, LatencyAnalysis}
-import spinal.lib.blackbox.lattice.ecp5.{IFS1P3BX, ODDRX1F, OFS1P3BX}
+import spinal.lib.blackbox.lattice.ecp5.{DCCA, IFS1P3BX, ODDRX1F, OFS1P3BX}
 import spinal.lib.blackbox.xilinx.s7.{BSCANE2, BUFG, STARTUPE2}
 import spinal.lib.bus.bmb._
 import spinal.lib.bus.bsb.BsbInterconnectGenerator
@@ -20,6 +20,7 @@ import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
 import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
+import spinal.lib.com.usb.ohci.{OhciPortParameter, UsbOhciGenerator, UsbOhciParameter}
 import spinal.lib.generator._
 import spinal.lib.graphic.RgbConfig
 import spinal.lib.graphic.vga.{BmbVgaCtrlGenerator, BmbVgaCtrlParameter}
@@ -35,7 +36,7 @@ import vexriscv.ip.fpu.{FpuCore, FpuParameter, FpuPort}
 import vexriscv.plugin.{AesPlugin, FpuPlugin}
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
-class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexRiscvClusterGenerator(cpuCount){
+class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boolean) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric(withOutOfOrderDecoder = true)
 
   val fpu = includeFpu generate new FpuIntegration(){
@@ -114,7 +115,11 @@ class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean = false) extends VexR
   ramA.hexOffset = bmbPeripheral.mapping.lowerBound
   interconnect.addConnection(bmbPeripheral.bmb, ramA.ctrl)
 
-
+  val usbACtrl = includeUsbHost generate new UsbOhciGenerator(0xA0000)
+  if(includeUsbHost) {
+    plic.addInterrupt(usbACtrl.interrupt, 16)
+    interconnect.addConnection(usbACtrl.dma, fabric.dBusCoherent.bmb)
+  }
 
   interconnect.addConnection(
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
@@ -159,7 +164,7 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
 
 
 
-class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean) extends Component{
+class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boolean) extends Component{
   // Define the clock domains used by the SoC
   val globalCd = ClockDomainResetGenerator()
   globalCd.holdDuration.load(255)
@@ -177,11 +182,24 @@ class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean) extends Component{
   systemCd.setInput(globalCd)
   systemCd.holdDuration.load(63)
 
+  val usbCdCtrl = includeUsbHost generate {
+    val g = ClockDomainResetGenerator()
+    g.holdDuration.load(63)
+    g.asyncReset(globalCd)
+    g
+  }
 
   // ...
-  val system = systemCd.outputClockDomain on new Ulx3sSmpAbstract(cpuCount, includeFpu){
+  val system = systemCd.outputClockDomain on new Ulx3sSmpAbstract(cpuCount, includeFpu, includeUsbHost){
     val phyA = Ecp5Sdrx2PhyGenerator().connect(sdramA)
     val hdmiPhy = vga.withHdmiEcp5(hdmiCd.outputClockDomain)
+
+    val usbAPhy = includeUsbHost generate (usbCdCtrl.outputClockDomain on usbACtrl.createPhyDefault())
+    val usbAPort = includeUsbHost generate usbAPhy.createInferableIo()
+    val usbPu = includeUsbHost generate Handle(new Area{
+      val dp = out(False)
+      val dm = out(False)
+    })
   }
 
   val flash_holdn = out(True)
@@ -198,9 +216,21 @@ class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean) extends Component{
 
     val pll = Ulx3sLinuxUbootPll()
     pll.clkin := clk_25mhz
+
+
+    val pll2 = new BlackBox{
+      setDefinitionName("pll_linux2")
+      val clkin = in Bool()
+      val clkout0 = out Bool()
+      val locked = out Bool()
+    }
+
+    val pll_clk2 = DCCA.on(pll.clkout2)
+    pll2.clkin := pll_clk2
+
     globalCd.setInput(
       ClockDomain(
-        clock = pll.clkout2,
+        clock = pll_clk2,
         reset = resetn,
         frequency = FixedFrequency(52 MHz),
         config = ClockDomainConfig(
@@ -210,18 +240,25 @@ class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean) extends Component{
       )
     )
 
+    includeUsbHost generate usbCdCtrl.setInput(
+      ClockDomain(
+        pll2.clkout0,
+        frequency = FixedFrequency(48 MHz)
+      )
+    )
+
     Clock.syncDrive(pll.clkin, pll.clkout0)
     Clock.syncDrive(pll.clkin, pll.clkout3)
 
-    vgaCd.setInput(ClockDomain(pll.clkout3))
-    hdmiCd.setInput(ClockDomain(pll.clkout0))
+    vgaCd.setInput(ClockDomain(DCCA.on(pll.clkout3)))
+    hdmiCd.setInput(ClockDomain(DCCA.on(pll.clkout0)))
     system.vga.vgaCd.load(vgaCd.outputClockDomain)
 
     val rmii_clk = in Bool()
-    system.mac.txCd.load(ClockDomain(rmii_clk))
-    system.mac.rxCd.load(ClockDomain(rmii_clk))
+    system.mac.txCd.load(ClockDomain(DCCA.on(rmii_clk)))
+    system.mac.rxCd.load(ClockDomain(DCCA.on(rmii_clk)))
 
-    val bb = ClockDomain(pll.clkout1, False)(ODDRX1F())
+    val bb = ClockDomain(DCCA.on(pll.clkout1), False)(ODDRX1F())
     bb.D0 <> True
     bb.D1 <> False
     bb.Q <> sdram_clk
@@ -349,6 +386,14 @@ object Ulx3sSmpAbstract{
       lengthWidth = 6
     )
 
+    if(usbACtrl != null) usbACtrl.parameter load UsbOhciParameter(
+      noPowerSwitching = true,
+      powerSwitchingMode = true,
+      noOverCurrentProtection = true,
+      powerOnToPowerGoodTime = 10,
+      dataWidth = 32,
+      portsConfig = List.fill(1)(OhciPortParameter())
+    )
 
     // Add some interconnect pipelining to improve FMax
     for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
@@ -360,6 +405,7 @@ object Ulx3sSmpAbstract{
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(dma.read)(cmdHalfRate = true, rspValid = true)
     interconnect.setPipelining(dma.readSg)(rspValid = true)
+    if(usbACtrl != null) interconnect.setPipelining(usbACtrl.dma)(cmdValid = true, cmdReady = true, rspValid = true)
 
     g
   }
@@ -396,7 +442,11 @@ object Ulx3sSmp {
     if (includeFpu) println("FPU included")
     else println("FPU not included")
 
-    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount, includeFpu), sdramSize, includeFpu)))
+    val includeUsbHost = sys.env.getOrElse("SAXON_USB_HOST","0") == "1"
+    if (includeUsbHost) println("USB host included")
+    else println("USB host not included")
+
+    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount, includeFpu, includeUsbHost), sdramSize, includeFpu)))
     BspGenerator("radiona/ulx3s/smp", report.toplevel, report.toplevel.system.cores(0).dBus)
   }
 }
@@ -426,7 +476,7 @@ object Ulx3sSmpSystemSim {
       systemCd.setInput(globalCd)
       systemCd.holdDuration.load(63)
 
-      val top = systemCd.outputClockDomain on new Ulx3sSmpAbstract(1){
+      val top = systemCd.outputClockDomain on new Ulx3sSmpAbstract(1, includeFpu = false, includeUsbHost = false){
         mac.txCd.load(systemCd.outputClockDomain)
         mac.rxCd.load(systemCd.outputClockDomain)
 
