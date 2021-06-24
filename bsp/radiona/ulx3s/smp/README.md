@@ -104,7 +104,11 @@ git clone https://github.com/SpinalHDL/SaxonSoc.git -b dev-0.3 --recursive Saxon
 # Sourcing the build script
 source SaxonSoc/bsp/radiona/ulx3s/smp/source.sh
 export SAXON_CPU_COUNT=1  # SAXON_CPU_COUNT is the number of VexRiscv CPU, used for the hardware and DTS generation 
-
+export SDRAM_SIZE=32      # 32 MB sdram
+export FPGA_SIZE=85       # 85 KLUT FPGA
+export SAXON_FPU=0        # Without FPU
+export SAXON_USB_HOST=1   # With USB host
+  
 # Clone opensbi, u-boot, linux, buildroot, openocd
 saxon_clone
 
@@ -252,6 +256,22 @@ sudo mount $SDCARD_P2 sdcard
 sudo tar xf buildroot/output/images/rootfs.tar -C sdcard
 sudo umount sdcard
 rm -r sdcard
+```
+
+
+
+
+## Booting from a USB drive
+
+```
+#Format the usb drive with the buildroot image, don't forget to set the USB_DRIVE variable to point to the /dev/xxx
+sudo dd if=$SAXON_ROOT/buildroot-build/images/sdcard.img of=$USB_DRIVE bs=4M conv=sync status=progress
+```
+
+```
+#In U-BOOT
+env set bootargs "rootwait console=hvc0 earlycon=sbi root=/dev/sda2 init=/sbin/init"
+usb start; load usb 0:1 0x80000000 uImage;load usb 0:1 0x80FF0000 linux.dtb; bootm 0x80000000 - 0x80FF0000 
 ```
 
 ## Using peripherals
