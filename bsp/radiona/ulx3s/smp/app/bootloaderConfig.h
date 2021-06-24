@@ -136,21 +136,11 @@ void bspMain() {
     bsp_putString("\n");
     
     // Set 100Mbps and auto-negotiate
-    //mdio_write(SPI, MD_CS, 1, 0, 0x3000);
-    mdio_write(SPI, MD_CS, 1, 0, 0x2000 | 0x4000);
-    mdio_write(SPI, MD_CS, 1, 4, 0x0081);
-    
+    mdio_write(SPI, MD_CS, 1, 0, 0x3000);
+
     bsp_putString("  control (new): ");
     control = mdio_read(SPI, MD_CS, 1, 0);
     putHexU16(control);
-
-    bsp_putString("xxx => \n");
-    for(int i = 0;i < 32;i++){
-        putHexU16(i); bsp_putString(" => ");
-        putHexU16(mdio_read(SPI, MD_CS, 1, i));
-        bsp_putString("\n");
-    }
-
     bsp_putString("\n");
 #endif
 
