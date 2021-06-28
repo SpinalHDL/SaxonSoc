@@ -1,3 +1,3 @@
 RV_M=yes
-RV_C=no
+RV_C=yes
 CFLAGS += -DSMP

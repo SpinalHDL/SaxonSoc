@@ -292,6 +292,8 @@ object Ulx3sSmpAbstract{
         dCacheWays = 2,
         iBusRelax = true,
         earlyBranch = true,
+        rvc = true,
+        injectorStage = true,
         withFloat = includeFpu,
         withDouble = includeFpu,
         externalFpu = includeFpu
