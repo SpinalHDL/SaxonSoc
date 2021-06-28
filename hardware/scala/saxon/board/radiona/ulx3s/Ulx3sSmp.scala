@@ -404,6 +404,7 @@ object Ulx3sSmpAbstract{
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
+    interconnect.setPipelining(plic.ctrl)(cmdHalfRate = true, rspHalfRate = true)
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(dma.read)(cmdHalfRate = true, rspValid = true)
     interconnect.setPipelining(dma.readSg)(rspValid = true)
