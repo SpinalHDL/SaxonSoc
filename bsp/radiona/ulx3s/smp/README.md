@@ -245,8 +245,7 @@ echo Y | sudo  mke2fs $SDCARD_P2
 
 mkdir -p sdcard
 sudo mount $SDCARD_P1 sdcard
-sudo cp buildroot/output/images/dtb sdcard/dtb
-sudo cp buildroot/output/images/rootfs.cpio.uboot sdcard/rootfs.cpio.uboot
+sudo cp buildroot/output/images/linux.dtb sdcard/linux.dtb
 sudo cp buildroot/output/images/uImage sdcard/uImage
 sudo umount sdcard
 rm -r sdcard
