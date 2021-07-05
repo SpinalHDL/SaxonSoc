@@ -45,21 +45,26 @@ class VexRiscvClusterGenerator(cpuCount : Int) extends Area {
   }
 
   // Can be use to define a SMP memory fabric with mainly 3 attatchement points (iBus, dBusCoherent, dBusIncoherent)
-  def withDefaultFabric(withOutOfOrderDecoder : Boolean = true) = new Area{
+  def withDefaultFabric(withOutOfOrderDecoder : Boolean = true, withInvalidation : Boolean = true) = new Area{
     val iBus = BmbBridgeGenerator()
     val dBusCoherent = BmbBridgeGenerator()
     val dBus = BmbBridgeGenerator()
 
     val exclusiveMonitor = BmbExclusiveMonitorGenerator()
-    val invalidationMonitor = BmbInvalidateMonitorGenerator()
+    val invalidationMonitor = withInvalidation generate BmbInvalidateMonitorGenerator()
 
-    interconnect.addConnection(
+
+
+    if(withInvalidation)     interconnect.addConnection(
       dBusCoherent.bmb           -> List(exclusiveMonitor.input),
       exclusiveMonitor.output    -> List(invalidationMonitor.input),
       invalidationMonitor.output -> List(dBus.bmb)
+    ) else interconnect.addConnection(
+      dBusCoherent.bmb           -> List(exclusiveMonitor.input),
+      exclusiveMonitor.output    -> List(dBus.bmb)
     )
 
-   for(cpu <- cores) {
+    for(cpu <- cores) {
       interconnect.addConnection(
         cpu.iBus -> List(iBus.bmb),
         cpu.dBus -> List(dBusCoherent.bmb)
