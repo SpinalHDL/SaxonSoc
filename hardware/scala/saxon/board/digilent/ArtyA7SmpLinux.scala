@@ -167,7 +167,7 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
     val nativeJtag = debugBus.withBscane2(userId = 2)
 
     val usbAPhy = usbCd(usbACtrl.createPhyDefault())
-    val usbAPort = usbAPhy.createInferableIo()
+    val usbAPort = usbCd(usbAPhy.createInferableIo())
   }
 
 
@@ -684,10 +684,12 @@ object ArtyA7SmpLinuxSystemSim {
 //      }
 
 
-      dut.top.usbAPort.foreach{usb =>
-        usb.overcurrent #= false
+      dut.top.usbAPort._1.foreach{usb =>
         usb.rx.dp #= false
         usb.rx.dm #= false
+      }
+      dut.top.usbAPort._2.foreach{usb =>
+        usb.overcurrent #= false
       }
 //      val usbAgent = new UsbLsFsPhyAbstractIoAgent(dut.top.usbAPort.get.apply(0), clockDomain, 96/12)
 //      val usbDevice = new UsbDeviceAgent(usbAgent)
