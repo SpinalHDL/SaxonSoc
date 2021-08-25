@@ -24,6 +24,7 @@ import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.com.usb.ohci.{OhciPortParameter, UsbOhciGenerator, UsbOhciParameter, UsbPid}
 import spinal.lib.com.usb.sim.{UsbDeviceAgent, UsbDeviceAgentListener, UsbLsFsPhyAbstractIoAgent}
+import spinal.lib.com.usb.udc.{UsbDeviceBmbGenerator, UsbDeviceCtrlParameter}
 import spinal.lib.generator._
 import spinal.lib.generator_backup.Handle.initImplicit
 import spinal.lib.graphic.RgbConfig
@@ -113,6 +114,9 @@ class ArtyA7SmpLinuxAbstract(cpuCount : Int) extends VexRiscvClusterGenerator(cp
   plic.addInterrupt(usbACtrl.interrupt, 16)
   interconnect.addConnection(usbACtrl.dma, fabric.dBusCoherent.bmb)
 
+  val usbBCtrl = new UsbDeviceBmbGenerator(0xB0000)
+  plic.addInterrupt(usbBCtrl.interrupt, 17)
+
   val pllReconfig = new Mmcme2CtrlGenerator(0x91000)
 
   val ramA = BmbOnChipRamGenerator(0xA00000l)
@@ -168,6 +172,11 @@ class ArtyA7SmpLinux(cpuCount : Int) extends Component{
 
     val usbAPhy = usbCd(usbACtrl.createPhyDefault())
     val usbAPort = usbCd(usbAPhy.createInferableIo())
+
+    val usbBPhy = usbCd(usbBCtrl.createPhyDefault())
+    val usbBPort = usbCd(usbBPhy.createInferableIo())
+    val usbBPort_pullup = Handle(out(True))
+//    val usbBPort_powerPulldown = Handle(out(False))
   }
 
 
@@ -410,12 +419,16 @@ object ArtyA7SmpLinuxAbstract{
       portsConfig = List.fill(4)(OhciPortParameter())
     )
 
+    usbBCtrl.parameter load UsbDeviceCtrlParameter(
+      addressWidth = 12
+    )
+
     // Add some interconnect pipelining to improve FMax
     for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
     interconnect.setPipelining(fabric.exclusiveMonitor.input)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.invalidationMonitor.output)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.dBus.bmb)(cmdValid = true, cmdReady = true)
-    interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = true, rspHalfRate = true)
+    interconnect.setPipelining(bmbPeripheral.bmb)(cmdHalfRate = false, rspHalfRate = true)
     interconnect.setPipelining(sdramA0.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
     interconnect.setPipelining(fabric.iBus.bmb)(cmdValid = true)
     interconnect.setPipelining(dma.read)(cmdHalfRate = true)
