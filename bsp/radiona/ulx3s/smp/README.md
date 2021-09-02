@@ -14,6 +14,7 @@
   * User usage SPI
 * HDMI output, which can be used with DirectFB or X11 in Linux
 * Audio out (stereo) via sigma delta, Alsa driver provided
+* USB host and USB device
 * Uart to host and to esp32 co-processor
 * GPIO access in Linux
 * Ethernet MII with Linux driver
@@ -109,6 +110,7 @@ export SDRAM_SIZE=32      # 32 MB sdram
 export FPGA_SIZE=85       # 85 KLUT FPGA
 export SAXON_FPU=0        # Without FPU
 export SAXON_USB_HOST=1   # With USB host
+export SAXON_USB_DEVICE=0 # Without USB device (can't have host and device at the same time, pin conflict)
   
 # Clone opensbi, u-boot, linux, buildroot, openocd
 saxon_clone
@@ -327,6 +329,10 @@ do
 done
 echo 480 > unexport
 ```
+
+### USB device
+
+You can make the board behave like a serial/ethernet/storage via USB (US2 connector). For this you can set SAXON_USB_DEVICE to 1, regenerate the hardware/DTS and then use the bsp/common/doc/gadget.sh script in linux.
 
 ## Available software
 

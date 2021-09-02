@@ -12,6 +12,7 @@
   * FPGA SPI flash access in Linux
   * SDCARD in linux
   * User usage SPI
+* USB host and USB device (12 Mbps)
 * VGA, which can be used with DirectFB or X11 in linux
 * Audio out (stereo) via sigma delta pin, Alsa driver provided
 * GPIO access in linux
@@ -300,8 +301,9 @@ setxkbmap -symbols "pc+ch(fr)+inet(evdev)+terminate(ctrl_alt_bksp)"
 feh --bg-fill background.jpg
 ```
 
+## USB device
 
-
+You can make the board behave like a serial/ethernet/storage via USB (US2 connector). For this you can set SAXON_USB_DEVICE to 1, regenerate the hardware/DTS and then use the bsp/common/doc/gadget.sh script in linux.
 
 ## Junk
 
