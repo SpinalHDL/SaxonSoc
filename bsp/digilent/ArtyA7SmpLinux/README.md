@@ -7,15 +7,17 @@
 
 ## Implemented peripherals
 
-* Ethernet MII with linux driver
+* Ethernet MII
 * SPI, which provide
-  * FPGA SPI flash access in Linux
-  * SDCARD in linux
+  * FPGA SPI flash access 
+  * SDCARD
   * User usage SPI
 * USB host and USB device (12 Mbps)
-* VGA, which can be used with DirectFB or X11 in linux
+* VGA, which can be used with DirectFB or X11
 * Audio out (stereo) via sigma delta pin, Alsa driver provided
-* GPIO access in linux
+* GPIO access
+
+All those peripherals come with their Linux drivers.
 
 ![SoC](assets/diagram.png?raw=true "")
 
