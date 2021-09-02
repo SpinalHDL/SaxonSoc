@@ -136,10 +136,23 @@ void bspMain() {
     bsp_putString("\n");
     
     // Set 100Mbps and auto-negotiate
-    mdio_write(SPI, MD_CS, 1, 0, 0x3000);
+    mdio_write(SPI, MD_CS, 1, 4, 0x0181);
+    mdio_write(SPI, MD_CS, 1, 0, 0x1000);
+    bsp_uDelay(10000);
 
     bsp_putString("  control (new): ");
     control = mdio_read(SPI, MD_CS, 1, 0);
+    putHexU16(control);
+    bsp_putString("\n");
+
+    bsp_putString("  status: ");
+    control = mdio_read(SPI, MD_CS, 1, 1);
+    putHexU16(control);
+    bsp_putString("\n");
+
+
+    bsp_putString("  status 4: ");
+    control = mdio_read(SPI, MD_CS, 1, 4);
     putHexU16(control);
     bsp_putString("\n");
 #endif
