@@ -119,7 +119,6 @@ set_property -dict {PACKAGE_PIN K16 IOSTANDARD LVCMOS33 IOB TRUE SLEW SLOW DRIVE
 set_property -dict {PACKAGE_PIN M18 IOSTANDARD LVCMOS33 IOB TRUE SLEW SLOW DRIVE 8 PULLUP   YES} [get_ports {system_usbBPort_dif_dp}]
 set_property -dict {PACKAGE_PIN L18 IOSTANDARD LVCMOS33 IOB TRUE SLEW SLOW DRIVE 8 PULLDOWN YES} [get_ports {system_usbBPort_dif_dm}]
 set_property -dict {PACKAGE_PIN A13 IOSTANDARD LVCMOS33 IOB TRUE SLEW SLOW DRIVE 8             } [get_ports {system_usbBPort_pullup}]
-#set_property -dict {PACKAGE_PIN A14 IOSTANDARD LVCMOS33 IOB TRUE SLEW SLOW DRIVE 8             } [get_ports {system_usbBPort_powerPulldown}]
 set_property -dict {PACKAGE_PIN M17 IOSTANDARD LVCMOS33 IOB TRUE SLEW SLOW DRIVE 8             } [get_ports {system_usbBPort_power}]
 
 

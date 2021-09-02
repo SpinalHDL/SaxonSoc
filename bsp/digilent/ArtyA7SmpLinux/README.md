@@ -303,7 +303,7 @@ feh --bg-fill background.jpg
 
 ## USB device
 
-You can make the board behave like a serial/ethernet/storage via USB (US2 connector). For this you can set SAXON_USB_DEVICE to 1, regenerate the hardware/DTS and then use the bsp/common/doc/gadget.sh script in linux.
+You can make the board behave like a serial/ethernet/storage via some pins on the headers. For that you will need to wrap a usb connector on the system_usbBPort* pins and then use the bsp/common/doc/gadget.sh script in linux.
 
 ## Junk
 
