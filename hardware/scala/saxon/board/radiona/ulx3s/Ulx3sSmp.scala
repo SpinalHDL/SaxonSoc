@@ -21,6 +21,7 @@ import spinal.lib.com.spi.ddr.{SpiXdrMasterCtrl, SpiXdrParameter}
 import spinal.lib.com.uart.UartCtrlMemoryMappedConfig
 import spinal.lib.com.uart.sim.{UartDecoder, UartEncoder}
 import spinal.lib.com.usb.ohci.{OhciPortParameter, UsbOhciGenerator, UsbOhciParameter}
+import spinal.lib.com.usb.udc.{UsbDeviceBmbGenerator, UsbDeviceCtrlParameter}
 import spinal.lib.generator._
 import spinal.lib.graphic.RgbConfig
 import spinal.lib.graphic.vga.{BmbVgaCtrlGenerator, BmbVgaCtrlParameter}
@@ -36,7 +37,7 @@ import vexriscv.ip.fpu.{FpuCore, FpuParameter, FpuPort}
 import vexriscv.plugin.{AesPlugin, FpuPlugin}
 
 // Define a SoC abstract enough to be used in simulation (no PLL, no PHY)
-class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boolean) extends VexRiscvClusterGenerator(cpuCount){
+class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boolean, includeUsbDevice : Boolean) extends VexRiscvClusterGenerator(cpuCount){
   val fabric = withDefaultFabric(withOutOfOrderDecoder = true)
 
   val fpu = includeFpu generate new FpuIntegration(){
@@ -121,6 +122,11 @@ class Ulx3sSmpAbstract(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boo
     interconnect.addConnection(usbACtrl.dma, fabric.dBusCoherent.bmb)
   }
 
+  val usbBCtrl = includeUsbDevice generate new UsbDeviceBmbGenerator(0xB0000)
+  if(includeUsbDevice){
+    plic.addInterrupt(usbBCtrl.interrupt, 17)
+  }
+
   interconnect.addConnection(
     fabric.iBus.bmb -> List(sdramA0.bmb, bmbPeripheral.bmb),
     fabric.dBus.bmb -> List(dBus32.bmb),
@@ -164,7 +170,7 @@ case class Ulx3sLinuxUbootPll() extends BlackBox{
 
 
 
-class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boolean) extends Component{
+class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boolean, includeUsbDevice : Boolean) extends Component{
   // Define the clock domains used by the SoC
   val globalCd = ClockDomainResetGenerator()
   globalCd.holdDuration.load(255)
@@ -182,7 +188,7 @@ class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boolean) ex
   systemCd.setInput(globalCd)
   systemCd.holdDuration.load(63)
 
-  val usbCdCtrl = includeUsbHost generate {
+  val usbCdCtrl = (includeUsbHost | includeUsbDevice) generate {
     val g = ClockDomainResetGenerator()
     g.holdDuration.load(63)
     g.asyncReset(globalCd)
@@ -190,7 +196,7 @@ class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boolean) ex
   }
 
   // ...
-  val system = systemCd.outputClockDomain on new Ulx3sSmpAbstract(cpuCount, includeFpu, includeUsbHost){
+  val system = systemCd.outputClockDomain on new Ulx3sSmpAbstract(cpuCount, includeFpu, includeUsbHost, includeUsbDevice){
     val phyA = Ecp5Sdrx2PhyGenerator().connect(sdramA)
     val hdmiPhy = vga.withHdmiEcp5(hdmiCd.outputClockDomain)
 
@@ -200,6 +206,14 @@ class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boolean) ex
       val dp = out(False)
       val dm = out(False)
     })
+
+    val usbBPhy = includeUsbDevice generate {
+      usbCdCtrl.outputClockDomain on new Area{
+        val logic = usbBCtrl.createPhyDefault()
+        val port = logic.createInferableIo(withPower = false)
+        val pullup = Handle(out(True))
+      }
+    }
   }
 
   val flash_holdn = out(True)
@@ -240,7 +254,7 @@ class Ulx3sSmp(cpuCount : Int, includeFpu: Boolean, includeUsbHost : Boolean) ex
       )
     )
 
-    includeUsbHost generate usbCdCtrl.setInput(
+    (includeUsbHost || includeUsbDevice) generate usbCdCtrl.setInput(
       ClockDomain(
         pll2.clkout0,
         frequency = FixedFrequency(48 MHz)
@@ -397,6 +411,12 @@ object Ulx3sSmpAbstract{
       portsConfig = List.fill(1)(OhciPortParameter())
     )
 
+    if(usbBCtrl != null){
+      usbBCtrl.parameter load UsbDeviceCtrlParameter(
+        addressWidth = 12
+      )
+    }
+
     // Add some interconnect pipelining to improve FMax
     for(cpu <- cores) interconnect.setPipelining(cpu.dBus)(cmdValid = true, invValid = true, ackValid = true, syncValid = true)
     interconnect.setPipelining(dBus32.bmb)(cmdValid = true, cmdReady = true, rspValid = true)
@@ -452,7 +472,11 @@ object Ulx3sSmp {
     if (includeUsbHost) println("USB host included")
     else println("USB host not included")
 
-    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount, includeFpu, includeUsbHost), sdramSize, includeFpu)))
+    val includeUsbDevice = sys.env.getOrElse("SAXON_USB_DEVICE","0") == "1"
+    if (includeUsbDevice) println("USB device included")
+    else println("USB device not included")
+
+    val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount, includeFpu, includeUsbHost, includeUsbDevice), sdramSize, includeFpu)))
     BspGenerator("radiona/ulx3s/smp", report.toplevel, report.toplevel.system.cores(0).dBus)
   }
 }
@@ -482,7 +506,7 @@ object Ulx3sSmpSystemSim {
       systemCd.setInput(globalCd)
       systemCd.holdDuration.load(63)
 
-      val top = systemCd.outputClockDomain on new Ulx3sSmpAbstract(1, includeFpu = false, includeUsbHost = false){
+      val top = systemCd.outputClockDomain on new Ulx3sSmpAbstract(1, includeFpu = false, includeUsbHost = false, includeUsbDevice = false){
         mac.txCd.load(systemCd.outputClockDomain)
         mac.rxCd.load(systemCd.outputClockDomain)
 
@@ -493,7 +517,7 @@ object Ulx3sSmpSystemSim {
         phy.connect(sdramA)
 
         Ulx3sSmpAbstract.default(this)
-        ramA.hexInit.load("software/standalone/bootloader/build/bootloader_spinal_sim.hex")
+        ramA.hexInit.load("software/standalone/bootloader/build/bootloader.hex")
 
         val jtagTap = withDebugBus(globalCd.outputClockDomain, systemCd, address = 0x10B80000).withJtag()
       }
@@ -552,7 +576,7 @@ object Ulx3sSmpSystemSim {
       dut.top.phy.logic.loadBin(0x00F00000, images + "u-boot.bin")
       dut.top.phy.logic.loadBin(0x00000000, images + "Image")
       dut.top.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
-      dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
+//      dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
 
         //Bypass uboot
         dut.top.phy.logic.loadBytes(0x00F00000, Seq(0xb7, 0x0f, 0x00, 0x80, 0xe7, 0x80, 0x0f,0x00).map(_.toByte))  //Seq(0x80000fb7, 0x000f80e7)

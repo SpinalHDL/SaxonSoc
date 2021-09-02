@@ -23,6 +23,11 @@ ifeq ($(FPGA_SIZE), 85)
 	CHIP_ID=0x41113043
 	NEXTPNR_FLAGS += "--timing-allow-fail"
 endif
+ifeq ($(SAXON_USB_HOST), 1)
+ifeq ($(SAXON_USB_DEVICE), 1)
+$(error Can't have both usb host and device, as they share the same pins)
+endif
+endif
 
 IDCODE ?= $(CHIP_ID)
 
@@ -48,7 +53,7 @@ bin/toplevel.config: bin/toplevel.json
 		--lpf ulx3s_v20_linux_uboot.lpf \
 		--$(FPGA_KS) \
 		--freq 50 \
-		--seed 123 \
+		--seed 6852 \
 		--package CABGA381 ${NEXTPNR_FLAGS}
 
 bin/toplevel.bit: bin/toplevel.config

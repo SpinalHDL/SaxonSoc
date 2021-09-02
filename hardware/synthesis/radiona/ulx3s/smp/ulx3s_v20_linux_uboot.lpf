@@ -205,6 +205,15 @@ LOCATE COMP "system_usbPu_dm" SITE "C12";
 IOBUF PORT "system_usbPu_dp" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=16;
 IOBUF PORT "system_usbPu_dm" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=16;
 
+LOCATE COMP "system_usbBPhy_port_dif_dp" SITE "E16"; # single ended or differential input only
+LOCATE COMP "system_usbBPhy_port_dif_dm" SITE "F16";
+IOBUF PORT "system_usbBPhy_port_dif_dp" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=16;
+IOBUF PORT "system_usbBPhy_port_dif_dm" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=16;
+
+LOCATE COMP "system_usbBPhy_pullup" SITE "B12"; # pull up/down control
+IOBUF PORT "system_usbBPhy_pullup" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=16;
+
+
 ## JTAG ESP-32 "usb" sheet
 # connected to FT231X and ESP-32
 # commented out because those are dedicated pins, not directly useable as GPIO
