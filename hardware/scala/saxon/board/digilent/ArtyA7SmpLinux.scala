@@ -650,6 +650,10 @@ object ArtyA7SmpLinuxSystemSim {
         val usbAPhy = usbACtrl.createPhyDefault()
         val usbAPort = usbAPhy.createSimIo()
 
+        val usbBPhy = (usbBCtrl.createPhyDefault())
+        val usbBPort = (usbBPhy.createInferableIo())
+        val usbBPort_pullup = Handle(out(True))
+
         Handle(fabric.dBusCoherent.bmb.get.simPublic())
 
 
