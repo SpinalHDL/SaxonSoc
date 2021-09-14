@@ -307,6 +307,11 @@ feh --bg-fill background.jpg
 
 You can make the board behave like a serial/ethernet/storage via some pins on the headers. For that you will need to wrap a usb connector on the system_usbBPort* pins and then use the bsp/common/doc/gadget.sh script in linux.
 
+The physical requirements of system_usbBPort are : 
+
+- 30 ohm serial resistor on both dp and bm (for signal integrity, not required for short cable length)
+- Resistor divider from the usb 5V to system_usbBPort_power to adapt the voltage to 3.3V (Else, keep that pin to 3.3V)
+
 ## Junk
 
 
