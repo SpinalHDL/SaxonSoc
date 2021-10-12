@@ -150,6 +150,8 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
   @dontName val gateways = ArrayBuffer[Handle[PlicGateway]]()
   val apb = produce(logic.apb)
   val apbConfig = Apb3Config(22, 32)
+  val lock = Lock()
+
 
   val priorityWidth = createDependency[Int]
   val mapping = createDependency[PlicMapping]
@@ -165,17 +167,20 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
     add task(tags += new Export(Apb3PlicGenerator.this.getName() + "_" + target.getName, id))
   }
 
-  override def addInterrupt(source : Handle[Bool], id : Int) = {
+  override def addInterrupt(source : => Handle[Bool], id : Int) = {
+    lock.retain()
     this.dependencies += new Generator {
-      dependencies += source
+      val src = source
+      dependencies += src
       add task new Area {
         gateways += PlicGatewayActiveHigh(
-          source = source,
+          source = src,
           id = id,
           priorityWidth = priorityWidth
-        ).setCompositeName(source, "plic_gateway")
+        ).setCompositeName(src, "plic_gateway")
 
-        tags += new Export(Apb3PlicGenerator.this.getName() + "_" + source.getName, id)
+        tags += new Export(Apb3PlicGenerator.this.getName() + "_" + src.getName, id)
+        lock.release()
       }
     }
   }
@@ -183,6 +188,7 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
   override def getBus(): Handle[Nameable] = apb
 
   val logic = add task new Area{
+    lock.await()
     val apb = Apb3(apbConfig)
     val bus = Apb3SlaveFactory(apb)
 
