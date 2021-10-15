@@ -14,14 +14,14 @@ typedef struct {
 }Vga_Timing;
 
 static const Vga_Timing vga_h640_v480_r60 = {
-    .hSyncStart  = 96,
-    .hSyncEnd    = 800,
-    .hColorStart = 96 + 16,
-    .hColorEnd   = 800 - 48,
-    .vSyncStart  = 2,
-    .vSyncEnd 	 = 525,
-    .vColorStart = 2 + 10,
-    .vColorEnd 	 = 525 - 33,
+    .hSyncStart  = 95,
+    .hSyncEnd    = 799,
+    .hColorStart = 143,
+    .hColorEnd   = 783,
+    .vSyncStart  = 1,
+    .vSyncEnd 	 = 524,
+    .vColorStart = 34,
+    .vColorEnd 	 = 514,
     .polarities  = 0,
 };
 
