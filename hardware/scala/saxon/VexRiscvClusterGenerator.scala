@@ -14,30 +14,31 @@ import vexriscv.VexRiscvBmbGenerator
 import vexriscv.ip.fpu.{FpuCore, FpuParameter, FpuPort}
 import vexriscv.plugin.{CsrPlugin, FpuPlugin}
 
-class VexRiscvClusterGenerator(cpuCount : Int) extends Area {
+class VexRiscvClusterGenerator(cpuCount : Int, withSupervisor : Boolean = true, peripheralCd : Handle[ClockDomain] = ClockDomain.currentHandle) extends Area {
   // Define the BMB interconnect utilities
   implicit val interconnect = BmbInterconnectGenerator()
-  val bmbPeripheral = BmbBridgeGenerator(mapping = SizeMapping(0x10000000, 16 MiB)).peripheral(dataWidth = 32)
-  implicit val peripheralDecoder = bmbPeripheral.asPeripheralDecoder()
+  val bmbPeripheral = peripheralCd on BmbBridgeGenerator(mapping = SizeMapping(0x10000000, 16 MiB)).peripheral(dataWidth = 32)
+  implicit val peripheralDecoder = peripheralCd on bmbPeripheral.asPeripheralDecoder()
 
   // Define the main interrupt controllers
-  val plic = BmbPlicGenerator(0xC00000)
+  val plic = peripheralCd on BmbPlicGenerator(0xC00000)
   plic.priorityWidth.load(2)
   plic.mapping.load(PlicMapping.sifive)
 
-  val clint = BmbClintGenerator(0xB00000)
+  val clint = peripheralCd on BmbClintGenerator(0xB00000)
   clint.cpuCount.load(cpuCount)
 
   // Defines the VexRiscv cores with their connections to the PLIC and CLINT
   val cores = for(cpuId <- 0 until cpuCount) yield {
+    def bufferize[T <: Data](that : T) : T = if(peripheralCd != ClockDomain.currentHandle) BufferCC[T](that, init = null.asInstanceOf[T]) else RegNext[T](that)
     val vex = VexRiscvBmbGenerator()
-    vex.setTimerInterrupt(clint.timerInterrupt(cpuId))
-    vex.setSoftwareInterrupt(clint.softwareInterrupt(cpuId))
+    vex.setTimerInterrupt(clint.timerInterrupt(cpuId).derivate(bufferize))
+    vex.setSoftwareInterrupt(clint.softwareInterrupt(cpuId).derivate(bufferize))
     plic.addTarget(vex.externalInterrupt)
-    plic.addTarget(vex.externalSupervisorInterrupt)
+    if(withSupervisor) plic.addTarget(vex.externalSupervisorInterrupt)
     List(clint.logic, vex.logic).produce{
       for (plugin <- vex.config.plugins) plugin match {
-        case plugin : CsrPlugin if plugin.utime != null => plugin.utime := RegNext(clint.logic.io.time)
+        case plugin : CsrPlugin if plugin.utime != null => plugin.utime := bufferize(clint.logic.io.time)
         case _ =>
       }
     }
