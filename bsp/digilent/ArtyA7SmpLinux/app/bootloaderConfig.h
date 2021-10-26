@@ -67,7 +67,6 @@ void bspMain() {
     spiFlash_f2m(SPI, SPI_CS, UBOOT_SBI_FLASH, UBOOT_MEMORY, UBOOT_SIZE);
 
     vgaInit();
-#endif
 
     // MDIO
     bsp_putString("Configuring MDIO\n");
@@ -110,6 +109,7 @@ void bspMain() {
     control = mdio_read(SPI, MD_CS, 1, 4);
     bsp_putU32(control);
     bsp_putString("\n");
+#endif
 
     bsp_putString("Payload boot\n");
     void (*userMain)(u32, u32, u32) = (void (*)(u32, u32, u32))OPENSBI_MEMORY;
