@@ -74,7 +74,10 @@ init:
 	bltu a0, a1, 1b
 2:
 
+#ifndef NO_LIBC_INIT_ARRAY
 	call __libc_init_array
+#endif
+
 	call main
 mainDone:
     j mainDone
