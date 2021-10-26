@@ -4,9 +4,9 @@ import spinal.core._
 import spinal.core.fiber._
 import spinal.lib._
 import spinal.lib.bus.amba3.apb.{Apb3, Apb3CC, Apb3Config, Apb3SlaveFactory}
-import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbArbiter, BmbEg4S20Bram32K, BmbExclusiveMonitor, BmbIce40Spram, BmbImplicitPeripheralDecoder, BmbInvalidateMonitor, BmbInvalidationParameter, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbInterconnectGenerator, BmbToApb3Bridge}
+import spinal.lib.bus.bmb.{Bmb, BmbAccessCapabilities, BmbAccessParameter, BmbArbiter, BmbEg4S20Bram32K, BmbExclusiveMonitor, BmbIce40Spram, BmbImplicitPeripheralDecoder, BmbInterconnectGenerator, BmbInvalidateMonitor, BmbInvalidationParameter, BmbOnChipRam, BmbOnChipRamMultiPort, BmbParameter, BmbToApb3Bridge}
 import spinal.lib.bus.misc.{AddressMapping, DefaultMapping, SizeMapping}
-import spinal.lib.generator.{Dependable, Generator, MemoryConnection}
+import spinal.lib.generator.{Dependable, Export, Generator, MemoryConnection}
 import spinal.lib.memory.sdram.SdramLayout
 import spinal.lib.memory.sdram.sdr._
 import spinal.lib.memory.sdram.xdr._
@@ -51,6 +51,8 @@ case class BmbOnChipRamGenerator(val address: Handle[BigInt] = Unset)
     hexOffset = address.get + hexOffset,
     hexInit = hexInit
   ))
+
+  export[BigInt](size, size.toInt)
 }
 
 
