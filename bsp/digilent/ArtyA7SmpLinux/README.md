@@ -312,6 +312,53 @@ The physical requirements of system_usbBPort are :
 - 30 ohm serial resistor on both dp and bm (for signal integrity, not required for short cable length)
 - Resistor divider from the usb 5V to system_usbBPort_power to adapt the voltage to 3.3V (Else, keep that pin to 3.3V)
 
+## Getting GCC on the target  
+
+```shell
+
+export PATH=$SAXON_ROOT/buildroot-build/host/bin:$PATH
+
+# Build GCC
+git clone https://github.com/gcc-mirror/gcc.git --branch releases/gcc-10.3.0 --recursive gcc-10.3.0
+rm -rf gcc_build
+mkdir gcc_build
+cd gcc_build
+../gcc-10.3.0/configure --prefix=/ \
+--host=riscv32-buildroot-linux-gnu \
+--target=riscv32-buildroot-linux-gnu  --with-build-sysroot=$SAXON_ROOT/buildroot-build/staging \
+--disable-multilib --enable-languages=c,c++
+make -j24
+sudo chmod -R 777 /srv/saxon-soc/nfs_root
+DESTDIR=/srv/saxon-soc/nfs_root make install
+
+# Build binutils
+git clone https://github.com/bminor/binutils-gdb.git --recursive --branch gdb-10.2-release binutils-10.2
+rm -rf binutils_build
+mkdir binutils_build
+cd binutils_build
+../binutils-10.2/configure --prefix=/ \
+--host=riscv32-buildroot-linux-gnu \
+--target=riscv32-buildroot-linux-gnu \
+--with-build-sysroot=$SAXON_ROOT/buildroot-build/staging
+make -j24
+sudo chmod -R 777 /srv/saxon-soc/nfs_root
+DESTDIR=/srv/saxon-soc/nfs_root make install
+
+# Install binaries (here on /srv/saxon-soc/nfs_root)
+sudo chmod -R 777 /srv/saxon-soc/nfs_root
+cd gcc_build
+DESTDIR=/srv/saxon-soc/nfs_root make install &
+cd ..
+
+cd binutils_build
+DESTDIR=/srv/saxon-soc/nfs_root make install
+cd ..
+
+# Install libraries from buildroot to the rootfs
+sudo chmod -R 777 /srv/saxon-soc/nfs_root
+rsync -zarv  --prune-empty-dirs --include="*/" --include="*.a" --include="*.o" --include="*.h"  --include="*.so" --exclude="*"  $SAXON_ROOT/buildroot-build/host/riscv32-buildroot-linux-gnu/sysroot/ /srv/saxon-soc/nfs_root
+```
+
 ## Junk
 
 
