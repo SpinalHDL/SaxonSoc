@@ -40,7 +40,7 @@ case class Apb3DecoderGenerator() extends Generator {
     dependencies += slave
     dependencies += address
     models += SlaveModel(slave, config, address)
-    tags += new MemoryConnection(input, slave, address)
+    tags += new MemoryConnection(input, slave, address, Handle(SizeMapping(address, 1 << config.addressWidth)))
   }
 
   dependencies += input

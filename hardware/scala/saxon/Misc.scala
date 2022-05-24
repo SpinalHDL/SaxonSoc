@@ -10,9 +10,9 @@ import spinal.lib.generator.{Dependable, Dts, Export, Generator, MemoryConnectio
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import java.io._
-
 import spinal.core.ClockDomain.FixedFrequency
 import spinal.lib.bus.bmb.BmbInterconnectGenerator
+import spinal.lib.bus.misc.{AddressMapping, SizeMapping}
 import spinal.lib.bus.wishbone.{Wishbone, WishboneConfig}
 import spinal.lib.com.spi.SpiHalfDuplexMaster
 import spinal.lib.com.spi.ddr.{SpiXdrMaster, SpiXdrParameter}
@@ -77,8 +77,13 @@ object BspGenerator {
 
 
 
-    def connectionExplorer[T <: Nameable](view : Handle[T], address : BigInt, addressLast : BigInt, tab : String): Unit ={
+    def connectionExplorer[T <: Nameable](view : Handle[T], address : BigInt, mapping : AddressMapping, addressLast : BigInt, tab : String): Unit ={
       headerWriter.println(s"#define ${camelToUpperCase(view.getName)} 0x${address.toString(16)}")
+      mapping match{
+        case mapping : SizeMapping =>
+          headerWriter.println(s"#define ${camelToUpperCase(view.getName + "Size")} 0x${mapping.size.toString(16)}")
+        case _ =>
+      }
 
       val viewConnections = connections.filter(_.input == view)
       if(viewConnections.nonEmpty){
@@ -105,7 +110,7 @@ object BspGenerator {
 
         for(c <- viewConnections){
           val connectionAddress = address + c.address
-          connectionExplorer(c.output, connectionAddress, addressLastRec, innerTab)
+          connectionExplorer(c.output, connectionAddress, c.mapping, addressLastRec, innerTab)
         }
         if(simpleBusOption.isDefined) dtsWriter.println(s"\n$tab};")
       } else {
@@ -116,7 +121,7 @@ object BspGenerator {
       }
     }
 
-    connectionExplorer(memoryView, 0, 0, "")
+    connectionExplorer(memoryView, 0, null, 0, "")
 
 
     headerWriter.println("#endif")
