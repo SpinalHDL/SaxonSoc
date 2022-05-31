@@ -52,7 +52,7 @@ case class BmbOnChipRamGenerator(val address: Handle[BigInt] = Unset)
     hexInit = hexInit
   ))
 
-  export[BigInt](size, size.toInt)
+  sexport[BigInt](size, size.toInt)
 }
 
 
