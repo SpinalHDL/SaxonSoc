@@ -52,7 +52,7 @@ case class BmbOnChipRamGenerator(val address: Handle[BigInt] = Unset)
     hexInit = hexInit
   ))
 
-  export[BigInt](size, size.toInt)
+  sexport[BigInt](size, size.toInt)
 }
 
 
@@ -83,7 +83,7 @@ case class  BmbToApb3Decoder(address : Handle[BigInt] = Unset)(implicit intercon
   })
 
 
-  export(new MemoryConnection(input, apbDecoder.input, 0))
+  sexport(new MemoryConnection(input, apbDecoder.input, 0, interconnect.getSlave(input).mapping))
 }
 
 
@@ -101,14 +101,14 @@ case class  Apb3CCGenerator() extends Area {
     outputClock = outputClockDomain
   ))
 
-  export(new MemoryConnection(input, output, 0))
+  sexport(new MemoryConnection(input, output, 0, null))
 
   def mapAt(apbOffset : BigInt)(implicit apbDecoder : Apb3DecoderGenerator) = apbDecoder.addSlave(input, apbOffset)
   def setOutput(apb : Handle[Apb3]): Unit = {
     apb.produce(apbConfig.load(apb.config))
     Dependable(apb, output){
       output >> apb
-      export(new MemoryConnection(output, apb, 0))
+      sexport(new MemoryConnection(output, apb, 0, null))
     }
   }
 }

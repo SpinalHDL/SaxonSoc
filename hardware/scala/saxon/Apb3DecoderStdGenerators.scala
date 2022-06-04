@@ -51,7 +51,7 @@ case class Apb3UartGenerator(apbOffset : Handle[BigInt] = Unset)
        |  interrupts = <$interruptId>;""".stripMargin} else ""}
        |}""".stripMargin
   }
-  export(parameter)
+  sexport(parameter)
 }
 
 object Apb3SpiGenerator{
@@ -242,7 +242,7 @@ case class Apb3MachineTimerGenerator(apbOffset : Handle[BigInt] = Unset) (implic
 
   decoder.addSlave(apb, apbOffset)
 
-  val hz = export(produce(ClockDomain.current.frequency))
+  val hz = sexport(produce(ClockDomain.current.frequency))
 }
 
 case class Apb3ClintGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decoder: Apb3DecoderGenerator) extends Generator{
@@ -254,7 +254,7 @@ case class Apb3ClintGenerator(apbOffset : Handle[BigInt] = Unset) (implicit deco
 
   decoder.addSlave(apb, apbOffset)
 
-  val hz = export(produce(ClockDomain.current.frequency))
+  val hz = sexport(produce(ClockDomain.current.frequency))
 }
 
 

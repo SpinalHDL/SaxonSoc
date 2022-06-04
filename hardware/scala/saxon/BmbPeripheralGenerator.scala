@@ -40,7 +40,7 @@ case class BmbUartGenerator(apbOffset : Handle[BigInt] = Unset)
     bus                = ctrl,
     mapping            = Handle(SizeMapping(apbOffset, 1 << BmbUartCtrl.addressWidth))
   )
-  export(parameter)
+  sexport(parameter)
   if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
 
   def connectInterrupt(ctrl : InterruptCtrlGeneratorI, id : Int): Unit = {
@@ -344,7 +344,7 @@ case class BmbMacEthGenerator(address : Handle[BigInt] = Unset)
     bus = ctrl,
     mapping = address.derivate(SizeMapping(_, 1 << BmbMacEth.addressWidth))
   )
-  export(parameter)
+  sexport(parameter)
   if(decoder != null) interconnect.addConnection(decoder.bus, ctrl)
 
 
