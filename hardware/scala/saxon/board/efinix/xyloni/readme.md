@@ -23,7 +23,11 @@
 ### How to start
 - You should already be running Xyloni. Refer this [video turtorial](https://youtu.be/dIEofQYBnDA) and also the wonderful resources at Efinix on [Xyloni](https://github.com/Efinix-Inc/xyloni)
 - [Install and run SpinalHdl](https://spinalhdl.github.io/SpinalDoc-RTD/master/SpinalHDL/Getting%20Started/getting_started.html)
+- Build and generate the verilog hdl files
+- Build the VexRiscV application as you did before for Opal SoC.
 - Use the generated verilog and on chip RAM init files to get the bitstrean with Efinity and download using JTAG as you did for the Opal SoC
+- 
+_Here is a video of the walk through_
 
 
 Ravi Ganesh
