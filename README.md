@@ -8,9 +8,10 @@ This repo experiment multiple things at once :
 A few kits are supported :
 - ulx3s (ECP5) , documented in bsp/radiona/ulx3s/smp/README.md
 - Arty-A7 (Artix 7), documented in bsp/digilent/ArtyA7SmpLinux/README.md
-- ![xyloni_1](https://user-images.githubusercontent.com/26599790/172013514-6214a167-3b28-4e65-a452-b34fa961690b.jpg) Documented [here](./hardware/scala/saxon/board/efinix/xyloni/readme.md)
+- [Efinix Xyloni](./hardware/scala/saxon/board/efinix/xyloni/readme.md)   ![xyloni_1](https://user-images.githubusercontent.com/26599790/172013963-737f0f52-707d-4ab9-9b78-31ec360a097c.jpg)
 
 ...
+
 
 
 ## Repository structure
