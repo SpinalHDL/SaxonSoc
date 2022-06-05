@@ -1,12 +1,6 @@
-ifneq (, $(shell which riscv-none-embed-gcc))
-  RISCV_BIN ?= riscv-none-embed-
-else
-ifneq (, $(shell which riscv64-unknown-elf-gcc))
-  RISCV_BIN ?= riscv64-unknown-elf-
-else
-$(warning No RISC-V toolchain detected, please install riscv-none-embed- from xpack)
-endif
-endif
+
+#We downloaded Effinix's Xyloni SDK. Hence set as below.
+RISCV_BIN ?= riscv-none-embed-
 
 RISCV_CC=${RISCV_BIN}gcc
 RISCV_OBJCOPY=${RISCV_BIN}objcopy
