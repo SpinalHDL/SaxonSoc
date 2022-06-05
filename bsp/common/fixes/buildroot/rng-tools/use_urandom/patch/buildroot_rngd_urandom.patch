@@ -1,0 +1,11 @@
+--- buildroot/package/rng-tools/S21rngd	2020-11-05 00:21:10.892782030 +0100
++++ buildroot/package/rng-tools/S21rngd_patched	2020-11-05 00:23:57.758714382 +0100
+@@ -2,7 +2,7 @@
+ 
+ NAME="rngd"
+ DAEMON="/usr/sbin/${NAME}"
+-DAEMON_ARGS=""
++DAEMON_ARGS="-x 5 -r /dev/urandom"
+ CFG_FILE="/etc/default/${NAME}"
+ PID_FILE="/var/run/${NAME}.pid"
+ 

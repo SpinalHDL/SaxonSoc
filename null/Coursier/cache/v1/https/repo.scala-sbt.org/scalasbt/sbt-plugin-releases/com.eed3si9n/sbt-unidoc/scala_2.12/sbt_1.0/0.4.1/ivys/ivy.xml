@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ivy-module version="2.0" xmlns:e="http://ant.apache.org/ivy/extra">
+	<info organisation="com.eed3si9n" module="sbt-unidoc" revision="0.4.1" status="release" publication="20170804002643" e:sbtVersion="1.0" e:scalaVersion="2.12">
+		<license name="Apache License v2" url="http://www.apache.org/licenses/LICENSE-2.0.html"/>
+		<description>
+		sbt plugin to create a unified API document across projects
+		</description>
+	</info>
+	<configurations>
+		<conf name="compile" visibility="public" description=""/>
+		<conf name="runtime" visibility="public" description="" extends="compile"/>
+		<conf name="test" visibility="public" description="" extends="runtime"/>
+		<conf name="provided" visibility="public" description=""/>
+		<conf name="optional" visibility="public" description=""/>
+		
+		
+		
+		
+		<conf name="sources" visibility="public" description=""/>
+		<conf name="docs" visibility="public" description=""/>
+		<conf name="pom" visibility="public" description=""/>
+		
+		
+		
+	</configurations>
+	<publications>
+		<artifact name="sbt-unidoc" type="jar" ext="jar" conf="compile"/>
+		<artifact name="sbt-unidoc" type="src" ext="jar" conf="sources" e:classifier="sources"/>
+		<artifact name="sbt-unidoc" type="src" ext="jar" conf="sources" e:classifier="tests-sources"/>
+	</publications>
+	<dependencies>
+		
+		<dependency org="org.scala-lang" name="scala-library" rev="2.12.2" conf="provided->default(compile)"/>
+		<dependency org="org.scala-sbt" name="sbt" rev="1.0.0-RC3" conf="provided->default(compile)"/>
+		
+		
+	</dependencies>
+</ivy-module>

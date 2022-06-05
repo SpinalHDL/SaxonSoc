@@ -1,0 +1,28 @@
+set_io clk B2
+set_io reset A7
+
+set_io io_led B3
+
+# Left side of board
+set_io io_ili9341_dout[0]  A2    # pin 1
+set_io io_ili9341_dout[1] A1    # pin 2
+set_io io_ili9341_dout[2] B1      # pin 3
+set_io io_ili9341_dout[3] C2      # pin 4
+set_io io_ili9341_dout[4] C1      # pin 5
+set_io io_ili9341_dout[5] D2      # pin 6
+set_io io_ili9341_dout[6] D1      # pin 7
+set_io io_ili9341_dout[7] E2      # pin 8
+set_io io_ili9341_nReset E1      # pin 9
+set_io io_ili9341_cmdData  H1 # pin 11
+set_io io_ili9341_writeEdge  J1 # pin 12
+set_io io_ili9341_backLight H2 # pin 13
+
+set_io io_leds[0] H9
+set_io io_leds[1] D9
+set_io io_leds[2] D8
+set_io io_leds[3] C9
+set_io io_leds[4] A9
+set_io io_leds[5] B8
+set_io io_leds[6] A8
+set_io io_leds[7] B7
+

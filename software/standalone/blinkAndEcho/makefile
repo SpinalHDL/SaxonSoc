@@ -1,17 +1,14 @@
 PROJ_NAME=blinkAndEcho
-DEBUG=yes
-MULDIV=no
-COMPRESSED=no
+
 STANDALONE = ..
 
 
 SRCS = 	$(wildcard src/*.c) \
-		$(wildcard src/*.cpp)  \
-		$(wildcard src/*.S)
+		$(wildcard src/*.cpp) \
+		$(wildcard src/*.S) \
+		${STANDALONE}/common/start.S
 
 
-LDSCRIPT = ${STANDALONE}/common/linker_xip.ld
-
+include ${STANDALONE}/common/bsp.mk
 include ${STANDALONE}/common/riscv64-unknown-elf.mk
 include ${STANDALONE}/common/standalone.mk
-

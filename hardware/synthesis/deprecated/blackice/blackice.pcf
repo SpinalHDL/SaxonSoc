@@ -1,0 +1,115 @@
+set_io CLOCK_100 129
+set_io GRESET 128
+
+set_io system_uartA_uart_txd 85
+set_io system_uartA_uart_rxd 88
+
+set_io system_cpu_tms 3
+set_io system_cpu_tdi 7
+set_io system_cpu_tdo 4
+set_io system_cpu_tck 8
+
+set_io system_gpioA_gpio_0 70
+set_io system_gpioA_gpio_1 68
+set_io system_gpioA_gpio_2 67
+set_io system_gpioA_gpio_3 71
+set_io system_gpioA_gpio_4 33
+set_io system_gpioA_gpio_5 21
+set_io system_gpioA_gpio_6 31
+set_io system_gpioA_gpio_7 32
+set_io system_gpioA_gpio_8 143
+set_io system_gpioA_gpio_9 114
+set_io system_gpioA_gpio_10 112
+set_io system_gpioA_gpio_11 107
+
+set_io system_gpioB_gpio_0 63
+set_io system_gpioB_gpio_1 64
+
+set_io system_sevenSegmentA_sevenSegment_digitPin 1
+
+set_io system_sevenSegmentA_sevenSegment_segPins[0] 10
+set_io system_sevenSegmentA_sevenSegment_segPins[1] 9
+set_io system_sevenSegmentA_sevenSegment_segPins[2] 2
+set_io system_sevenSegmentA_sevenSegment_segPins[3] 20
+set_io system_sevenSegmentA_sevenSegment_segPins[4] 19
+set_io system_sevenSegmentA_sevenSegment_segPins[5] 16
+set_io system_sevenSegmentA_sevenSegment_segPins[6] 15
+
+#set_io system_lcdText_lcdText_e 144
+#set_io system_lcdText_lcdText_rs 143
+
+#set_io system_lcdText_lcdText_dout[0] 98
+#set_io system_lcdText_lcdText_dout[1] 99
+#set_io system_lcdText_lcdText_dout[2] 96
+#set_io system_lcdText_lcdText_dout[3] 97
+#set_io system_lcdText_lcdText_dout[4] 104
+#set_io system_lcdText_lcdText_dout[5] 105
+#set_io system_lcdText_lcdText_dout[6] 101
+#set_io system_lcdText_lcdText_dout[7] 102
+
+set_io system_pwm_pwm_pins[0] 52
+set_io system_pwm_pwm_pins[1] 49
+
+set_io system_i2c_i2c_sda 95
+set_io system_i2c_i2c_scl 93
+
+#set_io system_testLeds[0] 87
+#set_io system_testLeds[1] 90
+
+set_io system_spiA_spi_sclk 144
+set_io system_spiA_spi_mosi 113
+set_io system_spiA_spi_miso 110
+set_io system_spiA_spi_ss 106
+
+set_io system_ws2811_ws2811_dout 34
+
+set_io system_qspiAnalog_qspiAnalog_qck 82
+set_io system_qspiAnalog_qspiAnalog_qss 81
+
+set_io system_qspiAnalog_qspiAnalog_qd_0 83
+set_io system_qspiAnalog_qspiAnalog_qd_1 84
+set_io system_qspiAnalog_qspiAnalog_qd_2 79
+set_io system_qspiAnalog_qspiAnalog_qd_3 80
+
+set_io system_sramA_sram_addr[0] 137
+set_io system_sramA_sram_addr[1] 138
+set_io system_sramA_sram_addr[2] 139
+set_io system_sramA_sram_addr[3] 141
+set_io system_sramA_sram_addr[4] 142
+set_io system_sramA_sram_addr[5] 42
+set_io system_sramA_sram_addr[6] 43
+set_io system_sramA_sram_addr[7] 44
+set_io system_sramA_sram_addr[8] 73
+set_io system_sramA_sram_addr[9] 74
+set_io system_sramA_sram_addr[10] 75
+set_io system_sramA_sram_addr[11] 76
+set_io system_sramA_sram_addr[12] 115
+set_io system_sramA_sram_addr[13] 116
+set_io system_sramA_sram_addr[14] 117
+set_io system_sramA_sram_addr[15] 118
+set_io system_sramA_sram_addr[16] 119
+set_io system_sramA_sram_addr[17] 78
+
+set_io system_sramA_sram_cs 23
+set_io system_sramA_sram_we 120
+set_io system_sramA_sram_oe 29
+set_io system_sramA_sram_lb 24
+set_io system_sramA_sram_ub 28
+
+set_io system_sramA_sram_dat_0 136
+set_io system_sramA_sram_dat_1 135
+set_io system_sramA_sram_dat_2 134
+set_io system_sramA_sram_dat_3 130
+set_io system_sramA_sram_dat_4 125
+set_io system_sramA_sram_dat_5 124
+set_io system_sramA_sram_dat_6 122
+set_io system_sramA_sram_dat_7 121
+set_io system_sramA_sram_dat_8 62
+set_io system_sramA_sram_dat_9 61
+set_io system_sramA_sram_dat_10 60
+set_io system_sramA_sram_dat_11 56
+set_io system_sramA_sram_dat_12 55
+set_io system_sramA_sram_dat_13 48
+set_io system_sramA_sram_dat_14 47
+set_io system_sramA_sram_dat_15 45
+

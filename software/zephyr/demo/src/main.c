@@ -20,7 +20,7 @@
 #define SWITCH_PRIO  2
 
 #define LED_PORT GPIOA_PORT
-#define LED_PIN	1
+#define LED_PIN    1
 
 void switch_isr(void *arg)
 {
@@ -32,14 +32,14 @@ void switch_isr(void *arg)
 void printer_thread(void)
 {
     struct device *dev;
-	dev = device_get_binding(LED_PORT);
+    dev = device_get_binding(LED_PORT);
 
     u32_t count = 0;
-	while (1) {
-		printk("Miaou %d\n", count++);
-		gpio_pin_write(dev, LED_PIN, count % 2);
-		k_sleep(50);
-	}
+    while (1) {
+        printk("Miaou %d\n", count++);
+        gpio_pin_write(dev, LED_PIN, count % 2);
+        k_sleep(50);
+    }
 }
 
 void init(void)

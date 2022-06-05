@@ -2,34 +2,9 @@ package saxon
 
 import spinal.core._
 import spinal.lib._
+import spinal.lib.blackbox.lattice.ice40.SB_SPRAM256KA
 import spinal.lib.bus.simple._
 
-case class SB_SPRAM256KA() extends BlackBox{
-  val DATAIN = in Bits(16 bits)
-  val ADDRESS = in UInt(14 bits)
-  val MASKWREN = in Bits(4 bits)
-  val WREN = in Bool()
-  val CHIPSELECT = in Bool()
-  val CLOCK = in Bool()
-  val DATAOUT = out Bits(16 bits)
-  val STANDBY = in Bool()
-  val SLEEP = in Bool()
-  val POWEROFF = in Bool()
-  mapCurrentClockDomain(CLOCK)
-}
-
-object SB_GB{
-  def apply(input : Bool) : Bool = {
-    val c = SB_GB().setCompositeName(input, "SB_GB", true)
-    c.USER_SIGNAL_TO_GLOBAL_BUFFER := input
-    c.GLOBAL_BUFFER_OUTPUT
-  }
-}
-
-case class SB_GB() extends BlackBox{
-  val USER_SIGNAL_TO_GLOBAL_BUFFER = in Bool()
-  val GLOBAL_BUFFER_OUTPUT = out Bool()
-}
 
 
 case class SB_RGBA_DRV() extends BlackBox{
@@ -124,16 +99,3 @@ case class SB_IO_DATA() extends BlackBox{
   setDefinitionName("SB_IO")
 }
 
-case class SB_IO(pinType : String) extends BlackBox{
-  addGeneric("PIN_TYPE", B(pinType))
-  val PACKAGE_PIN = inout(Analog(Bool))
-  val CLOCK_ENABLE = in Bool() default(False)
-  val INPUT_CLK = in Bool() default(False)
-  val OUTPUT_CLK = in Bool() default(False)
-  val OUTPUT_ENABLE = in Bool() default(False)
-  val D_OUT_0 = in Bool() default(False)
-  val D_OUT_1 = in Bool() default(False)
-  val D_IN_0 = out Bool()
-  val D_IN_1 = out Bool()
-  setDefinitionName("SB_IO")
-}

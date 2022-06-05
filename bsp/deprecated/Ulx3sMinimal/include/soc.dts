@@ -1,0 +1,18 @@
+system_apbDecoder_input@10000000 {
+  compatible = "simple-bus";
+  #address-cells = <0x1>;
+  #size-cells = <0x1>;
+  ranges = <0x0 0x10000000 0x20000>;
+                
+  system_uartA_apb: tty@10000 {
+    compatible = "spinal-lib,uart-1.0";
+    reg = <0x10000 0x1000>;
+  
+  }
+  system_gpioA_apb: gpio@0 {
+    compatible = "spinal-lib,gpio-1.0";
+    reg = <0x0 0x1000>;
+  
+  }
+
+};

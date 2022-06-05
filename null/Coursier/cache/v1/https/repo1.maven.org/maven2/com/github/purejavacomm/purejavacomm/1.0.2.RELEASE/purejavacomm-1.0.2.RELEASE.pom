@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.github.purejavacomm</groupId>
+  <artifactId>purejavacomm</artifactId>
+  <version>1.0.2.RELEASE</version>
+  <name>PureJavaComm</name>
+  <description>PureJavaComm is an Application Programmin Interface (API) for accessing serial ports from Java. PureJavaComm aims to be a drop-in replacement for Sun's (now Oracle) abandoned JavaComm and an easier to deploy alternative to RXTX.</description>
+  <url>http://www.sparetimelabs.com/purejavacomm/purejavacomm.php</url>
+  <licenses>
+    <license>
+      <name>Simplified BSD License</name>
+      <url>http://www.opensource.org/licenses/BSD-3-Clause</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>nyholku</id>
+      <name>Kustaa Nyholm</name>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/nyholku/purejavacomm.git</connection>
+    <developerConnection>scm:git:http://github.com/nyholku/purejavacomm.git</developerConnection>
+    <url>https://github.com/nyholku/purejavacomm</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>net.java.dev.jna</groupId>
+      <artifactId>jna</artifactId>
+      <version>4.2.2</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>

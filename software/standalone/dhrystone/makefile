@@ -1,19 +1,19 @@
 PROJ_NAME=dhrystone
+
 DEBUG=no
-MULDIV=no
-COMPRESSED=no
+BENCH=yes
 STANDALONE = ..
 
 CFLAGS += -fno-inline -fno-common
+CFLAGS += -Wno-implicit-int -Wno-implicit-function-declaration
 CFLAGS += -DTIME -DCORE_HZ=12000000ll
 
 SRCS = 	$(wildcard src/*.c) \
-		$(wildcard src/*.cpp)  \
-		$(wildcard src/*.S)
+		$(wildcard src/*.cpp) \
+		$(wildcard src/*.S) \
+        ${STANDALONE}/common/start.S
 
-
-LDSCRIPT = ${STANDALONE}/common/linker_xip.ld
-
+include ${STANDALONE}/common/bsp.mk
 include ${STANDALONE}/common/riscv64-unknown-elf.mk
 include ${STANDALONE}/common/standalone.mk
 

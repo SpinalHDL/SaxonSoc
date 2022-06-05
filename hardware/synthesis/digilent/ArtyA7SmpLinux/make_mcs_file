@@ -1,0 +1,6 @@
+#!/bin/sh
+#Create mcs file for QSPI flash
+
+cd ./build
+
+vivado -mode batch -source ../vivado_script.tcl -tclargs "--cfgmem" -notrace

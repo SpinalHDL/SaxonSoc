@@ -31,6 +31,7 @@ case class FlashModel(spi : SpiXdrMaster, cd : ClockDomain) {
     if(spi.ss.toInt == 1){
       sclkLast = false
       counter = 8
+      sclkLast = (spi.sclk.write.toInt & 1).toBoolean
       goto(command)
     } else {
       val sclkWrite = spi.sclk.write.toInt

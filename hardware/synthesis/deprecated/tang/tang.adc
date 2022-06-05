@@ -1,0 +1,45 @@
+set_pin_assignment {CLK_24} { LOCATION = K14; } ##CLK_IN/24MHZ
+set_pin_assignment {RST_N} { LOCATION = K16; } ##L15_N/USR_KEY
+
+set_pin_assignment {RGB_LED[0]} { LOCATION = R3;  }	##LED_R
+set_pin_assignment {RGB_LED[1]} { LOCATION = J14;  } ##LED_G
+set_pin_assignment {RGB_LED[2]} { LOCATION = P13;  } ##L3_P/LED_B
+
+set_pin_assignment {UART1_RX} { LOCATION = H13; } ##UART1_RX
+set_pin_assignment {UART1_TX} { LOCATION = J13; } ##UART1_TX
+
+set_pin_assignment {TMS} { LOCATION = C9; } ##B10_N/TMS/a3
+set_pin_assignment {TDI} { LOCATION = B6; } ##B21_N/TDI/a1
+set_pin_assignment {TCK} { LOCATION = C5; } ##B21_P/TCK/a0
+set_pin_assignment {TDO} { LOCATION = A4; } ##B24_N/TDO/a2
+
+#set_pin_assignment {SD_D2} { LOCATION = N16; } ##SD_D2
+#set_pin_assignment {SD_D1} { LOCATION = F14; } ##SD_D1
+set_pin_assignment {SD_D0} { LOCATION = F13; } ##SD_D0/MISO/DO
+set_pin_assignment {SD_CMD} { LOCATION = H14; } ##SD_CMD/MOSI/DI
+set_pin_assignment {SD_CLK} { LOCATION = M9; } ##SD_CLK
+set_pin_assignment {SD_D3} { LOCATION = N14; } ##SD_D3/CS
+
+#set_pin_assignment {SPI1_MISO} { LOCATION = E14; } ##SPI1_MISO
+#set_pin_assignment {SPI1_MOSI} { LOCATION = C12; } ##SPI1_MOSI
+#set_pin_assignment {SPI1_SCK} { LOCATION = C14; } ##SPI1_SCK
+#set_pin_assignment {SPI1_NSS} { LOCATION = A15; } ##SPI1_NSS
+
+#set_pin_assignment {SPI2_MISO} { LOCATION = L12; } ##SPI2_MISO
+#set_pin_assignment {SPI2_MOSI} { LOCATION = J11; } ##SPI2_MOSI
+#set_pin_assignment {SPI2_SCK} { LOCATION = P7; } ##SPI2_SCK
+#set_pin_assignment {SPI2_NSS} { LOCATION = K11; } ##SPI2_NSS
+
+set_pin_assignment {NOR_IO[3]} { LOCATION = L8; } ##NOR_IO3
+set_pin_assignment {NOR_IO[2]} { LOCATION = L7; } ##NOR_IO2
+set_pin_assignment {NOR_IO[1]} { LOCATION = P10; } ##NOR_IO1/MISO
+set_pin_assignment {NOR_IO[0]} { LOCATION = T10; } ##NOR_IO0/MOSI
+set_pin_assignment {NOR_CLK} { LOCATION = R11; } ##NOR_CLK
+set_pin_assignment {NOR_CS} { LOCATION = T3; } ##NOR_CS
+
+#set_pin_assignment {NAND_IO[3]} { LOCATION = B1; } ##NAND_IO3
+#set_pin_assignment {NAND_IO[2]} { LOCATION = F5; } ##NAND_IO2
+#set_pin_assignment {NAND_IO[1]} { LOCATION = F4; } ##NAND_IO1
+#set_pin_assignment {NAND_IO[0]} { LOCATION = B3; } ##NAND_IO0
+#set_pin_assignment {NAND_CLK} { LOCATION = H4; } ##NAND_CLK
+#set_pin_assignment {NAND_CS} { LOCATION = D3; } ##NAND_CS
