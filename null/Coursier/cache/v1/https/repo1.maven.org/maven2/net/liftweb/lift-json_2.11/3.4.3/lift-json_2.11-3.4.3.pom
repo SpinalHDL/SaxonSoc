@@ -1,0 +1,242 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>net.liftweb</groupId>
+    <artifactId>lift-json_2.11</artifactId>
+    <packaging>jar</packaging>
+    <description>JSON Library</description>
+    <url>http://www.liftweb.net</url>
+    <version>3.4.3</version>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <name>lift-json</name>
+    <inceptionYear>2006</inceptionYear>
+    <organization>
+        <name>WorldWide Conferencing, LLC</name>
+        <url>http://www.liftweb.net</url>
+    </organization>
+    <scm>
+        <url>https://github.com/lift/framework</url>
+        <connection>scm:git:https://github.com/lift/framework.git</connection>
+    </scm>
+    <developers>
+        <developer>
+            <id>vdichev</id>
+            <name>Vassil Dichev</name>
+            <url>http://github.com/vdichev</url>
+        </developer>
+        <developer>
+            <id>max-l</id>
+            <name>Maxime Lévesque</name>
+            <url>http://github.com/max-l</url>
+        </developer>
+        <developer>
+            <id>hoffrocket</id>
+            <name>Jon Hoffman</name>
+            <url>http://github.com/hoffrocket</url>
+        </developer>
+        <developer>
+            <id>indrajitr</id>
+            <name>Indrajit Raychaudhuri</name>
+            <url>http://github.com/indrajitr</url>
+        </developer>
+        <developer>
+            <id>mads379</id>
+            <name>Mads Hartmann Jensen</name>
+            <url>http://github.com/mads379</url>
+        </developer>
+        <developer>
+            <id>jeppenejsum</id>
+            <name>Jeppe Nejsum Madsen</name>
+            <url>http://github.com/jeppenejsum</url>
+        </developer>
+        <developer>
+            <id>dpp</id>
+            <name>David Pollak</name>
+            <url>http://github.com/dpp</url>
+        </developer>
+        <developer>
+            <id>davidB</id>
+            <name>David Bernard</name>
+            <url>http://github.com/davidB</url>
+        </developer>
+        <developer>
+            <id>harryh</id>
+            <name>Harry Heymann</name>
+            <url>http://github.com/harryh</url>
+        </developer>
+        <developer>
+            <id>nafg</id>
+            <name>Naftoli Gugenheim</name>
+            <url>http://github.com/nafg</url>
+        </developer>
+        <developer>
+            <id>pr1001</id>
+            <name>Peter Robinett</name>
+            <url>http://github.com/pr1001</url>
+        </developer>
+        <developer>
+            <id>jorgeortiz85</id>
+            <name>Jorge Ortiz</name>
+            <url>http://github.com/jorgeortiz85</url>
+        </developer>
+        <developer>
+            <id>eltimn</id>
+            <name>Tim Nelson</name>
+            <url>http://github.com/eltimn</url>
+        </developer>
+        <developer>
+            <id>Dridus</id>
+            <name>Ross Mellgren</name>
+            <url>http://github.com/Dridus</url>
+        </developer>
+        <developer>
+            <id>tuhlmann</id>
+            <name>Torsten Uhlmann</name>
+            <url>http://github.com/tuhlmann</url>
+        </developer>
+        <developer>
+            <id>andreak</id>
+            <name>Andreas Joseph Krogh</name>
+            <url>http://github.com/andreak</url>
+        </developer>
+        <developer>
+            <id>jgoday</id>
+            <name>Javier Goday</name>
+            <url>http://github.com/jgoday</url>
+        </developer>
+        <developer>
+            <id>fmpwizard</id>
+            <name>Diego Medina</name>
+            <url>http://github.com/fmpwizard</url>
+        </developer>
+        <developer>
+            <id>dchenbecker</id>
+            <name>Derek Chen-Becker</name>
+            <url>http://github.com/dchenbecker</url>
+        </developer>
+        <developer>
+            <id>timperrett</id>
+            <name>Timothy Perrett</name>
+            <url>http://github.com/timperrett</url>
+        </developer>
+        <developer>
+            <id>dcbriccetti</id>
+            <name>Dave Briccetti</name>
+            <url>http://github.com/dcbriccetti</url>
+        </developer>
+        <developer>
+            <id>bwmcadams</id>
+            <name>Brendan W. McAdams</name>
+            <url>http://github.com/bwmcadams</url>
+        </developer>
+        <developer>
+            <id>davewhittaker</id>
+            <name>Dave Whittaker</name>
+            <url>http://github.com/davewhittaker</url>
+        </developer>
+        <developer>
+            <id>chenkelmann</id>
+            <name>Christoph Henkelmann</name>
+            <url>http://github.com/chenkelmann</url>
+        </developer>
+        <developer>
+            <id>jonifreeman</id>
+            <name>Joni Freeman</name>
+            <url>http://github.com/jonifreeman</url>
+        </developer>
+        <developer>
+            <id>dlouwers</id>
+            <name>Dirk Louwers</name>
+            <url>http://github.com/dlouwers</url>
+        </developer>
+        <developer>
+            <id>rusho</id>
+            <name>Ján Raška</name>
+            <url>http://github.com/rusho</url>
+        </developer>
+        <developer>
+            <id>fbettag</id>
+            <name>Franz Bettag</name>
+            <url>http://github.com/fbettag</url>
+        </developer>
+        <developer>
+            <id>lkuczera</id>
+            <name>Łukasz Kuczera</name>
+            <url>http://github.com/lkuczera</url>
+        </developer>
+        <developer>
+            <id>tjweir</id>
+            <name>Tyler Weir</name>
+            <url>http://github.com/tjweir</url>
+        </developer>
+        <developer>
+            <id>mariusdanciu</id>
+            <name>Marius Danciu</name>
+            <url>http://github.com/mariusdanciu</url>
+        </developer>
+    </developers>
+    <dependencies>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>2.11.12</version>
+        </dependency>
+        <dependency>
+            <groupId>org.specs2</groupId>
+            <artifactId>specs2-core_2.11</artifactId>
+            <version>4.9.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.specs2</groupId>
+            <artifactId>specs2-matcher-extra_2.11</artifactId>
+            <version>4.9.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.specs2</groupId>
+            <artifactId>specs2-mock_2.11</artifactId>
+            <version>4.9.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.specs2</groupId>
+            <artifactId>specs2-scalacheck_2.11</artifactId>
+            <version>4.9.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scalactic</groupId>
+            <artifactId>scalactic_2.11</artifactId>
+            <version>3.1.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_2.11</artifactId>
+            <version>3.1.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scalap</artifactId>
+            <version>2.11.12</version>
+        </dependency>
+        <dependency>
+            <groupId>com.thoughtworks.paranamer</groupId>
+            <artifactId>paranamer</artifactId>
+            <version>2.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.scala-lang.modules</groupId>
+            <artifactId>scala-xml_2.11</artifactId>
+            <version>1.3.0</version>
+        </dependency>
+    </dependencies>
+</project>

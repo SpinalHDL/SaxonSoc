@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.scalameta</groupId>
+    <artifactId>sbt-scalafmt</artifactId>
+    <packaging>jar</packaging>
+    <description>plugin</description>
+    <url>https://github.com/scalameta/sbt-scalafmt</url>
+    <version>2.4.3</version>
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <name>plugin</name>
+    <organization>
+        <name>org.scalameta</name>
+        <url>https://github.com/scalameta/sbt-scalafmt</url>
+    </organization>
+    <scm>
+        <url>https://github.com/scalameta/sbt-scalafmt</url>
+        <connection>scm:git:https://github.com/scalameta/sbt-scalafmt.git</connection>
+        <developerConnection>scm:git:git@github.com:scalameta/sbt-scalafmt.git</developerConnection>
+    </scm>
+    <developers>
+        <developer>
+            <id>poslegm</id>
+            <name>Mikhail Chugunkov</name>
+            <email>poslegm@gmail.com</email>
+            <url>https://chugunkov.website/</url>
+        </developer>
+        <developer>
+            <id>olafurpg</id>
+            <name>Ólafur Páll Geirsson</name>
+            <email>olafurpg@gmail.com</email>
+            <url>https://geirsson.com</url>
+        </developer>
+        <developer>
+            <id>tanishiking</id>
+            <name>Rikito Taniguchi</name>
+            <email>rikiriki1238@gmail.com</email>
+            <url>https://github.com/tanishiking/</url>
+        </developer>
+    </developers>
+    <properties>
+        <scalaVersion>2.12</scalaVersion>
+        <sbtVersion>1.0</sbtVersion>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>2.12.14</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scala-sbt</groupId>
+            <artifactId>sbt</artifactId>
+            <version>1.2.8</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scalameta</groupId>
+            <artifactId>scalafmt-dynamic_2.12</artifactId>
+            <version>2.7.5</version>
+        </dependency>
+    </dependencies>
+</project>
