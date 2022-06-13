@@ -110,7 +110,7 @@ object BspGenerator {
 
         for(c <- viewConnections){
           val connectionAddress = address + c.address
-          connectionExplorer(c.output, connectionAddress, c.mapping, addressLastRec, innerTab)
+          connectionExplorer(c.output, connectionAddress, if(c.mapping != null) c.mapping else null, addressLastRec, innerTab)
         }
         if(simpleBusOption.isDefined) dtsWriter.println(s"\n$tab};")
       } else {
