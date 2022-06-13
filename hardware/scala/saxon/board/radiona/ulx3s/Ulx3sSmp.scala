@@ -477,7 +477,7 @@ object Ulx3sSmp {
     else println("USB device not included")
 
     val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sSmp(cpuCount, includeFpu, includeUsbHost, includeUsbDevice), sdramSize, includeFpu)))
-    BspGenerator("radiona/ulx3s/smp", report.toplevel, report.toplevel.system.cores(0).dBus)
+    BspGenerator("bsp/radiona/ulx3s/smp", report.toplevel, report.toplevel.system.cores(0).dBus)
   }
 }
 
