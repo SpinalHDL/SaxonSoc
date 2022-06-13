@@ -95,7 +95,7 @@ object Ulx3sMinimal extends App{
 
   //Generate the SoC
   val report = SpinalRtlConfig.generateVerilog(InOutWrapper(default(new Ulx3sMinimal())))
-  BspGenerator("radiona/ulx3s/minimal", report.toplevel, report.toplevel.system.cpu.dBus)
+  BspGenerator("bsp/radiona/ulx3s/minimal", report.toplevel, report.toplevel.system.cpu.dBus)
 }
 
 
