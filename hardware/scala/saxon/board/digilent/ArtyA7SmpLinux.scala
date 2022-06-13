@@ -524,7 +524,7 @@ object ArtyA7SmpLinux {
          }
 
        }}))
-    BspGenerator("digilent/ArtyA7SmpLinux", report.toplevel, report.toplevel.system.cores(0).dBus)
+    BspGenerator("bsp/digilent/ArtyA7SmpLinux", report.toplevel, report.toplevel.system.cores(0).dBus)
   }
 }
 
