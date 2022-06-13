@@ -584,6 +584,7 @@ object VexRiscvConfigs {
       )
     )
 
+    
     def minimalWithCsr = {
       val c = minimal
       c.plugins += new CsrPlugin(new CsrPluginConfig(
@@ -611,6 +612,58 @@ object VexRiscvConfigs {
       c
     }
  
+    
+    def minimalWithCodeCompressAndMult (resetVector : BigInt = 0x8000L) = VexRiscvConfig(
+      withMemoryStage = true,
+      withWriteBackStage = true,
+      List(
+        new IBusSimplePlugin(
+          resetVector = resetVector,
+          compressedGen = true,
+          cmdForkOnSecondStage = false,
+          cmdForkPersistence = true
+        ),
+        new DBusSimplePlugin(
+          catchAddressMisaligned = false,
+          catchAccessFault = false
+        ),
+        new DecoderSimplePlugin(
+          catchIllegalInstruction = false
+        ),
+        new RegFilePlugin(
+          regFileReadyKind = plugin.SYNC,
+          zeroBoot = true,
+          x0Init = false,
+          readInExecute = false,
+          syncUpdateOnStall = true
+        ),
+        new IntAluPlugin,
+        new SrcPlugin(
+          separatedAddSub = false,
+          executeInsertion = false,
+          decodeAddSub = false
+        ),
+        //      new LightShifterPlugin(),
+        new FullBarrelShifterPlugin(earlyInjection = false),
+        new BranchPlugin(
+          earlyBranch = false,
+          catchAddressMisaligned = false,
+          fenceiGenAsAJump = true
+        ),
+        new HazardSimplePlugin(
+          bypassExecute = true,
+          bypassMemory = true,
+          bypassWriteBack = true,
+          bypassWriteBackBuffer = true
+        ),
+        new MulPlugin,
+        new MulDivIterativePlugin(
+          genMul = false
+        ),
+        new YamlPlugin("cpu0.yaml")
+      )
+    )
+    
     def muraxLike = VexRiscvConfig(
       withMemoryStage = true,
       withWriteBackStage = true,
