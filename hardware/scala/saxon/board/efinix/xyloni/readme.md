@@ -26,8 +26,12 @@
 - Build and generate the verilog hdl files
 - Build the VexRiscV application as you did before for Opal SoC.
 - Use the generated verilog and on chip RAM init files to get the bitstrean with Efinity and download using JTAG as you did for the Opal SoC
-- 
-_Here is a video of the walk through_
+
+### Walk-through video
+https://user-images.githubusercontent.com/26599790/173418505-982c1bbf-cf92-4569-ad3f-5bf9f264dbe6.mp4
+
+
+[See Full video on Youtube](https://youtu.be/1He6hJiiHUY)
 
 
 Ravi Ganesh
