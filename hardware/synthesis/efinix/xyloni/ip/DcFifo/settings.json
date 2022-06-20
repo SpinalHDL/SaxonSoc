@@ -1,0 +1,44 @@
+{
+    "args": [
+        "-o",
+        "DcFifo",
+        "--base_path",
+        "D:\\t_tmp\\saxonSoc\\hardware\\synthesis\\efinix\\xyloni\\ip",
+        "--vlnv",
+        {
+            "vendor": "efinixinc.com",
+            "library": "memory",
+            "name": "efx_fifo_top",
+            "version": "1.0"
+        }
+    ],
+    "conf": {
+        "SYNC_CLK": "0",
+        "SYNC_STAGE": "2",
+        "DEPTH": "10",
+        "DATA_WIDTH": "16",
+        "MODE": "0",
+        "OUTPUT_REG": "0",
+        "PROG_FULL_ASSERT": "769",
+        "PROGRAMMABLE_FULL": "1",
+        "PROG_FULL_NEGATE": "129",
+        "PROG_EMPTY_ASSERT": "255",
+        "PROG_EMPTY_NEGATE": "3",
+        "PROGRAMMABLE_EMPTY": "1",
+        "OPTIONAL_FLAGS": "0",
+        "PIPELINE_REG": "0",
+        "DEVICE_FAMILY": "0",
+        "ASYM_WIDTH_RATIO": "4",
+        "BYPASS_RESET_SYNC": "0"
+    },
+    "output": {
+        "external_source": [
+            "D:\\t_tmp\\saxonSoc\\hardware\\synthesis\\efinix\\xyloni\\ip\\DcFifo\\DcFifo.v",
+            "D:\\t_tmp\\saxonSoc\\hardware\\synthesis\\efinix\\xyloni\\ip\\DcFifo\\DcFifo_tmpl.vhd",
+            "D:\\t_tmp\\saxonSoc\\hardware\\synthesis\\efinix\\xyloni\\ip\\DcFifo\\DcFifo_define.vh",
+            "D:\\t_tmp\\saxonSoc\\hardware\\synthesis\\efinix\\xyloni\\ip\\DcFifo\\DcFifo_tmpl.v"
+        ]
+    },
+    "sw_version": "2021.2.323",
+    "generated_date": "2022-06-11T17:43:55.845207"
+}

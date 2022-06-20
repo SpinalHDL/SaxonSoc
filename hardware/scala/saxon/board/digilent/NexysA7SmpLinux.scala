@@ -375,7 +375,7 @@ object NexysA7SmpLinux {
         inlineRom = true
       ).addStandardMemBlackboxing(blackboxByteEnables)
        .generateVerilog(InOutWrapper(default(new NexysA7SmpLinux(2))))
-    BspGenerator("digilent/NexysA7SmpLinux", report.toplevel, report.toplevel.system.cores(0).dBus)
+    BspGenerator("bsp/digilent/NexysA7SmpLinux", report.toplevel, report.toplevel.system.cores(0).dBus)
   }
 }
 
