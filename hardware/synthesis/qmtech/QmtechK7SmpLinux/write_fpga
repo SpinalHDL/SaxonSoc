@@ -1,0 +1,4 @@
+#!/bin/sh
+cd ./build
+#vivado -mode batch -source ../write_fpga.tcl -notrace
+vivado -mode batch -source ../vivado_script.tcl -tclargs "--program"
