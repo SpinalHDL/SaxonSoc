@@ -1,7 +1,7 @@
 ## Hardware
 
 - Qmtech Kintex-7 Starter Kit
-- VGA 16-bit (R5G6B6)
+- VGA 16-bit (R5G6B5)
 - Audio Out Jack
 - HDMI via ADV7513 IC
 - Optional SDCARD
