@@ -8,6 +8,7 @@ import spinal.lib.bus.misc.SizeMapping
 import spinal.lib.com.jtag.{JtagInstructionDebuggerGenerator, JtagTapDebuggerGenerator}
 import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
 import spinal.lib.com.jtag.altera.VJtag2BmbMasterGenerator
+import spinal.lib.cpu.riscv.debug.{DebugModule, DebugModuleParameter, DebugTransportModuleJtagTap, DebugTransportModuleParameter, DebugTransportModuleTunneled}
 import spinal.lib.generator._
 import spinal.lib.misc.plic.PlicMapping
 import vexriscv.VexRiscvBmbGenerator
@@ -73,6 +74,74 @@ class VexRiscvClusterGenerator(cpuCount : Int, withSupervisor : Boolean = true, 
     }
 
     if(withOutOfOrderDecoder) interconnect.masters(dBus.bmb).withOutOfOrderDecoder()
+  }
+
+  /*Example of usage
+    val riscvJtag = new Area {
+      val debug = withRiscvDebug(debugCd.outputClockDomain, debugResetCd)
+      val soft = withSoftJtag generate new Area{
+        val tap = debug.dmiDirect()
+        val io = Handle(tap.tap.io.jtag.toIo)
+      }
+      val hard = !withSoftJtag generate new Area{
+        val jtagCd = Handle[ClockDomain]
+        val noTap = debug.noTap(jtagCd)
+        val jtagCtrl = Handle(noTap.tunnel.io.instruction.toIo)
+        val jtagCtrl_tck = Handle(in(Bool()))
+        jtagCd.loadAsync(ClockDomain(jtagCtrl_tck))
+      }
+    }
+   */
+  def withRiscvDebug(debugCd : Handle[ClockDomain], systemCd : ClockDomainResetGenerator) = new Area{
+    for ((cpu,i) <- cores.zipWithIndex) {
+      cores(i).enableRiscvDebug(debugCd, systemCd)
+    }
+
+    val systemReset = Handle(Bool())
+    systemCd.asyncReset(systemReset, ResetSensitivity.HIGH)
+
+    val p = DebugTransportModuleParameter(
+      addressWidth = 7,
+      version      = 1,
+      idle         = 7
+    )
+
+    val logic = hardFork(debugCd on new Area{
+      val XLEN = 32
+
+      val dm = DebugModule(
+        DebugModuleParameter(
+          version = p.version + 1,
+          harts = cpuCount,
+          progBufSize = 2,
+          datacount   = XLEN/32,
+          xlens = List(XLEN)
+        )
+      )
+      systemReset := dm.io.ndmreset
+      for ((cpu,i) <- cores.zipWithIndex) {
+        val privBus = cpu.debugRiscv
+        privBus <> dm.io.harts(i)
+        privBus.dmToHart.removeAssignments() <-< dm.io.harts(i).dmToHart
+      }
+    })
+
+    def dmiDirect() = hardFork(debugCd on new Area{
+      val tap = DebugTransportModuleJtagTap(
+        p.copy(addressWidth = 7),
+        debugCd = ClockDomain.current
+      )
+      logic.dm.io.ctrl <> tap.io.bus
+    })
+
+    def noTap(noTapCd : Handle[ClockDomain]) = hardFork(debugCd on new Area{
+      val tunnel = DebugTransportModuleTunneled(
+        p       = p,
+        jtagCd  = noTapCd,
+        debugCd = ClockDomain.current
+      )
+      logic.dm.io.ctrl <> tunnel.io.bus
+    })
   }
 
   // Utility to create the debug fabric usable by JTAG
