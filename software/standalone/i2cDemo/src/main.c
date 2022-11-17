@@ -65,11 +65,12 @@ void assert(int cond){
     }
 }
 
-uint32_t phase = 0;
+volatile uint32_t phase = 0;
 void main() {
     init();
 
     // I2C write blocking 0x42 -> [0x95 0x64]
+    bsp_putString("Test 1\n");
     i2c_masterStartBlocking(I2C_CTRL);
     i2c_txByte(I2C_CTRL, 0x42);
     i2c_txNackBlocking(I2C_CTRL);
@@ -83,6 +84,7 @@ void main() {
     i2c_masterStopBlocking(I2C_CTRL);
 
     // I2C read blocking 0x86 -> [0xA8 0xE4]
+    bsp_putString("Test 2\n");
     i2c_masterStartBlocking(I2C_CTRL);
     i2c_txByte(I2C_CTRL, 0x86);
     i2c_txNackBlocking(I2C_CTRL);
@@ -99,29 +101,34 @@ void main() {
 
 
 
+    bsp_putString("Test 3\n");
     // I2C write blocking on 0xEE to ask the simulation model to send us two frame which will be handled by the interrupts (0x61, 0x60)
     i2c_masterStartBlocking(I2C_CTRL);
     i2c_txByte(I2C_CTRL, 0xEE);
     i2c_txNackBlocking(I2C_CTRL);
     assert(i2c_rxAck(I2C_CTRL)); // Optional check
     i2c_masterStopBlocking(I2C_CTRL);
+    bsp_putString("Test 3 Done\n");
 
 
     while(phase == 0); //Blocking wait before continueing the demo
 
     // I2C master frame managed in interrupts (0x42)
+    bsp_putString("Test 4\n");
     i2c_enableInterrupt(I2C_CTRL, I2C_INTERRUPT_CLOCK_GEN_BUSY);
     i2c_masterStart(I2C_CTRL);
 
     while(phase == 1); //Blocking wait before continueing the demo
 
     // I2C master frame managed in interrupts (0x42)
+    bsp_putString("Test 5\n");
     i2c_enableInterrupt(I2C_CTRL, I2C_INTERRUPT_CLOCK_GEN_BUSY);
     i2c_masterStart(I2C_CTRL);
 
     while(phase == 2); //Blocking wait before continueing the demo
 
-    uart_writeStr(BSP_UART_TERMINAL, "Done\n");
+
+    bsp_putString("Done\n");
 
 }
 
@@ -176,17 +183,17 @@ enum {
 
 //I2C_CTRL handler to manage master/slave frames
 void externalInterrupt_i2c(){
-    if(gpio_getInterruptFlag(I2C_CTRL) & I2C_INTERRUPT_DROP){ //Frame drop detected
+    if(i2c_getInterruptFlag(I2C_CTRL) & I2C_INTERRUPT_DROP){ //Frame drop detected
         state = IDLE;
         i2c_disableInterrupt(I2C_CTRL, I2C_INTERRUPT_CLOCK_GEN_BUSY | I2C_INTERRUPT_TX_ACK | I2C_INTERRUPT_TX_DATA);
-        if(gpio_getMasterStatus(I2C_CTRL) & I2C_MASTER_BUSY) i2c_masterDrop(I2C_CTRL);
+        if(i2c_getMasterStatus(I2C_CTRL) & I2C_MASTER_BUSY) i2c_masterDrop(I2C_CTRL);
         return;
     }
 
     switch(state){
     case IDLE:
-        if(gpio_getFilteringHit(I2C_CTRL) == 1){ //I2C filter 0 hit => frame for us
-            if(gpio_getFilteringStatus(I2C_CTRL) == 1){ //read (0x61)
+        if(i2c_getFilteringHit(I2C_CTRL) == 1){ //I2C filter 0 hit => frame for us
+            if(i2c_getFilteringStatus(I2C_CTRL) == 1){ //read (0x61)
                 i2c_txAck(I2C_CTRL);
                 i2c_txByte(I2C_CTRL, 0x9A);
                 i2c_enableInterrupt(I2C_CTRL, I2C_INTERRUPT_TX_DATA); //Interrupt when the tx data buffer is empty again
@@ -198,7 +205,7 @@ void externalInterrupt_i2c(){
                 state = x60_DATA_2;
             }
             i2c_clearInterruptFlag(I2C_CTRL, I2C_INTERRUPT_FILTER);
-        } else if(gpio_getInterruptFlag(I2C_CTRL) & I2C_INTERRUPT_CLOCK_GEN_BUSY){ //We sucessfuly emited a i2C START sequance
+        } else if(i2c_getInterruptFlag(I2C_CTRL) & I2C_INTERRUPT_CLOCK_GEN_BUSY){ //We sucessfuly emited a i2C START sequance
             //Write the address
             i2c_txByte(I2C_CTRL, 0x42);
             i2c_txNack(I2C_CTRL);

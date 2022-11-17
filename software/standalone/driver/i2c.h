@@ -62,6 +62,13 @@ typedef struct {
 #define I2C_INTERRUPT_CLOCK_GEN_BUSY (1 << 16)
 #define I2C_INTERRUPT_FILTER (1 << 17)
 
+
+readReg_u32 (i2c_getInterruptFlag   , I2C_INTERRUPT_FLAG)
+readReg_u32 (i2c_getMasterStatus    , I2C_MASTER_STATUS)
+readReg_u32 (i2c_getFilteringHit    , I2C_FILTERING_HIT)
+readReg_u32 (i2c_getFilteringStatus , I2C_FILTERING_STATUS)
+
+
 static void i2c_applyConfig(u32 reg, I2c_Config *config){
     write_u32(config->samplingClockDivider, reg + I2C_SAMPLING_CLOCK_DIVIDER);
     write_u32(config->timeout, reg + I2C_TIMEOUT);
@@ -82,6 +89,9 @@ static inline void i2c_masterStart(u32 reg){
     write_u32(I2C_MASTER_START, reg + I2C_MASTER_STATUS);
 }
 
+static inline void i2c_masterRestart(u32 reg){
+    i2c_masterStart(reg);
+}
 
 static int i2c_masterBusy(u32 reg){
     return (read_u32(reg + I2C_MASTER_STATUS) & I2C_MASTER_BUSY) != 0;
@@ -89,7 +99,10 @@ static int i2c_masterBusy(u32 reg){
 
 static void i2c_masterStartBlocking(u32 reg){
     i2c_masterStart(reg);
-    while(!i2c_masterBusy(reg));
+    while(i2c_getMasterStatus(reg) & I2C_MASTER_START);
+}
+static void i2c_masterRestartBlocking(u32 reg){
+    i2c_masterStartBlocking(reg);
 }
 static inline void i2c_masterStop(u32 reg){
     write_u32(I2C_MASTER_STOP, reg + I2C_MASTER_STATUS);
@@ -171,15 +184,9 @@ static void i2c_disableInterrupt(u32 reg, u32 value){
     write_u32(~value & read_u32(reg + I2C_INTERRUPT_ENABLE), reg + I2C_INTERRUPT_ENABLE);
 }
 
-
 static inline void i2c_clearInterruptFlag(u32 reg, u32 value){
     write_u32(value, reg + I2C_INTERRUPT_FLAG);
 }
-
-readReg_u32 (gpio_getInterruptFlag   , I2C_INTERRUPT_FLAG)
-readReg_u32 (gpio_getMasterStatus    , I2C_MASTER_STATUS)
-readReg_u32 (gpio_getFilteringHit    , I2C_FILTERING_HIT)
-readReg_u32 (gpio_getFilteringStatus , I2C_FILTERING_STATUS)
 
 
 
