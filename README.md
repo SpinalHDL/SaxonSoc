@@ -127,7 +127,7 @@ BMB is composed of streams to carry transaction between a source and a sink. A s
 | payload | Source => Sink | transaction content                                                          |
 | ready   | Source <= Sink | consume the transaction on the bus, don't care if there is no transaction    |
 
-More details on https://spinalhdl.github.io/SpinalDoc-RTD/SpinalHDL/Libraries/stream.html
+More details on [https://spinalhdl.github.io/SpinalDoc-RTD/SpinalHDL/Libraries/stream.html](https://spinalhdl.github.io/SpinalDoc-RTD/master/SpinalHDL/Libraries/stream.html)
 
 BMB is composed of two mandatory streams :
 - cmd : M->S, to carry requests, (read, write + data)
