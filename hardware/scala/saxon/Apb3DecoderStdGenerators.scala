@@ -192,12 +192,13 @@ case class Apb3PlicGenerator(apbOffset : Handle[BigInt] = Unset) (implicit decod
     val apb = Apb3(apbConfig)
     val bus = Apb3SlaveFactory(apb)
 
-    val targets = targetsModel.map(flag =>
+    val targets = targetsModel.zipWithIndex.map { case (flag, id) =>
       PlicTarget(
+        id = id,
         gateways = gateways.map(_.get),
         priorityWidth = priorityWidth
       ).setCompositeName(flag, "plic_target")
-    )
+    }
 
 //    gateways.foreach(_.priority := 1)
 //    targets.foreach(_.threshold := 0)

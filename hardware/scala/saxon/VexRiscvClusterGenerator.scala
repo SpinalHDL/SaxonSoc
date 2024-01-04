@@ -8,7 +8,7 @@ import spinal.lib.bus.misc.SizeMapping
 import spinal.lib.com.jtag.{JtagInstructionDebuggerGenerator, JtagTapDebuggerGenerator}
 import spinal.lib.com.jtag.xilinx.Bscane2BmbMasterGenerator
 import spinal.lib.com.jtag.altera.VJtag2BmbMasterGenerator
-import spinal.lib.cpu.riscv.debug.{DebugModule, DebugModuleParameter, DebugTransportModuleJtagTap, DebugTransportModuleParameter, DebugTransportModuleTunneled}
+import spinal.lib.cpu.riscv.debug.{DebugModule, DebugModuleCpuConfig, DebugModuleParameter, DebugTransportModuleJtagTap, DebugTransportModuleParameter, DebugTransportModuleTunneled}
 import spinal.lib.generator._
 import spinal.lib.misc.plic.PlicMapping
 import vexriscv.VexRiscvBmbGenerator
@@ -115,7 +115,11 @@ class VexRiscvClusterGenerator(cpuCount : Int, withSupervisor : Boolean = true, 
           harts = cpuCount,
           progBufSize = 2,
           datacount   = XLEN/32,
-          xlens = List(XLEN)
+          hartsConfig = cores.map(c => DebugModuleCpuConfig(
+            xlen = XLEN,
+            flen = c.config.get.FLEN,
+            withFpuRegAccess = c.config.get.FLEN == 64
+          ))
         )
       )
       systemReset := dm.io.ndmreset

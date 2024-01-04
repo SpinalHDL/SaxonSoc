@@ -587,6 +587,7 @@ object ArtyA7SmpLinuxSystemSim {
   import spinal.core.sim._
 
   def main(args: Array[String]): Unit = {
+    Handle.loadHandleAsync = true
 
     case class Config(trace : Boolean, bin : String)
     val parser = new scopt.OptionParser[Config]("SpinalCore") {
@@ -830,8 +831,8 @@ object ArtyA7SmpLinuxSystemSim {
 
       val images = "../buildroot-build/images/"
 
-      dut.top.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
-      dut.top.phy.logic.loadBin(0x00E00000, images + "u-boot.bin")
+//      dut.top.phy.logic.loadBin(0x00F80000, images + "fw_jump.bin")
+//      dut.top.phy.logic.loadBin(0x00E00000, images + "u-boot.bin")
 //      dut.top.phy.logic.loadBin(0x00000000, images + "Image")
 //      dut.top.phy.logic.loadBin(0x00FF0000, images + "linux.dtb")
 //      dut.top.phy.logic.loadBin(0x00FFFFC0, images + "rootfs.cpio.uboot")
@@ -842,10 +843,10 @@ object ArtyA7SmpLinuxSystemSim {
 
 //        dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/fpu/build/fpu.bin")
 //      dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/test/aes/build/aes.bin")
-      //dut.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
+      dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/dhrystone/build/dhrystone.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/timerAndGpioInterruptDemo/build/timerAndGpioInterruptDemo_spinal_sim.bin")
 //      dut.phy.logic.loadBin(0x00F80000, "software/standalone/freertosDemo/build/freertosDemo_spinal_sim.bin")
-      dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/mmcmeConfig/build/mmcmeConfig.bin")
+//      dut.top.phy.logic.loadBin(0x00F80000, "software/standalone/mmcmeConfig/build/mmcmeConfig.bin")
       println("DRAM loading done")
     }
   }

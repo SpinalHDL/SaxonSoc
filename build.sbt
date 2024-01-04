@@ -12,7 +12,8 @@ lazy val root = (project in file(".")).
 
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.5",
-      "org.yaml" % "snakeyaml" % "1.8"
+      "org.yaml" % "snakeyaml" % "1.8",
+      "org.scalactic" %% "scalactic" % "3.2.10"
     ),
     name := "SaxonSoc",
     scalaSource in Compile := baseDirectory.value / "hardware" / "scala",
