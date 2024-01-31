@@ -51,7 +51,8 @@ object BspGenerator {
 //      val gName = camelToUpperCase(g.getName())
 
       def rec(prefix : String, value : Any): Unit = value match {
-        case value : Int => headerWriter.println(s"#define ${prefix} $value")
+        case value: Int => headerWriter.println(s"#define ${prefix} $value")
+        case value: BigInt => headerWriter.println(f"#define ${prefix} 0x${value}%x")
         case value : FixedFrequency => headerWriter.println(s"#define ${prefix} ${value.getValue.toBigDecimal.toBigInt.toString(10)}")
         case value : Boolean => headerWriter.println(s"#define ${prefix} ${if(value) 1 else 0}")
         case value : SpinalEnumElement[_] =>  headerWriter.println(s"#define ${prefix} $value")
