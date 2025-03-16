@@ -93,11 +93,12 @@ The needs I had :
 
 Why not adopting a existing memory bus :
 
-- AXI4 and Tilelink memory ordering has overhead for cacheless CPU designs
+- AXI4 memory ordering has overhead for cacheless CPU designs
 - AXI4 do not fit cacheless design as the AW W channels split add overhead to the interconnect
-- TileLink isn't FPGA friendly, as its rely on tracking each transaction (unique source identifier)
-- Nor AXI4, Tilelink, Wishbone, Avalon provide the features required for state-less adapters
+- Nor AXI4, Wishbone, Avalon provide the features required for state-less adapters
 - With the SaxonSoc out of order elaboration, there was a quite some room for experimentation and automation
+
+Note that Tilelink isn't that bad after all. It has some quite interresting properties and avoid all the AXI bloat. While its out of order nature can seems challenging, it relax a lot of otherwise hard to implement things in the interconnect / L2 caches / memory slaves.
 
 ### Key features
 
